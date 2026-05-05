@@ -3,23 +3,63 @@ import { supabase } from '../supabase'
 
 function Estoque() {
   const [produtos, setProdutos] = useState([])
+  const [busca, setBusca] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState('')
 
-  useEffect(() => {
-    carregarProdutos()
-  }, [])
+  useEffect(() => { carregarProdutos() }, [])
 
   async function carregarProdutos() {
     const { data } = await supabase.from('produtos').select('*').order('nome')
     if (data) setProdutos(data)
   }
 
+  const produtosFiltrados = produtos.filter(p => {
+    const termoBusca = busca.toLowerCase()
+    const buscaOk = p.nome.toLowerCase().includes(termoBusca) || p.codigo.includes(busca)
+    const categoriaOk = !filtroCategoria || p.categoria === filtroCategoria
+    return buscaOk && categoriaOk
+  })
+
+  const totalEstoque = produtosFiltrados.reduce((acc, p) => acc + (p.estoque * parseFloat(p.preco_venda)), 0)
+  const categorias = [...new Set(produtos.map(p => p.categoria))].sort()
+
+  const campo = { padding:'8px 12px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'14px' }
+
   return (
     <div>
       <h2>Estoque</h2>
-      <div style={{background:'white', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.1)', overflow:'hidden'}}>
+
+      {/* Barra de busca e filtros */}
+      <div style={{background:'white', padding:'16px 24px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', display:'flex', gap:'16px', alignItems:'center', flexWrap:'wrap'}}>
+        <div style={{flex:1, minWidth:'200px'}}>
+          <input
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            placeholder="🔍 Buscar por nome ou código..."
+            style={{...campo, width:'100%'}}
+          />
+        </div>
+        <div>
+          <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={campo}>
+            <option value="">Todas as categorias</option>
+            {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <button onClick={() => { setBusca(''); setFiltroCategoria('') }} style={{background:'#eee', border:'none', padding:'8px 16px', borderRadius:'6px', cursor:'pointer'}}>
+            Limpar
+          </button>
+        </div>
+        <div style={{marginLeft:'auto', fontSize:'14px', color:'#666'}}>
+          {produtosFiltrados.length} produto(s) | Total em estoque: <strong style={{color:'#1a6b5a'}}>R$ {totalEstoque.toFixed(2)}</strong>
+        </div>
+      </div>
+
+      {/* Tabela de estoque */}
+      <div style={{background:'white', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', overflow:'hidden'}}>
         <table style={{width:'100%', borderCollapse:'collapse'}}>
           <thead>
-            <tr style={{background:'#1a1a2e', color:'white'}}>
+            <tr style={{background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white'}}>
               <th style={{padding:'14px 16px', textAlign:'left'}}>Código</th>
               <th style={{padding:'14px 16px', textAlign:'left'}}>Produto</th>
               <th style={{padding:'14px 16px', textAlign:'left'}}>Categoria</th>
@@ -29,13 +69,17 @@ function Estoque() {
             </tr>
           </thead>
           <tbody>
-            {produtos.map((p, i) => (
+            {produtosFiltrados.map((p, i) => (
               <tr key={p.id} style={{background: i % 2 === 0 ? '#fff' : '#f9f9f9', borderBottom:'1px solid #eee'}}>
-                <td style={{padding:'12px 16px'}}>{p.codigo}</td>
+                <td style={{padding:'12px 16px', fontSize:'13px', color:'#666'}}>{p.codigo}</td>
                 <td style={{padding:'12px 16px'}}><strong>{p.nome}</strong></td>
-                <td style={{padding:'12px 16px'}}>{p.categoria}</td>
+                <td style={{padding:'12px 16px', fontSize:'13px'}}>{p.categoria}</td>
                 <td style={{padding:'12px 16px', textAlign:'center'}}>
-                  <span style={{background: p.estoque > 0 ? '#e8f5e9' : '#ffebee', color: p.estoque > 0 ? 'green' : 'red', padding:'4px 12px', borderRadius:'20px', fontWeight:'bold'}}>
+                  <span style={{
+                    background: p.estoque > 5 ? '#e8f5e9' : p.estoque > 0 ? '#fff8e1' : '#ffebee',
+                    color: p.estoque > 5 ? 'green' : p.estoque > 0 ? '#f57f17' : 'red',
+                    padding:'4px 12px', borderRadius:'20px', fontWeight:'bold', fontSize:'13px'
+                  }}>
                     {p.estoque}
                   </span>
                 </td>
@@ -45,7 +89,9 @@ function Estoque() {
             ))}
           </tbody>
         </table>
-        {produtos.length === 0 && <p style={{textAlign:'center', padding:'32px', color:'#aaa'}}>Nenhum produto cadastrado</p>}
+        {produtosFiltrados.length === 0 && (
+          <p style={{textAlign:'center', padding:'32px', color:'#aaa'}}>Nenhum produto encontrado</p>
+        )}
       </div>
     </div>
   )
