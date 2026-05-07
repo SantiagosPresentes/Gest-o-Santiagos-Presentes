@@ -28,7 +28,6 @@ function Estoque() {
     <div>
       <h2>Estoque</h2>
 
-      {/* Barra de busca e filtros */}
       <div style={{background:'white', padding:'16px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap'}}>
         <div style={{flex:1, minWidth:'180px'}}>
           <input
@@ -52,7 +51,6 @@ function Estoque() {
         </div>
       </div>
 
-      {/* Tabela com scroll horizontal no mobile */}
       <div className="tabela-wrapper" style={{marginTop:'16px'}}>
         <table>
           <thead>
@@ -62,15 +60,15 @@ function Estoque() {
               <th style={{textAlign:'left'}}>Categoria</th>
               <th style={{textAlign:'center'}}>Estoque</th>
               <th style={{textAlign:'right'}}>Preço Unit.</th>
-              <th style={{textAlign:'right'}}>Total</th>
+              <th style={{textAlign:'right'}}>Total em Estoque</th>
             </tr>
           </thead>
           <tbody>
             {produtosFiltrados.map((p, i) => (
               <tr key={p.id} style={{background: i % 2 === 0 ? '#fff' : '#f9f9f9'}}>
-                <td style={{color:'#666'}}>{p.codigo}</td>
-                <td><strong>{p.nome}</strong></td>
-                <td>{p.categoria}</td>
+                <td style={{textAlign:'left', color:'#666'}}>{p.codigo}</td>
+                <td style={{textAlign:'left'}}><strong>{p.nome}</strong></td>
+                <td style={{textAlign:'left'}}>{p.categoria}</td>
                 <td style={{textAlign:'center'}}>
                   <span style={{
                     background: p.estoque > 5 ? '#e8f5e9' : p.estoque > 0 ? '#fff8e1' : '#ffebee',

@@ -204,7 +204,7 @@ function Capital() {
 
       {/* TABELA RESUMO POR MÊS */}
       <div className="tabela-wrapper" style={{marginTop:'8px'}}>
-        <div style={{background:'linear-gradient(135deg, #1a6b5a, #145a4a)', padding:'16px 20px', borderRadius:'12px 12px 0 0'}}>
+        <div style={{background:'linear-gradient(135deg, #1a6b5a, #145a4a)', padding:'16px 20px', position:'sticky', left:0}}>
           <h3 style={{color:'white', margin:0}}>Resumo por Mês</h3>
         </div>
         <table>
@@ -224,7 +224,7 @@ function Capital() {
               const bateuMeta = saldoMes >= 3000
               return (
                 <tr key={r.mes} style={{background: i % 2 === 0 ? '#fff' : '#f9f9f9'}}>
-                  <td><strong>{r.mes}</strong></td>
+                  <td style={{textAlign:'left'}}><strong>{r.mes}</strong></td>
                   <td style={{textAlign:'right', color:'#2e7d32'}}>R$ {r.total_vendido.toFixed(2)}</td>
                   <td style={{textAlign:'right', color:'#666'}}>R$ 3.000,00</td>
                   <td style={{textAlign:'right', color:'#c62828'}}>R$ {r.retiradas.toFixed(2)}</td>
@@ -239,7 +239,9 @@ function Capital() {
             })}
           </tbody>
         </table>
-        {registros.length === 0 && <p style={{textAlign:'center', padding:'32px', color:'#aaa', background:'white'}}>Nenhum registro ainda</p>}
+        {registros.length === 0 && (
+          <p style={{textAlign:'center', padding:'32px', color:'#aaa', background:'white'}}>Nenhum registro ainda</p>
+        )}
       </div>
     </div>
   )
