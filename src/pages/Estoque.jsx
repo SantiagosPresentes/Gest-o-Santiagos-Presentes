@@ -22,7 +22,6 @@ function Estoque() {
 
   const totalEstoque = produtosFiltrados.reduce((acc, p) => acc + (p.estoque * parseFloat(p.preco_venda)), 0)
   const categorias = [...new Set(produtos.map(p => p.categoria))].sort()
-
   const campo = { padding:'8px 12px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'14px' }
 
   return (
@@ -30,8 +29,8 @@ function Estoque() {
       <h2>Estoque</h2>
 
       {/* Barra de busca e filtros */}
-      <div style={{background:'white', padding:'16px 24px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', display:'flex', gap:'16px', alignItems:'center', flexWrap:'wrap'}}>
-        <div style={{flex:1, minWidth:'200px'}}>
+      <div style={{background:'white', padding:'16px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap'}}>
+        <div style={{flex:1, minWidth:'180px'}}>
           <input
             value={busca}
             onChange={e => setBusca(e.target.value)}
@@ -45,36 +44,34 @@ function Estoque() {
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <div>
-          <button onClick={() => { setBusca(''); setFiltroCategoria('') }} style={{background:'#eee', border:'none', padding:'8px 16px', borderRadius:'6px', cursor:'pointer'}}>
-            Limpar
-          </button>
-        </div>
-        <div style={{marginLeft:'auto', fontSize:'14px', color:'#666'}}>
-          {produtosFiltrados.length} produto(s) | Total em estoque: <strong style={{color:'#1a6b5a'}}>R$ {totalEstoque.toFixed(2)}</strong>
+        <button onClick={() => { setBusca(''); setFiltroCategoria('') }} style={{background:'#eee', border:'none', padding:'8px 16px', borderRadius:'6px', cursor:'pointer'}}>
+          Limpar
+        </button>
+        <div style={{marginLeft:'auto', fontSize:'13px', color:'#666', whiteSpace:'nowrap'}}>
+          {produtosFiltrados.length} produto(s) | Total: <strong style={{color:'#1a6b5a'}}>R$ {totalEstoque.toFixed(2)}</strong>
         </div>
       </div>
 
-      {/* Tabela de estoque */}
-      <div style={{background:'white', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', overflow:'hidden'}}>
-        <table style={{width:'100%', borderCollapse:'collapse'}}>
+      {/* Tabela com scroll horizontal no mobile */}
+      <div className="tabela-wrapper" style={{marginTop:'16px'}}>
+        <table>
           <thead>
-            <tr style={{background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white'}}>
-              <th style={{padding:'14px 16px', textAlign:'left'}}>Código</th>
-              <th style={{padding:'14px 16px', textAlign:'left'}}>Produto</th>
-              <th style={{padding:'14px 16px', textAlign:'left'}}>Categoria</th>
-              <th style={{padding:'14px 16px', textAlign:'center'}}>Estoque</th>
-              <th style={{padding:'14px 16px', textAlign:'right'}}>Preço Unit.</th>
-              <th style={{padding:'14px 16px', textAlign:'right'}}>Total em Estoque</th>
+            <tr>
+              <th style={{textAlign:'left'}}>Código</th>
+              <th style={{textAlign:'left'}}>Produto</th>
+              <th style={{textAlign:'left'}}>Categoria</th>
+              <th style={{textAlign:'center'}}>Estoque</th>
+              <th style={{textAlign:'right'}}>Preço Unit.</th>
+              <th style={{textAlign:'right'}}>Total</th>
             </tr>
           </thead>
           <tbody>
             {produtosFiltrados.map((p, i) => (
-              <tr key={p.id} style={{background: i % 2 === 0 ? '#fff' : '#f9f9f9', borderBottom:'1px solid #eee'}}>
-                <td style={{padding:'12px 16px', fontSize:'13px', color:'#666'}}>{p.codigo}</td>
-                <td style={{padding:'12px 16px'}}><strong>{p.nome}</strong></td>
-                <td style={{padding:'12px 16px', fontSize:'13px'}}>{p.categoria}</td>
-                <td style={{padding:'12px 16px', textAlign:'center'}}>
+              <tr key={p.id} style={{background: i % 2 === 0 ? '#fff' : '#f9f9f9'}}>
+                <td style={{color:'#666'}}>{p.codigo}</td>
+                <td><strong>{p.nome}</strong></td>
+                <td>{p.categoria}</td>
+                <td style={{textAlign:'center'}}>
                   <span style={{
                     background: p.estoque > 5 ? '#e8f5e9' : p.estoque > 0 ? '#fff8e1' : '#ffebee',
                     color: p.estoque > 5 ? 'green' : p.estoque > 0 ? '#f57f17' : 'red',
@@ -83,14 +80,14 @@ function Estoque() {
                     {p.estoque}
                   </span>
                 </td>
-                <td style={{padding:'12px 16px', textAlign:'right'}}>R$ {parseFloat(p.preco_venda).toFixed(2)}</td>
-                <td style={{padding:'12px 16px', textAlign:'right'}}><strong>R$ {(p.estoque * parseFloat(p.preco_venda)).toFixed(2)}</strong></td>
+                <td style={{textAlign:'right'}}>R$ {parseFloat(p.preco_venda).toFixed(2)}</td>
+                <td style={{textAlign:'right'}}><strong>R$ {(p.estoque * parseFloat(p.preco_venda)).toFixed(2)}</strong></td>
               </tr>
             ))}
           </tbody>
         </table>
         {produtosFiltrados.length === 0 && (
-          <p style={{textAlign:'center', padding:'32px', color:'#aaa'}}>Nenhum produto encontrado</p>
+          <p style={{textAlign:'center', padding:'32px', color:'#aaa', background:'white'}}>Nenhum produto encontrado</p>
         )}
       </div>
     </div>
