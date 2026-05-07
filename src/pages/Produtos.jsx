@@ -35,12 +35,8 @@ function Produtos() {
     if (!nome || !categoria || !preco) {
       setMensagem('Preencha todos os campos!'); return
     }
-    // Atualiza apenas nome, categoria e preço — vendas anteriores não são afetadas
-    // pois itens_venda guarda o valor_unitario no momento da venda
     const { error } = await supabase.from('produtos').update({
-      nome,
-      categoria,
-      preco_venda: parseFloat(preco)
+      nome, categoria, preco_venda: parseFloat(preco)
     }).eq('id', editando.id)
     if (error) { setMensagem('Erro ao atualizar: ' + error.message); return }
     setMensagem('Produto atualizado! Vendas anteriores não foram afetadas.')
@@ -75,15 +71,16 @@ function Produtos() {
   return (
     <div>
       <h2>Produtos</h2>
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'24px', marginTop:'16px'}}>
 
-        {/* FORMULÁRIO */}
-        <div style={{background:'white', padding:'24px', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', borderTop: editando ? '3px solid #f5821f' : '3px solid #1a6b5a', height:'fit-content'}}>
-          <h3 style={{color: editando ? '#f5821f' : '#1a6b5a', marginBottom:'16px'}}>
-            {editando ? `✏️ Editando: ${editando.nome}` : 'Novo Produto'}
-          </h3>
+      {/* FORMULÁRIO — sempre no topo */}
+      <div style={{background:'white', padding:'24px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', borderTop: editando ? '3px solid #f5821f' : '3px solid #1a6b5a'}}>
+        <h3 style={{color: editando ? '#f5821f' : '#1a6b5a', marginBottom:'16px'}}>
+          {editando ? `✏️ Editando: ${editando.nome}` : 'Novo Produto'}
+        </h3>
 
-          <div style={{marginBottom:'16px'}}>
+        {/* No desktop: 2 colunas. No mobile: 1 coluna */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'16px'}}>
+          <div>
             <label style={{fontWeight:'bold', fontSize:'13px'}}>Código do Produto</label><br/>
             <input
               value={codigo}
@@ -95,12 +92,12 @@ function Produtos() {
             {editando && <small style={{color:'#888'}}>O código não pode ser alterado</small>}
           </div>
 
-          <div style={{marginBottom:'16px'}}>
+          <div>
             <label style={{fontWeight:'bold', fontSize:'13px'}}>Nome do Produto</label><br/>
             <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Cobredom" style={campo}/>
           </div>
 
-          <div style={{marginBottom:'16px'}}>
+          <div>
             <label style={{fontWeight:'bold', fontSize:'13px'}}>Categoria</label><br/>
             <select value={categoria} onChange={e => setCategoria(e.target.value)} style={campo}>
               <option value="">Selecione...</option>
@@ -115,65 +112,70 @@ function Produtos() {
             </select>
           </div>
 
-          <div style={{marginBottom:'24px'}}>
+          <div>
             <label style={{fontWeight:'bold', fontSize:'13px'}}>Preço de Venda (R$)</label><br/>
             <input type="number" value={preco} onChange={e => setPreco(e.target.value)} placeholder="Ex: 25.90" style={campo}/>
-            {editando && <small style={{color:'#1a6b5a'}}>⚠️ Atualizar o preço não afeta vendas já realizadas</small>}
+            {editando && <small style={{color:'#1a6b5a'}}>⚠️ Não afeta vendas já realizadas</small>}
           </div>
+        </div>
 
+        <div style={{marginTop:'20px', display:'flex', gap:'8px'}}>
           {editando ? (
-            <div style={{display:'flex', gap:'8px'}}>
+            <>
               <button onClick={salvarEdicao} style={{flex:1, background:'linear-gradient(135deg, #f5821f, #e06010)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}>
                 Salvar Alterações
               </button>
               <button onClick={cancelarEdicao} style={{flex:1, background:'#eee', color:'#333', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px'}}>
                 Cancelar
               </button>
-            </div>
+            </>
           ) : (
-            <button onClick={salvarProduto} style={{width:'100%', background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}>
+            <button onClick={salvarProduto} style={{flex:1, background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}>
               Cadastrar Produto
             </button>
           )}
-
-          {mensagem && <p style={{marginTop:'16px', color: mensagem.includes('Erro') ? 'red' : 'green', fontSize:'14px'}}>{mensagem}</p>}
         </div>
 
-        {/* LISTA DE PRODUTOS */}
-        <div style={{background:'white', padding:'24px', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)'}}>
-          <h3 style={{color:'#1a6b5a', marginBottom:'16px'}}>Produtos Cadastrados ({produtos.length})</h3>
+        {mensagem && <p style={{marginTop:'16px', color: mensagem.includes('Erro') ? 'red' : 'green', fontSize:'14px'}}>{mensagem}</p>}
+      </div>
 
-          <input
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
-            placeholder="🔍 Buscar por nome ou código..."
-            style={{...campo, marginBottom:'16px', marginTop:0}}
-          />
+      {/* LISTA DE PRODUTOS — sempre abaixo */}
+      <div style={{background:'white', padding:'24px', borderRadius:'12px', marginTop:'20px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px', flexWrap:'wrap', gap:'8px'}}>
+          <h3 style={{color:'#1a6b5a', margin:0}}>Produtos Cadastrados ({produtos.length})</h3>
+        </div>
 
-          <div style={{maxHeight:'500px', overflowY:'auto'}}>
-            {produtosFiltrados.map(p => (
-              <div key={p.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px', background:'#f9f9f9', borderRadius:'8px', marginBottom:'8px', borderLeft:'3px solid #1a6b5a'}}>
-                <div>
-                  <strong style={{fontSize:'14px'}}>{p.nome}</strong>
-                  <span style={{background:'#e8f5e9', color:'#2e7d32', padding:'2px 8px', borderRadius:'10px', fontSize:'11px', marginLeft:'8px'}}>{p.codigo}</span><br/>
-                  <small style={{color:'#666'}}>{p.categoria}</small><br/>
-                  <strong style={{color:'#1a6b5a', fontSize:'13px'}}>R$ {parseFloat(p.preco_venda).toFixed(2)}</strong>
-                  <span style={{color: p.estoque > 0 ? 'green' : 'red', fontSize:'12px', marginLeft:'8px'}}>
-                    Estoque: {p.estoque}
-                  </span>
-                </div>
-                <button
-                  onClick={() => iniciarEdicao(p)}
-                  style={{background:'#fff8e1', color:'#f57f17', border:'1px solid #f5821f', padding:'6px 14px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'bold', whiteSpace:'nowrap'}}
-                >
-                  ✏️ Editar
-                </button>
+        <input
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="🔍 Buscar por nome ou código..."
+          style={{...campo, marginBottom:'16px', marginTop:0}}
+        />
+
+        {/* No desktop: grid de 2 colunas. No mobile: 1 coluna */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'10px', maxHeight:'500px', overflowY:'auto'}}>
+          {produtosFiltrados.map(p => (
+            <div key={p.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px', background:'#f9f9f9', borderRadius:'8px', borderLeft:'3px solid #1a6b5a'}}>
+              <div style={{flex:1, minWidth:0}}>
+                <strong style={{fontSize:'14px', display:'block', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.nome}</strong>
+                <span style={{background:'#e8f5e9', color:'#2e7d32', padding:'2px 8px', borderRadius:'10px', fontSize:'11px'}}>{p.codigo}</span>
+                <span style={{color:'#666', fontSize:'12px', marginLeft:'6px'}}>{p.categoria}</span><br/>
+                <strong style={{color:'#1a6b5a', fontSize:'13px'}}>R$ {parseFloat(p.preco_venda).toFixed(2)}</strong>
+                <span style={{color: p.estoque > 0 ? 'green' : 'red', fontSize:'12px', marginLeft:'8px'}}>
+                  Est: {p.estoque}
+                </span>
               </div>
-            ))}
-            {produtosFiltrados.length === 0 && (
-              <p style={{textAlign:'center', color:'#aaa', padding:'20px'}}>Nenhum produto encontrado</p>
-            )}
-          </div>
+              <button
+                onClick={() => iniciarEdicao(p)}
+                style={{background:'#fff8e1', color:'#f57f17', border:'1px solid #f5821f', padding:'6px 12px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'bold', whiteSpace:'nowrap', marginLeft:'8px', flexShrink:0}}
+              >
+                ✏️
+              </button>
+            </div>
+          ))}
+          {produtosFiltrados.length === 0 && (
+            <p style={{textAlign:'center', color:'#aaa', padding:'20px', gridColumn:'1/-1'}}>Nenhum produto encontrado</p>
+          )}
         </div>
       </div>
     </div>
