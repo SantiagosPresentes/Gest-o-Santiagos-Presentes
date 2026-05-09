@@ -198,7 +198,7 @@ function BI() {
           <select
             value={filtroCategoria}
             onChange={e => setFiltroCategoria(e.target.value)}
-            style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}
+            style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #444', fontSize:'13px', background:'#2b2b2b', color:'white'}}
           >
             <option value="">Todas as categorias</option>
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
