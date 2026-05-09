@@ -116,7 +116,7 @@ function Encomendas() {
 
           <button
             onClick={registrarEncomenda}
-            style={{width:'100%', background:'linear-gradient(135deg, #29abe2, #1a8abf)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}
+            style={{width:'100%', background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}
           >
             Registrar Encomenda
           </button>
@@ -125,16 +125,16 @@ function Encomendas() {
 
         {/* LISTA DE ENCOMENDAS */}
         <div style={{background:'white', padding:'24px', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)'}}>
-          <h3 style={{color:'#29abe2', marginBottom:'16px'}}>Encomendas Pendentes ({encomendas.length})</h3>
+          <h3 style={{color:'#1a6b5a', marginBottom:'16px'}}>Encomendas Pendentes ({encomendas.length})</h3>
           {encomendas.length === 0 && <p style={{textAlign:'center', color:'#aaa', padding:'20px'}}>Nenhuma encomenda pendente</p>}
           {encomendas.map(e => (
             <div key={e.id} style={{padding:'14px', background:'#f0f8ff', borderRadius:'8px', marginBottom:'10px', borderLeft:'4px solid #29abe2'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
                 <div style={{flex:1}}>
                   <strong style={{fontSize:'14px'}}>{e.clientes?.nome}</strong>
-                  <span style={{background:'#29abe2', color:'white', fontSize:'11px', padding:'2px 8px', borderRadius:'10px', marginLeft:'8px'}}>Encomenda</span><br/>
+                  <span style={{background:'#1a6b5a', color:'white', fontSize:'11px', padding:'2px 8px', borderRadius:'10px', marginLeft:'8px'}}>Encomenda</span><br/>
                   <p style={{fontSize:'13px', color:'#555', margin:'4px 0'}}>{e.observacao}</p>
-                  <strong style={{color:'#29abe2'}}>R$ {parseFloat(e.valor_total).toFixed(2)}</strong>
+                  <strong style={{color:'#1a6b5a'}}>R$ {parseFloat(e.valor_total).toFixed(2)}</strong>
                   <span style={{fontSize:'12px', color:'#888', marginLeft:'8px'}}>
                     Vence: {new Date(e.data_para_pagar + 'T12:00:00').toLocaleDateString('pt-BR')}
                   </span>
