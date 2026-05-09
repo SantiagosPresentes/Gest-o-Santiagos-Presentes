@@ -77,7 +77,7 @@ function App() {
             <NavLink to="/capital">Capital</NavLink>
             <NavLink to="/devolucoes">Devoluções</NavLink>
             <NavLink to="/historico">Histórico</NavLink>
-            <NavLink to="/bi">📊 BI</NavLink>
+            <NavLink to="/bi"> BI</NavLink>
           </div>
           {/* Botão de logout com email do usuário */}
           <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px'}}>
