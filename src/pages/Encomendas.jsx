@@ -98,7 +98,7 @@ function Encomendas() {
 
       {/* FORMULÁRIO — sempre no topo */}
       <div style={{background:'white', padding:'24px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', borderTop:'3px solid #29abe2'}}>
-        <h3 style={{color:'#29abe2', marginBottom:'20px'}}>Nova Encomenda</h3>
+        <h3 style={{color:'#1A6B5A', marginBottom:'20px'}}>Nova Encomenda</h3>
 
         {/* Grid responsivo — 2 colunas no desktop, 1 no mobile */}
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'16px'}}>
