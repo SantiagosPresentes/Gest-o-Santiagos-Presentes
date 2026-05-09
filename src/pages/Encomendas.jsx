@@ -64,7 +64,7 @@ function Encomendas() {
 
         {/* FORMULÁRIO */}
         <div style={{background:'white', padding:'24px', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', borderTop:'3px solid #29abe2', height:'fit-content'}}>
-          <h3 style={{color:'#29abe2', marginBottom:'16px'}}>Nova Encomenda</h3>
+          <h3 style={{color:'#1a6b5a', marginBottom:'16px'}}>Nova Encomenda</h3>
 
           <div style={{marginBottom:'16px'}}>
             <label style={{fontWeight:'bold', fontSize:'13px'}}>Cliente</label><br/>
