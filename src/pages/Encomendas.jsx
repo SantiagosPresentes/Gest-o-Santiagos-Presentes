@@ -231,7 +231,7 @@ function Encomendas() {
 
       {/* LISTA DE ENCOMENDAS — sempre abaixo */}
       <div style={{background:'white', padding:'24px', borderRadius:'12px', marginTop:'20px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)'}}>
-        <h3 style={{color:'#29abe2', marginBottom:'16px'}}>
+        <h3 style={{color:'#1A6B5A', marginBottom:'16px'}}>
           Encomendas Pendentes ({encomendas.length})
         </h3>
 
@@ -249,7 +249,7 @@ function Encomendas() {
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px'}}>
                   <div>
                     <strong style={{fontSize:'14px'}}>{e.clientes?.nome}</strong>
-                    <span style={{background:'#29abe2', color:'white', fontSize:'11px', padding:'2px 8px', borderRadius:'10px', marginLeft:'8px'}}>
+                    <span style={{background:'#1A6B5A', color:'white', fontSize:'11px', padding:'2px 8px', borderRadius:'10px', marginLeft:'8px'}}>
                       Encomenda
                     </span>
                   </div>
