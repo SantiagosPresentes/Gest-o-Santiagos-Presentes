@@ -175,7 +175,7 @@ function Vendas() {
               <div className="logo" style={{textAlign:'center', marginBottom:'12px'}}>
                 <img src="/logo.png" alt="Logo" style={{width:'80px', height:'80px', borderRadius:'50%', objectFit:'cover', border:'2px solid #1a6b5a'}}/>
                 <h2 style={{color:'#1a6b5a', fontSize:'18px', marginTop:'8px'}}>Santiagos Presentes</h2>
-                <p className="info-loja" style={{color:'#666', fontSize:'13px'}}>📞 (24) 99826-6982</p>
+                <p className="info-loja" style={{color:'#666', fontSize:'13px'}}>📞 (24) 98161-8699</p>
                 <p style={{color:'#999', fontSize:'12px'}}>
                   {vendaFinalizada.data.toLocaleDateString('pt-BR')} às {vendaFinalizada.data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
                 </p>
