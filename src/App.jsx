@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 // Importa todas as páginas do app
 import Vendas from './pages/Vendas'
+import Encomendas from './pages/Encomendas'
 import Produtos from './pages/Produtos'
 import Clientes from './pages/Clientes'
 import Investimentos from './pages/Investimentos'
@@ -11,6 +12,7 @@ import Capital from './pages/Capital'
 import Devolucoes from './pages/Devolucoes'
 import Historico from './pages/Historico'
 import Login from './pages/Login'
+import BI from './pages/BI'
 // Importa a conexão com o Supabase
 import { supabase } from './supabase'
 import './App.css'
@@ -67,6 +69,7 @@ function App() {
           </div>
           <div className="nav-links">
             <NavLink to="/">Vendas</NavLink>
+            <NavLink to="/encomendas">Encomendas</NavLink>
             <NavLink to="/produtos">Produtos</NavLink>
             <NavLink to="/clientes">Clientes</NavLink>
             <NavLink to="/investimentos">Investimentos</NavLink>
@@ -74,6 +77,7 @@ function App() {
             <NavLink to="/capital">Capital</NavLink>
             <NavLink to="/devolucoes">Devoluções</NavLink>
             <NavLink to="/historico">Histórico</NavLink>
+            <NavLink to="/bi">📊 BI</NavLink>
           </div>
           {/* Botão de logout com email do usuário */}
           <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px'}}>
@@ -91,6 +95,7 @@ function App() {
         <main className="conteudo">
           <Routes>
             <Route path="/" element={<Vendas />} />
+            <Route path="/encomendas" element={<Encomendas />} />
             <Route path="/produtos" element={<Produtos />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/investimentos" element={<Investimentos />} />
@@ -98,6 +103,7 @@ function App() {
             <Route path="/capital" element={<Capital />} />
             <Route path="/devolucoes" element={<Devolucoes />} />
             <Route path="/historico" element={<Historico />} />
+            <Route path="/bi" element={<BI />} />
           </Routes>
         </main>
       </div>

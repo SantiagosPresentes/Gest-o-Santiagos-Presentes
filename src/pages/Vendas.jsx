@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 function Vendas() {
@@ -10,6 +10,8 @@ function Vendas() {
   const [parcelas, setParcelas] = useState([{ data: '', valor: '' }])
   const [observacao, setObservacao] = useState('')
   const [mensagem, setMensagem] = useState('')
+  const [vendaFinalizada, setVendaFinalizada] = useState(null)
+  const comprovanteRef = useRef(null)
 
   const total = itens.reduce((acc, item) => acc + item.subtotal, 0)
 
@@ -33,13 +35,11 @@ function Vendas() {
     if (!codigoBusca) return
     const { data } = await supabase.from('produtos').select('*').eq('codigo', codigoBusca).single()
     if (!data) { setMensagem('Produto não encontrado!'); return }
-
     if (data.estoque <= 0) {
       setMensagem(`⚠️ "${data.nome}" está com estoque zerado!`)
       setCodigoBusca('')
       return
     }
-
     const existente = itens.find(i => i.produto_id === data.id)
     if (existente) {
       if (existente.quantidade >= data.estoque) {
@@ -101,12 +101,61 @@ function Vendas() {
       await supabase.from('produtos').update({ estoque: prod.estoque - item.quantidade }).eq('id', item.produto_id)
     }
 
-    setMensagem('Venda registrada com sucesso!')
+    // Salva os dados para o comprovante
+    setVendaFinalizada({
+      cliente,
+      itens: [...itens],
+      total,
+      parcelas: [...parcelas],
+      parcelamento,
+      observacao,
+      data: new Date()
+    })
+
     setItens([])
     setCliente(null)
     setParcelas([{ data: '', valor: '' }])
     setParcelamento('1')
     setObservacao('')
+    setMensagem('')
+  }
+
+  function imprimir() {
+    const conteudo = comprovanteRef.current.innerHTML
+    const janela = window.open('', '_blank')
+    janela.document.write(`
+      <html>
+        <head>
+          <title>Comprovante - Santiagos Presentes</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+            .logo { text-align: center; margin-bottom: 16px; }
+            .logo img { width: 80px; height: 80px; border-radius: 50%; }
+            h2 { text-align: center; color: #1a6b5a; font-size: 18px; margin: 8px 0 4px; }
+            .info-loja { text-align: center; color: #666; font-size: 13px; margin-bottom: 16px; }
+            .linha { border-top: 1px dashed #999; margin: 12px 0; }
+            .linha-dupla { border-top: 2px solid #333; margin: 12px 0; }
+            .cliente { font-size: 14px; margin-bottom: 12px; }
+            .cliente strong { color: #1a6b5a; }
+            .item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+            .item-nome { flex: 1; }
+            .item-qtd { width: 40px; text-align: center; color: #666; }
+            .item-valor { width: 80px; text-align: right; font-weight: bold; }
+            .total { display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; color: #1a6b5a; margin: 8px 0; }
+            .parcelas { font-size: 13px; color: #555; margin-top: 8px; }
+            .parcela { display: flex; justify-content: space-between; margin-bottom: 4px; }
+            .obs { font-size: 12px; color: #777; margin-top: 8px; font-style: italic; }
+            .rodape { text-align: center; font-size: 12px; color: #999; margin-top: 16px; }
+            @media print { button { display: none; } }
+          </style>
+        </head>
+        <body>${conteudo}</body>
+      </html>
+    `)
+    janela.document.close()
+    janela.focus()
+    setTimeout(() => { janela.print() }, 500)
   }
 
   const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'6px', border:'1px solid #ddd' }
@@ -114,6 +163,108 @@ function Vendas() {
   return (
     <div>
       <h2>Nova Venda</h2>
+
+      {/* MODAL DO COMPROVANTE */}
+      {vendaFinalizada && (
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'16px'}}>
+          <div style={{background:'white', borderRadius:'16px', width:'100%', maxWidth:'440px', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,0.3)'}}>
+
+            {/* Conteúdo do comprovante */}
+            <div ref={comprovanteRef} style={{padding:'24px'}}>
+              {/* Cabeçalho */}
+              <div className="logo" style={{textAlign:'center', marginBottom:'12px'}}>
+                <img src="/logo.png" alt="Logo" style={{width:'80px', height:'80px', borderRadius:'50%', objectFit:'cover', border:'2px solid #1a6b5a'}}/>
+                <h2 style={{color:'#1a6b5a', fontSize:'18px', marginTop:'8px'}}>Santiagos Presentes</h2>
+                <p className="info-loja" style={{color:'#666', fontSize:'13px'}}>📞 (24) 99826-6982</p>
+                <p style={{color:'#999', fontSize:'12px'}}>
+                  {vendaFinalizada.data.toLocaleDateString('pt-BR')} às {vendaFinalizada.data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
+                </p>
+              </div>
+
+              <div style={{borderTop:'1px dashed #999', margin:'12px 0'}}/>
+
+              {/* Dados do cliente */}
+              <div style={{marginBottom:'12px', fontSize:'14px'}}>
+                <strong style={{color:'#1a6b5a'}}>Cliente:</strong> {vendaFinalizada.cliente.nome}<br/>
+                {vendaFinalizada.cliente.telefone && (
+                  <span style={{color:'#666', fontSize:'13px'}}>📞 {vendaFinalizada.cliente.telefone}</span>
+                )}
+              </div>
+
+              <div style={{borderTop:'1px dashed #999', margin:'12px 0'}}/>
+
+              {/* Itens */}
+              <div style={{marginBottom:'8px'}}>
+                <strong style={{fontSize:'13px', color:'#555'}}>PRODUTOS</strong>
+              </div>
+              {vendaFinalizada.itens.map((item, i) => (
+                <div key={i} style={{display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'6px', alignItems:'flex-start'}}>
+                  <span style={{flex:1, paddingRight:'8px'}}>{item.nome}</span>
+                  <span style={{color:'#666', marginRight:'8px', whiteSpace:'nowrap'}}>{item.quantidade}x R$ {item.valor_unitario.toFixed(2)}</span>
+                  <strong style={{whiteSpace:'nowrap'}}>R$ {item.subtotal.toFixed(2)}</strong>
+                </div>
+              ))}
+
+              <div style={{borderTop:'2px solid #333', margin:'12px 0'}}/>
+
+              {/* Total */}
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:'18px', fontWeight:'bold', color:'#1a6b5a', marginBottom:'8px'}}>
+                <span>TOTAL</span>
+                <span>R$ {vendaFinalizada.total.toFixed(2)}</span>
+              </div>
+
+              {/* Parcelas */}
+              {parseInt(vendaFinalizada.parcelamento) > 1 ? (
+                <div style={{background:'#f8f8f8', borderRadius:'8px', padding:'12px', marginBottom:'8px'}}>
+                  <strong style={{fontSize:'13px', color:'#555'}}>PARCELAMENTO — {vendaFinalizada.parcelamento}x</strong>
+                  {vendaFinalizada.parcelas.map((p, i) => (
+                    <div key={i} style={{display:'flex', justifyContent:'space-between', fontSize:'13px', marginTop:'6px'}}>
+                      <span>{i+1}ª parcela — {new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                      <strong>R$ {p.valor}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{fontSize:'13px', color:'#555', marginBottom:'8px'}}>
+                  <strong>Vencimento:</strong> {new Date(vendaFinalizada.parcelas[0].data + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </div>
+              )}
+
+              {/* Observação */}
+              {vendaFinalizada.observacao && (
+                <p style={{fontSize:'12px', color:'#777', fontStyle:'italic', marginTop:'8px'}}>
+                  Obs: {vendaFinalizada.observacao}
+                </p>
+              )}
+
+              <div style={{borderTop:'1px dashed #999', margin:'12px 0'}}/>
+
+              {/* Rodapé */}
+              <p style={{textAlign:'center', fontSize:'12px', color:'#999'}}>
+                Obrigado pela preferência!<br/>
+                Santiagos Presentes 🏪
+              </p>
+            </div>
+
+            {/* Botões */}
+            <div style={{padding:'16px 24px', borderTop:'1px solid #eee', display:'flex', gap:'8px'}}>
+              <button
+                onClick={imprimir}
+                style={{flex:1, background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}
+              >
+                🖨️ Imprimir
+              </button>
+              <button
+                onClick={() => setVendaFinalizada(null)}
+                style={{flex:1, background:'#eee', color:'#333', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px'}}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid-2" style={{marginTop:'16px'}}>
 
         {/* PRODUTOS */}
