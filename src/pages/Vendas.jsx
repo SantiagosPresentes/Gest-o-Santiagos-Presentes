@@ -374,7 +374,7 @@ function Vendas() {
 
           <button
             onClick={finalizarVenda}
-            style={{width:'100%', background:'linear-gradient(135deg, #f5821f, #e06010)', color:'white', border:'none', padding:'14px', borderRadius:'8px', cursor:'pointer', fontSize:'16px', fontWeight:'bold', boxShadow:'0 3px 10px rgba(245,130,31,0.35)'}}
+            style={{width:'100%', background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'14px', borderRadius:'8px', cursor:'pointer', fontSize:'16px', fontWeight:'bold', boxShadow:'0 3px 10px rgba(245,130,31,0.35)'}}
           >
             Finalizar Venda
           </button>
