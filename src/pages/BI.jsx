@@ -265,11 +265,11 @@ function BI() {
             <option value="">Todos os anos</option>
             {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
-          <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}>
+          <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'dark'}}>
             <option value="">Todos os meses</option>
             {MESES_NOMES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
           </select>
-          <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}>
+          <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'dark'}}>
             <option value="">Todas as categorias</option>
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
