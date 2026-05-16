@@ -1,181 +1,245 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  Legend, ResponsiveContainer, LabelList
 } from 'recharts'
 
-// Cores modernas da marca
-const CORES = ['#1a6b5a', '#f5821f', '#29abe2', '#e91e8c', '#8b5cf6', '#f7c948', '#10b981', '#ef4444']
+const CORES = ['#1a6b5a', '#f5821f', '#29abe2', '#e91e8c', '#8b5cf6', '#f7c948', '#10b981', '#ef4444', '#06b6d4', '#84cc16']
 
-// Datas comemorativas para previsões
-const DATAS_COMEMORATIVAS = [
-  { mes: 1, nome: 'Ano Novo', categorias: ['Decoração', 'Perfumaria'] },
-  { mes: 2, nome: 'Dia dos Namorados (prévia)', categorias: ['Perfumaria', 'Decoração'] },
-  { mes: 3, nome: 'Volta às Aulas', categorias: ['Escolar', 'Utilidade'] },
-  { mes: 4, nome: 'Páscoa', categorias: ['Decoração', 'Infantil'] },
-  { mes: 5, nome: 'Dia das Mães', categorias: ['Perfumaria', 'Cama / Mesa / Banho', 'Decoração'] },
-  { mes: 6, nome: 'Dia dos Namorados', categorias: ['Perfumaria', 'Decoração'] },
-  { mes: 7, nome: 'Férias Escolares', categorias: ['Infantil', 'Escolar'] },
-  { mes: 8, nome: 'Dia dos Pais', categorias: ['Utilidade', 'Cozinha'] },
-  { mes: 10, nome: 'Dia das Crianças', categorias: ['Infantil', 'Escolar'] },
-  { mes: 11, nome: 'Black Friday', categorias: ['Cama / Mesa / Banho', 'Cozinha', 'Decoração'] },
-  { mes: 12, nome: 'Natal', categorias: ['Decoração', 'Perfumaria', 'Infantil', 'Cozinha'] },
+const TODAS_DATAS_COMEMORATIVAS = [
+  { mes: 1, dia: 1, nome: '🎆 Ano Novo', categorias: ['Decoração', 'Perfumaria'] },
+  { mes: 2, dia: 12, nome: '❤️ Dia dos Namorados (Prévia)', categorias: ['Perfumaria', 'Decoração'] },
+  { mes: 3, dia: 1, nome: '📚 Volta às Aulas', categorias: ['Escolar', 'Utilidade'] },
+  { mes: 4, dia: 20, nome: '🐣 Páscoa', categorias: ['Decoração', 'Infantil'] },
+  { mes: 5, dia: 11, nome: '💐 Dia das Mães', categorias: ['Perfumaria', 'Cama / Mesa / Banho', 'Decoração'] },
+  { mes: 6, dia: 12, nome: '❤️ Dia dos Namorados', categorias: ['Perfumaria', 'Decoração'] },
+  { mes: 7, dia: 1, nome: '🏖️ Férias Escolares', categorias: ['Infantil', 'Escolar'] },
+  { mes: 8, dia: 10, nome: '👔 Dia dos Pais', categorias: ['Utilidade', 'Cozinha'] },
+  { mes: 10, dia: 12, nome: '🧸 Dia das Crianças', categorias: ['Infantil', 'Escolar'] },
+  { mes: 11, dia: 25, nome: '🛍️ Black Friday', categorias: ['Cama / Mesa / Banho', 'Cozinha', 'Decoração'] },
+  { mes: 12, dia: 25, nome: '🎄 Natal', categorias: ['Decoração', 'Perfumaria', 'Infantil', 'Cozinha'] },
 ]
+
+function proximaDataComemorativa() {
+  const hoje = new Date()
+  const futuras = TODAS_DATAS_COMEMORATIVAS.filter(d => {
+    const dataEvento = new Date(hoje.getFullYear(), d.mes - 1, d.dia)
+    return dataEvento > hoje
+  })
+  if (futuras.length > 0) return futuras[0]
+  // Se passou todas do ano, pega a primeira do próximo ano
+  return TODAS_DATAS_COMEMORATIVAS[0]
+}
+
+const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+
+const TooltipCustom = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null
+  return (
+    <div style={{background:'white', border:'1px solid #eee', borderRadius:'10px', padding:'12px', boxShadow:'0 4px 16px rgba(0,0,0,0.12)', fontSize:'13px'}}>
+      <p style={{fontWeight:'bold', color:'#333', marginBottom:'6px'}}>{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{color:p.color, margin:'2px 0'}}>
+          {p.name}: {typeof p.value === 'number' && p.name?.toLowerCase().includes('r$') || p.name?.toLowerCase().includes('valor') || p.name?.toLowerCase().includes('vendido') || p.name?.toLowerCase().includes('investido') || p.name?.toLowerCase().includes('devolvido')
+            ? `R$ ${parseFloat(p.value).toFixed(2)}`
+            : p.value}
+        </p>
+      ))}
+    </div>
+  )
+}
 
 function BI() {
   const [vendas, setVendas] = useState([])
   const [itensVenda, setItensVenda] = useState([])
-  const [produtos, setProdutos] = useState([])
+  const [devolucoes, setDevolucoes] = useState([])
+  const [investimentos, setInvestimentos] = useState([])
   const [clientes, setClientes] = useState([])
   const [carregando, setCarregando] = useState(true)
-  const [filtroMes, setFiltroMes] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
+  const [filtroMes, setFiltroMes] = useState('')
+  const [filtroAno, setFiltroAno] = useState('')
 
   useEffect(() => { carregarDados() }, [])
 
   async function carregarDados() {
     setCarregando(true)
-    const [v, iv, p, c] = await Promise.all([
+    const [v, iv, d, inv, c] = await Promise.all([
       supabase.from('vendas').select('*, clientes(nome)').order('data_venda'),
       supabase.from('itens_venda').select('*, produtos(nome, categoria, preco_venda)'),
-      supabase.from('produtos').select('*'),
-      supabase.from('clientes').select('*, vendas(valor_total, situacao, data_venda)')
+      supabase.from('devolucoes').select('*, produtos(nome, categoria)'),
+      supabase.from('investimentos').select('*, produtos(nome, categoria)'),
+      supabase.from('clientes').select('*, vendas(valor_total, situacao, recebido, data_para_pagar)')
     ])
     if (v.data) setVendas(v.data)
     if (iv.data) setItensVenda(iv.data)
-    if (p.data) setProdutos(p.data)
+    if (d.data) setDevolucoes(d.data)
+    if (inv.data) setInvestimentos(inv.data)
     if (c.data) setClientes(c.data)
     setCarregando(false)
   }
 
-  // ── DADOS PROCESSADOS ──────────────────────────────────
+  // Filtra vendas por mês e ano
+  const vendasFiltradas = vendas.filter(v => {
+    const d = new Date(v.data_venda)
+    if (filtroMes && d.getMonth() + 1 !== parseInt(filtroMes)) return false
+    if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return false
+    return true
+  })
 
-  // Vendas por mês
-  const vendasPorMes = () => {
+  const itensFiltrados = itensVenda.filter(i => {
+    if (filtroCategoria && i.produtos?.categoria !== filtroCategoria) return false
+    return true
+  })
+
+  // Anos disponíveis
+  const anosDisponiveis = [...new Set(vendas.map(v => new Date(v.data_venda).getFullYear()))].sort()
+  const categorias = [...new Set(itensVenda.map(i => i.produtos?.categoria).filter(Boolean))].sort()
+
+  // ── KPIs ──────────────────────────────────────────────
+  const totalVendido = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
+  const totalRecebido = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
+  const ticketMedio = vendasFiltradas.length > 0 ? totalVendido / vendasFiltradas.length : 0
+
+  const atrasados = vendasFiltradas.filter(v => {
+    if (parseFloat(v.recebido || 0) >= parseFloat(v.valor_total)) return false
+    const hoje = new Date(); hoje.setHours(0,0,0,0)
+    return new Date(v.data_para_pagar + 'T12:00:00') < hoje
+  }).length
+  const taxaInad = vendasFiltradas.length > 0 ? ((atrasados / vendasFiltradas.length) * 100).toFixed(1) : 0
+
+  // ── GRÁFICO 1 — Linha de vendas por mês ───────────────
+  const dadosLinha = () => {
     const meses = {}
     vendas.forEach(v => {
       const d = new Date(v.data_venda)
-      const chave = `${d.getMonth() + 1}/${d.getFullYear()}`
-      const nomeMes = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
-      if (!meses[chave]) meses[chave] = { mes: nomeMes, vendas: 0, meta: 3000, recebido: 0 }
-      meses[chave].vendas += parseFloat(v.valor_total)
+      if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
+      const chave = `${MESES_NOMES[d.getMonth()]}/${d.getFullYear()}`
+      if (!meses[chave]) meses[chave] = { mes: chave, vendido: 0, recebido: 0, meta: 3000 }
+      meses[chave].vendido += parseFloat(v.valor_total)
       meses[chave].recebido += parseFloat(v.recebido || 0)
+    })
+    // Subtrai devoluções
+    devolucoes.forEach(dev => {
+      const d = new Date(dev.criado_em)
+      if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
+      const chave = `${MESES_NOMES[d.getMonth()]}/${d.getFullYear()}`
+      if (meses[chave]) {
+        meses[chave].vendido -= parseFloat(dev.valor_total || 0)
+      }
     })
     return Object.values(meses)
   }
 
-  // Produtos mais vendidos
-  const produtosMaisVendidos = () => {
+  // ── GRÁFICO 2 — 10 mais e 10 menos vendidos ───────────
+  const dadosMaisMenos = () => {
     const contagem = {}
-    let dados = itensVenda
-    if (filtroCategoria) dados = dados.filter(i => i.produtos?.categoria === filtroCategoria)
-    dados.forEach(i => {
+    itensFiltrados.forEach(i => {
       const nome = i.produtos?.nome || 'Desconhecido'
-      if (!contagem[nome]) contagem[nome] = { nome, quantidade: 0, faturamento: 0 }
+      if (!contagem[nome]) contagem[nome] = { nome: nome.length > 18 ? nome.substring(0,18)+'...' : nome, nomeCompleto: nome, quantidade: 0, valor: 0 }
       contagem[nome].quantidade += i.quantidade
-      contagem[nome].faturamento += i.quantidade * parseFloat(i.valor_unitario)
+      contagem[nome].valor += i.quantidade * parseFloat(i.valor_unitario)
     })
-    return Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade).slice(0, 8)
+    // Subtrai devoluções
+    devolucoes.forEach(dev => {
+      const nome = dev.produtos?.nome || 'Desconhecido'
+      const chave = nome.length > 18 ? nome.substring(0,18)+'...' : nome
+      if (contagem[chave]) {
+        contagem[chave].quantidade -= dev.quantidade
+      }
+    })
+    const ordenado = Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade)
+    const top10 = ordenado.slice(0, 10).map(p => ({...p, tipo:'Mais vendido'}))
+    const bottom10 = [...ordenado].sort((a, b) => a.quantidade - b.quantidade).slice(0, 10).map(p => ({...p, tipo:'Menos vendido'}))
+    return { top10, bottom10 }
   }
 
-  // Vendas por categoria
-  const vendasPorCategoria = () => {
+  // ── GRÁFICO 3 — Investimento por fornecedor ────────────
+  const dadosFornecedor = () => {
+    const forns = {}
+    investimentos.forEach(inv => {
+      const forn = inv.fornecedor || 'Desconhecido'
+      if (!forns[forn]) forns[forn] = { fornecedor: forn.length > 15 ? forn.substring(0,15)+'...' : forn, investido: 0, lucroEstimado: 0 }
+      forns[forn].investido += parseFloat(inv.valor_total_pago)
+      forns[forn].lucroEstimado += parseFloat(inv.lucro_final || 0)
+    })
+    return Object.values(forns).sort((a, b) => b.investido - a.investido)
+  }
+
+  // ── GRÁFICO 4 — Vendas por categoria (valor e qtd) ────
+  const dadosCategoria = () => {
     const cats = {}
-    itensVenda.forEach(i => {
+    itensFiltrados.forEach(i => {
       const cat = i.produtos?.categoria || 'Outros'
       if (!cats[cat]) cats[cat] = { categoria: cat, valor: 0, quantidade: 0 }
       cats[cat].valor += i.quantidade * parseFloat(i.valor_unitario)
       cats[cat].quantidade += i.quantidade
     })
+    // Subtrai devoluções por categoria
+    devolucoes.forEach(dev => {
+      const cat = dev.produtos?.categoria || 'Outros'
+      if (cats[cat]) {
+        cats[cat].valor -= parseFloat(dev.valor_total || 0)
+        cats[cat].quantidade -= dev.quantidade
+      }
+    })
     return Object.values(cats).sort((a, b) => b.valor - a.valor)
   }
 
-  // Top clientes
-  const topClientes = () => {
-    return clientes.map(c => {
-      const vendasCliente = c.vendas || []
-      const totalComprado = vendasCliente.reduce((acc, v) => acc + parseFloat(v.valor_total || 0), 0)
-      const emAtraso = vendasCliente.filter(v => {
-        if (parseFloat(v.recebido || 0) >= parseFloat(v.valor_total)) return false
-        return v.situacao === 'Atrasado'
-      }).length
-      return { nome: c.nome, totalComprado, emAtraso, qtdCompras: vendasCliente.length }
-    }).sort((a, b) => b.totalComprado - a.totalComprado).slice(0, 6)
+  // ── GRÁFICO 5 — Vendas vs Devoluções ──────────────────
+  const dadosVendasDevolucoes = () => {
+    const meses = {}
+    itensVenda.forEach(i => {
+      const venda = vendas.find(v => v.id === i.venda_id)
+      if (!venda) return
+      const d = new Date(venda.data_venda)
+      if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
+      const chave = `${MESES_NOMES[d.getMonth()]}/${d.getFullYear()}`
+      if (!meses[chave]) meses[chave] = { mes: chave, qtdVendida: 0, valorVendido: 0, qtdDevolvida: 0, valorDevolvido: 0 }
+      meses[chave].qtdVendida += i.quantidade
+      meses[chave].valorVendido += i.quantidade * parseFloat(i.valor_unitario)
+    })
+    devolucoes.forEach(dev => {
+      const d = new Date(dev.criado_em)
+      if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
+      const chave = `${MESES_NOMES[d.getMonth()]}/${d.getFullYear()}`
+      if (!meses[chave]) meses[chave] = { mes: chave, qtdVendida: 0, valorVendido: 0, qtdDevolvida: 0, valorDevolvido: 0 }
+      meses[chave].qtdDevolvida += dev.quantidade
+      meses[chave].valorDevolvido += parseFloat(dev.valor_total || 0)
+    })
+    return Object.values(meses)
   }
 
-  // Inadimplência
-  const inadimplencia = () => {
-    const pago = vendas.filter(v => parseFloat(v.recebido || 0) >= parseFloat(v.valor_total)).length
-    const atrasado = vendas.filter(v => {
-      if (parseFloat(v.recebido || 0) >= parseFloat(v.valor_total)) return false
-      const hoje = new Date(); hoje.setHours(0,0,0,0)
-      const venc = new Date(v.data_para_pagar + 'T12:00:00')
-      return hoje > venc
-    }).length
-    const pendente = vendas.length - pago - atrasado
-    return [
-      { name: 'Pago', value: pago, cor: '#1a6b5a' },
-      { name: 'Pendente', value: pendente, cor: '#f5821f' },
-      { name: 'Atrasado', value: atrasado, cor: '#ef4444' }
-    ]
+  // Previsão próxima data comemorativa
+  const proxData = proximaDataComemorativa()
+  const prodsPrevistas = () => {
+    const contagem = {}
+    itensVenda
+      .filter(i => proxData.categorias.includes(i.produtos?.categoria))
+      .forEach(i => {
+        const nome = i.produtos?.nome || 'Desconhecido'
+        if (!contagem[nome]) contagem[nome] = { nome, quantidade: 0, categoria: i.produtos?.categoria }
+        contagem[nome].quantidade += i.quantidade
+      })
+    return Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade).slice(0, 5)
   }
 
-  // ── PREVISÕES ──────────────────────────────────────────
+  const produtosAcabando = produtos => produtos?.filter(p => p.estoque <= 3 && p.estoque >= 0).sort((a, b) => a.estoque - b.estoque).slice(0, 5) || []
 
-  // Previsão de vendas próximo mês (média dos últimos 3 meses)
+  const [prods, setProds] = useState([])
+  useEffect(() => {
+    supabase.from('produtos').select('*').then(({ data }) => { if (data) setProds(data) })
+  }, [])
+
   const previsaoVendas = () => {
-    const dados = vendasPorMes()
+    const dados = dadosLinha()
     if (dados.length < 2) return null
     const ultimos = dados.slice(-3)
-    const media = ultimos.reduce((acc, m) => acc + m.vendas, 0) / ultimos.length
-    const tendencia = dados.length > 1
-      ? ((dados[dados.length-1].vendas - dados[0].vendas) / dados.length) * 0.3
-      : 0
-    return (media + tendencia).toFixed(2)
+    const media = ultimos.reduce((acc, m) => acc + m.vendido, 0) / ultimos.length
+    return media.toFixed(2)
   }
-
-  // Produtos com risco de acabar (estoque < 3)
-  const produtosAcabando = () => {
-    return produtos.filter(p => p.estoque <= 3 && p.estoque > 0)
-      .sort((a, b) => a.estoque - b.estoque)
-      .slice(0, 5)
-  }
-
-  // Previsão por data comemorativa
-  const previsaoDatasComemorativas = () => {
-    const hoje = new Date()
-    const mesAtual = hoje.getMonth() + 1
-    const proximaData = DATAS_COMEMORATIVAS.find(d => d.mes >= mesAtual) || DATAS_COMEMORATIVAS[0]
-    const categorias = proximaData.categorias
-
-    const produtosPrevistas = itensVenda
-      .filter(i => categorias.includes(i.produtos?.categoria))
-      .reduce((acc, i) => {
-        const nome = i.produtos?.nome || 'Desconhecido'
-        if (!acc[nome]) acc[nome] = { nome, quantidade: 0, categoria: i.produtos?.categoria }
-        acc[nome].quantidade += i.quantidade
-        return acc
-      }, {})
-
-    return {
-      data: proximaData,
-      produtos: Object.values(produtosPrevistas).sort((a, b) => b.quantidade - a.quantidade).slice(0, 5)
-    }
-  }
-
-  // ── CARDS DE KPI ──────────────────────────────────────
-  const totalVendido = vendas.reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
-  const totalRecebido = vendas.reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
-  const ticketMedio = vendas.length > 0 ? totalVendido / vendas.length : 0
-  const taxaInad = vendas.length > 0 ? (inadimplencia().find(i => i.name === 'Atrasado')?.value / vendas.length * 100).toFixed(1) : 0
-
-  const previsao = previsaoVendas()
-  const acabando = produtosAcabando()
-  const { data: proxData, produtos: prodsPrevistas } = previsaoDatasComemorativas()
-
-  const categorias = [...new Set(itensVenda.map(i => i.produtos?.categoria).filter(Boolean))].sort()
 
   if (carregando) {
     return (
@@ -187,22 +251,34 @@ function BI() {
     )
   }
 
-  const cardStyle = {background:'white', borderRadius:'16px', padding:'20px', boxShadow:'0 4px 16px rgba(0,0,0,0.08)'}
-  const tituloGrafico = {fontSize:'15px', fontWeight:'bold', color:'#1a6b5a', marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px'}
+  const card = {background:'white', borderRadius:'16px', padding:'24px', boxShadow:'0 4px 20px rgba(0,0,0,0.07)', marginBottom:'20px'}
+  const titulo = {fontSize:'15px', fontWeight:'bold', color:'#1a6b5a', marginBottom:'20px', paddingBottom:'12px', borderBottom:'2px solid #f0f0f0', display:'flex', alignItems:'center', gap:'8px'}
+
+  const { top10, bottom10 } = dadosMaisMenos()
 
   return (
     <div>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px', marginBottom:'8px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px', marginBottom:'16px'}}>
         <h2>Dashboard BI</h2>
-        <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
-          <select
-            value={filtroCategoria}
-            onChange={e => setFiltroCategoria(e.target.value)}
-            style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #444', fontSize:'13px', background:'#2b2b2b', color:'white'}}
-          >
+        <div style={{display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center'}}>
+          <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}>
+            <option value="">Todos os anos</option>
+            {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}>
+            <option value="">Todos os meses</option>
+            {MESES_NOMES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+          </select>
+          <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}>
             <option value="">Todas as categorias</option>
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          <button
+            onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }}
+            style={{background:'#eee', color:'#555', border:'none', padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}
+          >
+            Limpar
+          </button>
           <button onClick={carregarDados} style={{background:'#1a6b5a', color:'white', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
             🔄 Atualizar
           </button>
@@ -210,175 +286,157 @@ function BI() {
       </div>
 
       {/* KPIs */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'12px', marginBottom:'20px'}}>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'20px'}}>
         {[
           { label:'Total Vendido', valor:`R$ ${totalVendido.toFixed(2)}`, cor:'#1a6b5a', icon:'💰' },
           { label:'Total Recebido', valor:`R$ ${totalRecebido.toFixed(2)}`, cor:'#29abe2', icon:'✅' },
           { label:'Ticket Médio', valor:`R$ ${ticketMedio.toFixed(2)}`, cor:'#f5821f', icon:'🎯' },
           { label:'Taxa Inadimplência', valor:`${taxaInad}%`, cor: parseFloat(taxaInad) > 20 ? '#ef4444' : '#10b981', icon:'⚠️' },
-          { label:'Total de Vendas', valor:vendas.length, cor:'#8b5cf6', icon:'🛒' },
+          { label:'Total de Vendas', valor:vendasFiltradas.length, cor:'#8b5cf6', icon:'🛒' },
           { label:'Clientes Ativos', valor:clientes.length, cor:'#e91e8c', icon:'👥' },
         ].map((kpi, i) => (
-          <div key={i} style={{...cardStyle, borderTop:`4px solid ${kpi.cor}`}}>
-            <div style={{fontSize:'24px', marginBottom:'4px'}}>{kpi.icon}</div>
-            <div style={{fontSize:'13px', color:'#888', marginBottom:'4px'}}>{kpi.label}</div>
-            <div style={{fontSize:'20px', fontWeight:'bold', color:kpi.cor}}>{kpi.valor}</div>
+          <div key={i} style={{background:'white', borderRadius:'14px', padding:'16px', boxShadow:'0 4px 16px rgba(0,0,0,0.07)', borderTop:`4px solid ${kpi.cor}`}}>
+            <div style={{fontSize:'22px', marginBottom:'4px'}}>{kpi.icon}</div>
+            <div style={{fontSize:'12px', color:'#888', marginBottom:'4px'}}>{kpi.label}</div>
+            <div style={{fontSize:'18px', fontWeight:'bold', color:kpi.cor}}>{kpi.valor}</div>
           </div>
         ))}
       </div>
 
-      {/* GRÁFICO 1 — Vendas por mês (Area) */}
-      <div style={{...cardStyle, marginBottom:'20px'}}>
-        <div style={tituloGrafico}>📈 Evolução de Vendas por Mês</div>
-        <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={vendasPorMes()} margin={{top:10, right:20, left:0, bottom:0}}>
-            <defs>
-              <linearGradient id="gradVendas" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#1a6b5a" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#1a6b5a" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="gradMeta" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f5821f" stopOpacity={0.2}/>
-                <stop offset="95%" stopColor="#f5821f" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-            <XAxis dataKey="mes" tick={{fontSize:12}}/>
+      {/* GRÁFICO 1 — Linha de vendas por mês */}
+      <div style={card}>
+        <div style={titulo}>📈 Vendas por Mês</div>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={dadosLinha()} margin={{top:10, right:30, left:10, bottom:10}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5"/>
+            <XAxis dataKey="mes" tick={{fontSize:12}} />
             <YAxis tick={{fontSize:12}} tickFormatter={v => `R$${v}`}/>
-            <Tooltip formatter={(v, n) => [`R$ ${parseFloat(v).toFixed(2)}`, n === 'vendas' ? 'Vendas' : n === 'meta' ? 'Meta' : 'Recebido']}/>
+            <Tooltip content={<TooltipCustom/>}/>
             <Legend/>
-            <Area type="monotone" dataKey="vendas" stroke="#1a6b5a" strokeWidth={2} fill="url(#gradVendas)" name="Vendas"/>
-            <Area type="monotone" dataKey="meta" stroke="#f5821f" strokeWidth={2} strokeDasharray="5 5" fill="url(#gradMeta)" name="Meta R$ 3.000"/>
-            <Area type="monotone" dataKey="recebido" stroke="#29abe2" strokeWidth={2} fill="none" name="Recebido"/>
-          </AreaChart>
+            <Line type="monotone" dataKey="vendido" name="Valor Vendido" stroke="#1a6b5a" strokeWidth={3} dot={{r:5, fill:'#1a6b5a'}} activeDot={{r:8}}>
+              <LabelList dataKey="vendido" position="top" formatter={v => `R$${parseFloat(v).toFixed(0)}`} style={{fontSize:'11px', fill:'#1a6b5a', fontWeight:'bold'}}/>
+            </Line>
+            <Line type="monotone" dataKey="recebido" name="Valor Recebido" stroke="#29abe2" strokeWidth={2} strokeDasharray="5 5" dot={{r:4}}/>
+            <Line type="monotone" dataKey="meta" name="Meta R$3.000" stroke="#f5821f" strokeWidth={2} strokeDasharray="8 3" dot={false}/>
+          </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* GRÁFICO 2 e 3 — lado a lado */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'20px', marginBottom:'20px'}}>
-
-        {/* Produtos mais vendidos (Bar horizontal) */}
-        <div style={cardStyle}>
-          <div style={tituloGrafico}>🏆 Produtos Mais Vendidos {filtroCategoria && `— ${filtroCategoria}`}</div>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={produtosMaisVendidos()} layout="vertical" margin={{top:0, right:20, left:0, bottom:0}}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-              <XAxis type="number" tick={{fontSize:11}}/>
-              <YAxis dataKey="nome" type="category" tick={{fontSize:11}} width={100}/>
-              <Tooltip formatter={(v, n) => [v, n === 'quantidade' ? 'Unidades' : 'Faturamento R$']}/>
-              <Legend/>
-              <Bar dataKey="quantidade" fill="#1a6b5a" name="Unidades" radius={[0,6,6,0]}>
-                {produtosMaisVendidos().map((_, i) => (
-                  <Cell key={i} fill={CORES[i % CORES.length]}/>
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Vendas por categoria (Pie) */}
-        <div style={cardStyle}>
-          <div style={tituloGrafico}>🥧 Faturamento por Categoria</div>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={vendasPorCategoria()}
-                dataKey="valor"
-                nameKey="categoria"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                innerRadius={50}
-                paddingAngle={3}
-                label={({categoria, percent}) => `${categoria.split('/')[0].trim()} ${(percent*100).toFixed(0)}%`}
-                labelLine={false}
-              >
-                {vendasPorCategoria().map((_, i) => (
-                  <Cell key={i} fill={CORES[i % CORES.length]}/>
-                ))}
-              </Pie>
-              <Tooltip formatter={(v) => `R$ ${parseFloat(v).toFixed(2)}`}/>
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* GRÁFICO 4 — Top Clientes (Bar) */}
-      <div style={{...cardStyle, marginBottom:'20px'}}>
-        <div style={tituloGrafico}>👥 Top Clientes por Volume de Compras</div>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={topClientes()} margin={{top:10, right:20, left:0, bottom:40}}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-            <XAxis dataKey="nome" tick={{fontSize:11}} angle={-30} textAnchor="end" interval={0}/>
-            <YAxis tick={{fontSize:11}} tickFormatter={v => `R$${v}`}/>
-            <Tooltip formatter={(v, n) => [`R$ ${parseFloat(v).toFixed(2)}`, 'Total Comprado']}/>
-            <Bar dataKey="totalComprado" name="Total Comprado" radius={[6,6,0,0]}>
-              {topClientes().map((_, i) => (
-                <Cell key={i} fill={CORES[i % CORES.length]}/>
-              ))}
+      {/* GRÁFICO 2 — 10 mais vendidos */}
+      <div style={card}>
+        <div style={titulo}>🏆 Top 10 Produtos Mais Vendidos</div>
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={top10} layout="vertical" margin={{top:0, right:80, left:10, bottom:0}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={false}/>
+            <XAxis type="number" tick={{fontSize:11}}/>
+            <YAxis dataKey="nome" type="category" tick={{fontSize:11}} width={130}/>
+            <Tooltip content={<TooltipCustom/>}/>
+            <Bar dataKey="quantidade" name="Quantidade" radius={[0,8,8,0]} maxBarSize={28}>
+              {top10.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
+              <LabelList dataKey="quantidade" position="right" style={{fontSize:'12px', fontWeight:'bold'}}/>
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* GRÁFICO 5 — Radar de categorias */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'20px', marginBottom:'20px'}}>
-        <div style={cardStyle}>
-          <div style={tituloGrafico}>🕸️ Performance por Categoria</div>
-          <ResponsiveContainer width="100%" height={280}>
-            <RadarChart data={vendasPorCategoria().slice(0,7)}>
-              <PolarGrid stroke="#eee"/>
-              <PolarAngleAxis dataKey="categoria" tick={{fontSize:11}}/>
-              <Radar name="Faturamento" dataKey="valor" stroke="#1a6b5a" fill="#1a6b5a" fillOpacity={0.3} strokeWidth={2}/>
-              <Radar name="Quantidade" dataKey="quantidade" stroke="#f5821f" fill="#f5821f" fillOpacity={0.2} strokeWidth={2}/>
-              <Legend/>
-              <Tooltip formatter={(v, n) => [n === 'Faturamento' ? `R$ ${parseFloat(v).toFixed(2)}` : `${v} un.`, n]}/>
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* GRÁFICO 2b — 10 menos vendidos */}
+      <div style={card}>
+        <div style={titulo}>📉 Top 10 Produtos Menos Vendidos</div>
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={bottom10} layout="vertical" margin={{top:0, right:80, left:10, bottom:0}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={false}/>
+            <XAxis type="number" tick={{fontSize:11}}/>
+            <YAxis dataKey="nome" type="category" tick={{fontSize:11}} width={130}/>
+            <Tooltip content={<TooltipCustom/>}/>
+            <Bar dataKey="quantidade" name="Quantidade" radius={[0,8,8,0]} maxBarSize={28}>
+              {bottom10.map((_, i) => <Cell key={i} fill={['#ef4444','#f97316','#f59e0b','#84cc16','#06b6d4','#8b5cf6','#e91e8c','#10b981','#29abe2','#f5821f'][i % 10]}/>)}
+              <LabelList dataKey="quantidade" position="right" style={{fontSize:'12px', fontWeight:'bold'}}/>
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
-        {/* Inadimplência */}
-        <div style={cardStyle}>
-          <div style={tituloGrafico}>💳 Status de Pagamentos</div>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={inadimplencia()} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({name, value}) => `${name}: ${value}`}>
-                {inadimplencia().map((item, i) => (
-                  <Cell key={i} fill={item.cor}/>
-                ))}
-              </Pie>
-              <Tooltip/>
-              <Legend/>
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'8px', marginTop:'12px'}}>
-            {inadimplencia().map((item, i) => (
-              <div key={i} style={{textAlign:'center', padding:'8px', borderRadius:'8px', background:`${item.cor}15`}}>
-                <div style={{fontSize:'20px', fontWeight:'bold', color:item.cor}}>{item.value}</div>
-                <div style={{fontSize:'11px', color:'#666'}}>{item.name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* GRÁFICO 3 — Investimento por fornecedor */}
+      <div style={card}>
+        <div style={titulo}>🏪 Investimento por Fornecedor</div>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={dadosFornecedor()} margin={{top:10, right:30, left:10, bottom:40}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5"/>
+            <XAxis dataKey="fornecedor" tick={{fontSize:11}} angle={-25} textAnchor="end" interval={0}/>
+            <YAxis tick={{fontSize:11}} tickFormatter={v => `R$${v}`}/>
+            <Tooltip content={<TooltipCustom/>}/>
+            <Legend/>
+            <Bar dataKey="investido" name="Valor Investido" radius={[6,6,0,0]} maxBarSize={50}>
+              {dadosFornecedor().map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
+              <LabelList dataKey="investido" position="top" formatter={v => `R$${parseFloat(v).toFixed(0)}`} style={{fontSize:'11px', fontWeight:'bold'}}/>
+            </Bar>
+            <Bar dataKey="lucroEstimado" name="Lucro Estimado" radius={[6,6,0,0]} maxBarSize={50} fill="#10b981"/>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* GRÁFICO 4 — Vendas por categoria */}
+      <div style={card}>
+        <div style={titulo}>📦 Vendas por Categoria — Valor e Quantidade</div>
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={dadosCategoria()} margin={{top:10, right:30, left:10, bottom:50}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5"/>
+            <XAxis dataKey="categoria" tick={{fontSize:11}} angle={-30} textAnchor="end" interval={0}/>
+            <YAxis yAxisId="valor" orientation="left" tick={{fontSize:11}} tickFormatter={v => `R$${v}`}/>
+            <YAxis yAxisId="qtd" orientation="right" tick={{fontSize:11}}/>
+            <Tooltip content={<TooltipCustom/>}/>
+            <Legend/>
+            <Bar yAxisId="valor" dataKey="valor" name="Valor Vendido (R$)" radius={[6,6,0,0]} maxBarSize={40}>
+              {dadosCategoria().map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
+              <LabelList dataKey="valor" position="top" formatter={v => `R$${parseFloat(v).toFixed(0)}`} style={{fontSize:'10px', fontWeight:'bold'}}/>
+            </Bar>
+            <Bar yAxisId="qtd" dataKey="quantidade" name="Quantidade" radius={[6,6,0,0]} maxBarSize={40} fill="#29abe2" opacity={0.7}>
+              <LabelList dataKey="quantidade" position="top" style={{fontSize:'10px', fontWeight:'bold'}}/>
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* GRÁFICO 5 — Vendas vs Devoluções */}
+      <div style={card}>
+        <div style={titulo}>🔄 Vendas vs Devoluções por Mês</div>
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={dadosVendasDevolucoes()} margin={{top:10, right:30, left:10, bottom:10}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5"/>
+            <XAxis dataKey="mes" tick={{fontSize:11}}/>
+            <YAxis yAxisId="valor" orientation="left" tick={{fontSize:11}} tickFormatter={v => `R$${v}`}/>
+            <YAxis yAxisId="qtd" orientation="right" tick={{fontSize:11}}/>
+            <Tooltip content={<TooltipCustom/>}/>
+            <Legend/>
+            <Bar yAxisId="valor" dataKey="valorVendido" name="Valor Vendido" fill="#1a6b5a" radius={[6,6,0,0]} maxBarSize={35}>
+              <LabelList dataKey="valorVendido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'10px', fontWeight:'bold', fill:'#1a6b5a'}}/>
+            </Bar>
+            <Bar yAxisId="valor" dataKey="valorDevolvido" name="Valor Devolvido" fill="#ef4444" radius={[6,6,0,0]} maxBarSize={35}>
+              <LabelList dataKey="valorDevolvido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'10px', fontWeight:'bold', fill:'#ef4444'}}/>
+            </Bar>
+            <Bar yAxisId="qtd" dataKey="qtdVendida" name="Qtd Vendida" fill="#29abe2" radius={[6,6,0,0]} maxBarSize={35} opacity={0.7}/>
+            <Bar yAxisId="qtd" dataKey="qtdDevolvida" name="Qtd Devolvida" fill="#f5821f" radius={[6,6,0,0]} maxBarSize={35} opacity={0.7}/>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* PREVISÕES */}
       <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'20px', marginBottom:'20px'}}>
 
         {/* Previsão de vendas */}
-        <div style={{...cardStyle, borderTop:'4px solid #8b5cf6'}}>
-          <div style={tituloGrafico}>🔮 Previsão — Próximo Mês</div>
-          {previsao ? (
+        <div style={{...card, marginBottom:0, borderTop:'4px solid #8b5cf6'}}>
+          <div style={titulo}>🔮 Previsão — Próximo Mês</div>
+          {previsaoVendas() ? (
             <>
-              <div style={{fontSize:'36px', fontWeight:'bold', color:'#8b5cf6', marginBottom:'8px'}}>
-                R$ {parseFloat(previsao).toFixed(2)}
+              <div style={{fontSize:'34px', fontWeight:'bold', color:'#8b5cf6', marginBottom:'8px'}}>
+                R$ {parseFloat(previsaoVendas()).toFixed(2)}
               </div>
               <p style={{fontSize:'13px', color:'#666', marginBottom:'12px'}}>
-                Baseado na média dos últimos meses com análise de tendência
+                Baseado na média dos últimos meses
               </p>
-              <div style={{background: parseFloat(previsao) >= 3000 ? '#e8f5e9' : '#fff8e1', padding:'12px', borderRadius:'8px'}}>
-                <strong style={{color: parseFloat(previsao) >= 3000 ? '#2e7d32' : '#f57f17', fontSize:'13px'}}>
-                  {parseFloat(previsao) >= 3000 ? '✅ Projeção acima da meta!' : '⚠️ Projeção abaixo da meta de R$ 3.000'}
+              <div style={{background: parseFloat(previsaoVendas()) >= 3000 ? '#e8f5e9' : '#fff8e1', padding:'12px', borderRadius:'8px'}}>
+                <strong style={{color: parseFloat(previsaoVendas()) >= 3000 ? '#2e7d32' : '#f57f17', fontSize:'13px'}}>
+                  {parseFloat(previsaoVendas()) >= 3000 ? '✅ Projeção acima da meta!' : '⚠️ Projeção abaixo da meta de R$ 3.000'}
                 </strong>
               </div>
             </>
@@ -387,13 +445,13 @@ function BI() {
           )}
         </div>
 
-        {/* Produtos acabando */}
-        <div style={{...cardStyle, borderTop:'4px solid #ef4444'}}>
-          <div style={tituloGrafico}>📦 Alerta — Estoque Crítico</div>
-          {acabando.length === 0 ? (
+        {/* Estoque crítico */}
+        <div style={{...card, marginBottom:0, borderTop:'4px solid #ef4444'}}>
+          <div style={titulo}>📦 Alerta — Estoque Crítico</div>
+          {produtosAcabando(prods).length === 0 ? (
             <p style={{color:'#10b981', fontWeight:'bold'}}>✅ Nenhum produto em nível crítico!</p>
           ) : (
-            acabando.map((p, i) => (
+            produtosAcabando(prods).map((p, i) => (
               <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', background: p.estoque === 0 ? '#ffebee' : '#fff8e1', borderRadius:'8px', marginBottom:'8px', borderLeft:`3px solid ${p.estoque === 0 ? '#ef4444' : '#f5821f'}`}}>
                 <div>
                   <strong style={{fontSize:'13px'}}>{p.nome}</strong><br/>
@@ -407,22 +465,22 @@ function BI() {
           )}
         </div>
 
-        {/* Previsão data comemorativa */}
-        <div style={{...cardStyle, borderTop:'4px solid #e91e8c'}}>
-          <div style={tituloGrafico}>🎉 Próxima Data — {proxData.nome}</div>
+        {/* Próxima data comemorativa */}
+        <div style={{...card, marginBottom:0, borderTop:'4px solid #e91e8c'}}>
+          <div style={titulo}>🎉 {proxData.nome}</div>
           <p style={{fontSize:'12px', color:'#888', marginBottom:'12px'}}>
             Categorias em alta: {proxData.categorias.join(', ')}
           </p>
-          {prodsPrevistas.length === 0 ? (
+          {prodsPrevistas().length === 0 ? (
             <p style={{color:'#aaa', fontSize:'13px'}}>Sem histórico para prever</p>
           ) : (
-            prodsPrevistas.map((p, i) => (
-              <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px', background:'#fdf0f8', borderRadius:'8px', marginBottom:'6px', borderLeft:'3px solid #e91e8c'}}>
+            prodsPrevistas().map((p, i) => (
+              <div key={i} style={{display:'flex', justifyContent:'space-between', padding:'8px', background:'#fdf0f8', borderRadius:'8px', marginBottom:'6px', borderLeft:'3px solid #e91e8c'}}>
                 <div>
                   <strong style={{fontSize:'13px'}}>{p.nome}</strong><br/>
                   <small style={{color:'#888'}}>{p.categoria}</small>
                 </div>
-                <span style={{fontWeight:'bold', color:'#e91e8c'}}>{p.quantidade} vendidos</span>
+                <span style={{fontWeight:'bold', color:'#e91e8c'}}>{p.quantidade} un.</span>
               </div>
             ))
           )}
