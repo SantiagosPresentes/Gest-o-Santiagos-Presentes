@@ -275,7 +275,7 @@ function BI() {
           </select>
           <button
             onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }}
-            style={{background:'#eee', color:'#555', border:'none', padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}
+            style={{background:'#000000', color:'#555', border:'none', padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}
           >
             Limpar
           </button>
