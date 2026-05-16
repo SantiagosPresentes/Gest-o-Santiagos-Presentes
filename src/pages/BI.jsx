@@ -261,7 +261,7 @@ function BI() {
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px', marginBottom:'16px'}}>
         <h2>Dashboard BI</h2>
         <div style={{display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center'}}>
-          <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}>
+          <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #3B3B3B', fontSize:'13px', background:'white'}}>
             <option value="">Todos os anos</option>
             {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
