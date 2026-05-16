@@ -9,11 +9,14 @@ function Vendas() {
   const [parcelamento, setParcelamento] = useState('1')
   const [parcelas, setParcelas] = useState([{ data: '', valor: '' }])
   const [observacao, setObservacao] = useState('')
+  const [desconto, setDesconto] = useState('')
   const [mensagem, setMensagem] = useState('')
   const [vendaFinalizada, setVendaFinalizada] = useState(null)
   const comprovanteRef = useRef(null)
 
-  const total = itens.reduce((acc, item) => acc + item.subtotal, 0)
+  const subtotalItens = itens.reduce((acc, item) => acc + item.subtotal, 0)
+  const valorDesconto = desconto && parseFloat(desconto) > 0 ? parseFloat(desconto) : 0
+  const total = subtotalItens - valorDesconto
 
   useEffect(() => {
     supabase.from('clientes').select('*').order('nome').then(({ data }) => {
@@ -90,7 +93,11 @@ function Vendas() {
       valor_total: total,
       recebido: 0,
       situacao: 'Pendente',
-      observacao: obsParcelamento + (observacao ? (obsParcelamento ? ' | ' : '') + observacao : '')
+      observacao: [
+        obsParcelamento,
+        valorDesconto > 0 ? `Desconto: R$ ${valorDesconto.toFixed(2)}` : '',
+        observacao
+      ].filter(Boolean).join(' | ')
     }).select().single()
 
     if (error) { setMensagem('Erro: ' + error.message); return }
@@ -117,6 +124,7 @@ function Vendas() {
     setParcelas([{ data: '', valor: '' }])
     setParcelamento('1')
     setObservacao('')
+    setDesconto('')
     setMensagem('')
   }
 
@@ -230,6 +238,23 @@ function Vendas() {
                 </div>
               )}
 
+                {/* Desconto */}
+                <div style={{marginBottom:'16px'}}>
+                  <label style={{fontWeight:'bold', fontSize:'13px'}}>Desconto (R$)</label><br/>
+                  <input
+                    type="number"
+                    value={desconto}
+                    onChange={e => setDesconto(e.target.value)}
+                    placeholder="Ex: 10.00"
+                    style={campo}
+                  />
+                  {valorDesconto > 0 && (
+                    <div style={{marginTop:'8px', background:'#e8f5e9', border:'1px solid #4caf50', borderRadius:'6px', padding:'8px 12px', fontSize:'13px'}}>
+                      <span style={{color:'#2e7d32'}}>✅ Desconto de <strong>R$ {valorDesconto.toFixed(2)}</strong> aplicado!</span>
+                    </div>
+                  )}
+                </div>
+
               {/* Observação */}
               {vendaFinalizada.observacao && (
                 <p style={{fontSize:'12px', color:'#777', fontStyle:'italic', marginTop:'8px'}}>
@@ -306,7 +331,15 @@ function Vendas() {
           ))}
 
           <div style={{borderTop:'2px solid #eee', marginTop:'16px', paddingTop:'16px', textAlign:'right'}}>
-            <strong style={{fontSize:'22px', color:'#1a6b5a'}}>Total: R$ {total.toFixed(2)}</strong>
+            <div style={{textAlign:'right'}}>
+              {valorDesconto > 0 && (
+                <div style={{fontSize:'14px', color:'#888', marginBottom:'4px'}}>
+                  Subtotal: R$ {subtotalItens.toFixed(2)}<br/>
+                  <span style={{color:'#2e7d32'}}>Desconto: -R$ {valorDesconto.toFixed(2)}</span>
+                </div>
+              )}
+              <strong style={{fontSize:'22px', color:'#1a6b5a'}}>Total: R$ {total.toFixed(2)}</strong>
+            </div>
           </div>
         </div>
 
