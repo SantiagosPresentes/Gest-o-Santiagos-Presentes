@@ -107,6 +107,7 @@ function Produtos() {
               <option>Decoração</option>
               <option>Escolar</option>
               <option>Infantil</option>
+              <option>Lazer</option>
               <option>Perfumaria</option>
               <option>Utilidade</option>
             </select>
