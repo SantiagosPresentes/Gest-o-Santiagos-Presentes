@@ -284,7 +284,7 @@ function BI() {
             { value: filtroMes, set: setFiltroMes, placeholder: 'Todos os meses', options: MESES_NOMES.map((m, i) => ({v:String(i+1), l:m})) },
             { value: filtroCategoria, set: setFiltroCategoria, placeholder: 'Todas categorias', options: categorias.map(c => ({v:c, l:c})) },
           ].map((f, i) => (
-            <select key={i} value={f.value} onChange={e => f.set(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}>
+            <select key={i} value={f.value} onChange={e => f.set(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'dark'}}>
               <option value="">{f.placeholder}</option>
               {f.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
             </select>
