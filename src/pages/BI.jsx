@@ -289,8 +289,8 @@ function BI() {
               {f.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
             </select>
           ))}
-          <button onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }} style={{background:'#eee', color:'#555', border:'none', padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
-            Limpar
+          <button onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }} style={{background:'#4A5568', color:'#E5E7EB', border:'none', padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
+            🧹 Limpar
           </button>
           <button onClick={carregarDados} style={{background:'#1a6b5a', color:'white', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
             🔄 Atualizar
