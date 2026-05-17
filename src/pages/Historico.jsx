@@ -159,9 +159,9 @@ function Historico() {
         </div>
         <button
           onClick={() => { setFiltroSituacao(''); setFiltroDataInicio(''); setFiltroDataFim(''); setFiltroCliente('') }}
-          style={{background:'#eee', border:'none', padding:'8px 14px', borderRadius:'6px', cursor:'pointer', fontSize:'13px'}}
+          style={{background:'#e94560', border:'none', padding:'8px 14px', borderRadius:'6px', cursor:'pointer', fontSize:'13px'}}
         >
-          Limpar
+          🧹 Limpar
         </button>
         <div style={{marginLeft:'auto', color:'#666', fontSize:'13px', whiteSpace:'nowrap'}}>
           {vendasFiltradas.length} venda(s)
