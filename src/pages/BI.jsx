@@ -293,7 +293,7 @@ function BI() {
             Limpar
           </button>
           <button onClick={carregarDados} style={{background:'#1a6b5a', color:'white', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
-            🔄
+            🔄 Atualizar
           </button>
         </div>
       </div>
