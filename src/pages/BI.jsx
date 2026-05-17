@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer, LabelList
+  Legend, ResponsiveContainer, LabelList, ComposedChart
 } from 'recharts'
 
 const CORES = ['#1a6b5a', '#f5821f', '#29abe2', '#e91e8c', '#8b5cf6', '#f7c948', '#10b981', '#ef4444', '#06b6d4', '#84cc16']
@@ -29,25 +29,45 @@ function proximaDataComemorativa() {
     return dataEvento > hoje
   })
   if (futuras.length > 0) return futuras[0]
-  // Se passou todas do ano, pega a primeira do próximo ano
   return TODAS_DATAS_COMEMORATIVAS[0]
 }
 
 const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
+// Tooltip personalizado e moderno
 const TooltipCustom = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null
   return (
-    <div style={{background:'white', border:'1px solid #eee', borderRadius:'10px', padding:'12px', boxShadow:'0 4px 16px rgba(0,0,0,0.12)', fontSize:'13px'}}>
-      <p style={{fontWeight:'bold', color:'#333', marginBottom:'6px'}}>{label}</p>
+    <div style={{background:'white', border:'none', borderRadius:'12px', padding:'14px 18px', boxShadow:'0 8px 24px rgba(0,0,0,0.15)', fontSize:'13px', minWidth:'160px'}}>
+      {label && <p style={{fontWeight:'bold', color:'#333', marginBottom:'8px', borderBottom:'1px solid #f0f0f0', paddingBottom:'6px'}}>{label}</p>}
       {payload.map((p, i) => (
-        <p key={i} style={{color:p.color, margin:'2px 0'}}>
-          {p.name}: {typeof p.value === 'number' && p.name?.toLowerCase().includes('r$') || p.name?.toLowerCase().includes('valor') || p.name?.toLowerCase().includes('vendido') || p.name?.toLowerCase().includes('investido') || p.name?.toLowerCase().includes('devolvido')
-            ? `R$ ${parseFloat(p.value).toFixed(2)}`
-            : p.value}
-        </p>
+        <div key={i} style={{display:'flex', justifyContent:'space-between', gap:'16px', margin:'4px 0', alignItems:'center'}}>
+          <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
+            <div style={{width:'10px', height:'10px', borderRadius:'50%', background:p.color, flexShrink:0}}/>
+            <span style={{color:'#666'}}>{p.name}</span>
+          </div>
+          <span style={{fontWeight:'bold', color:p.color}}>
+            {p.name?.includes('Valor') || p.name?.includes('Vendido') || p.name?.includes('Recebido') || p.name?.includes('Investido') || p.name?.includes('Lucro') || p.name?.includes('Devolvido')
+              ? `R$ ${parseFloat(p.value).toFixed(2)}`
+              : p.value}
+          </span>
+        </div>
       ))}
     </div>
+  )
+}
+
+// Label customizado para pizza
+const LabelPizza = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+  if (percent < 0.05) return null
+  const RADIAN = Math.PI / 180
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight="bold">
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
   )
 }
 
@@ -57,6 +77,7 @@ function BI() {
   const [devolucoes, setDevolucoes] = useState([])
   const [investimentos, setInvestimentos] = useState([])
   const [clientes, setClientes] = useState([])
+  const [prods, setProds] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroMes, setFiltroMes] = useState('')
@@ -66,22 +87,23 @@ function BI() {
 
   async function carregarDados() {
     setCarregando(true)
-    const [v, iv, d, inv, c] = await Promise.all([
+    const [v, iv, d, inv, c, p] = await Promise.all([
       supabase.from('vendas').select('*, clientes(nome)').order('data_venda'),
       supabase.from('itens_venda').select('*, produtos(nome, categoria, preco_venda)'),
       supabase.from('devolucoes').select('*, produtos(nome, categoria)'),
       supabase.from('investimentos').select('*, produtos(nome, categoria)'),
-      supabase.from('clientes').select('*, vendas(valor_total, situacao, recebido, data_para_pagar)')
+      supabase.from('clientes').select('*, vendas(valor_total, situacao, recebido, data_para_pagar)'),
+      supabase.from('produtos').select('*')
     ])
     if (v.data) setVendas(v.data)
     if (iv.data) setItensVenda(iv.data)
     if (d.data) setDevolucoes(d.data)
     if (inv.data) setInvestimentos(inv.data)
     if (c.data) setClientes(c.data)
+    if (p.data) setProds(p.data)
     setCarregando(false)
   }
 
-  // Filtra vendas por mês e ano
   const vendasFiltradas = vendas.filter(v => {
     const d = new Date(v.data_venda)
     if (filtroMes && d.getMonth() + 1 !== parseInt(filtroMes)) return false
@@ -94,15 +116,13 @@ function BI() {
     return true
   })
 
-  // Anos disponíveis
   const anosDisponiveis = [...new Set(vendas.map(v => new Date(v.data_venda).getFullYear()))].sort()
   const categorias = [...new Set(itensVenda.map(i => i.produtos?.categoria).filter(Boolean))].sort()
 
-  // ── KPIs ──────────────────────────────────────────────
+  // KPIs
   const totalVendido = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
   const totalRecebido = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
   const ticketMedio = vendasFiltradas.length > 0 ? totalVendido / vendasFiltradas.length : 0
-
   const atrasados = vendasFiltradas.filter(v => {
     if (parseFloat(v.recebido || 0) >= parseFloat(v.valor_total)) return false
     const hoje = new Date(); hoje.setHours(0,0,0,0)
@@ -110,65 +130,69 @@ function BI() {
   }).length
   const taxaInad = vendasFiltradas.length > 0 ? ((atrasados / vendasFiltradas.length) * 100).toFixed(1) : 0
 
-  // ── GRÁFICO 1 — Linha de vendas por mês ───────────────
+  // GRÁFICO 1 — Linha + Area (vendas por mês)
   const dadosLinha = () => {
     const meses = {}
     vendas.forEach(v => {
       const d = new Date(v.data_venda)
       if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
-      const chave = `${MESES_NOMES[d.getMonth()]}/${d.getFullYear()}`
+      const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes: chave, vendido: 0, recebido: 0, meta: 3000 }
       meses[chave].vendido += parseFloat(v.valor_total)
       meses[chave].recebido += parseFloat(v.recebido || 0)
     })
-    // Subtrai devoluções
     devolucoes.forEach(dev => {
       const d = new Date(dev.criado_em)
       if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
-      const chave = `${MESES_NOMES[d.getMonth()]}/${d.getFullYear()}`
-      if (meses[chave]) {
-        meses[chave].vendido -= parseFloat(dev.valor_total || 0)
-      }
+      const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
+      if (meses[chave]) meses[chave].vendido = Math.max(0, meses[chave].vendido - parseFloat(dev.valor_total || 0))
     })
     return Object.values(meses)
   }
 
-  // ── GRÁFICO 2 — 10 mais e 10 menos vendidos ───────────
-  const dadosMaisMenos = () => {
+  // GRÁFICO 2 — Top 10 mais vendidos (barras horizontais)
+  const dadosMaisVendidos = () => {
     const contagem = {}
     itensFiltrados.forEach(i => {
       const nome = i.produtos?.nome || 'Desconhecido'
-      if (!contagem[nome]) contagem[nome] = { nome: nome.length > 18 ? nome.substring(0,18)+'...' : nome, nomeCompleto: nome, quantidade: 0, valor: 0 }
-      contagem[nome].quantidade += i.quantidade
-      contagem[nome].valor += i.quantidade * parseFloat(i.valor_unitario)
+      const nomeAbrev = nome.length > 20 ? nome.substring(0, 20) + '…' : nome
+      if (!contagem[nomeAbrev]) contagem[nomeAbrev] = { nome: nomeAbrev, quantidade: 0, valor: 0 }
+      contagem[nomeAbrev].quantidade += i.quantidade
+      contagem[nomeAbrev].valor += i.quantidade * parseFloat(i.valor_unitario)
     })
-    // Subtrai devoluções
     devolucoes.forEach(dev => {
       const nome = dev.produtos?.nome || 'Desconhecido'
-      const chave = nome.length > 18 ? nome.substring(0,18)+'...' : nome
-      if (contagem[chave]) {
-        contagem[chave].quantidade -= dev.quantidade
-      }
+      const nomeAbrev = nome.length > 20 ? nome.substring(0, 20) + '…' : nome
+      if (contagem[nomeAbrev]) contagem[nomeAbrev].quantidade = Math.max(0, contagem[nomeAbrev].quantidade - dev.quantidade)
     })
-    const ordenado = Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade)
-    const top10 = ordenado.slice(0, 10).map(p => ({...p, tipo:'Mais vendido'}))
-    const bottom10 = [...ordenado].sort((a, b) => a.quantidade - b.quantidade).slice(0, 10).map(p => ({...p, tipo:'Menos vendido'}))
-    return { top10, bottom10 }
+    return Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade).slice(0, 10)
   }
 
-  // ── GRÁFICO 3 — Investimento por fornecedor ────────────
+  // GRÁFICO 2b — Top 10 menos vendidos
+  const dadosMenosVendidos = () => {
+    const contagem = {}
+    itensFiltrados.forEach(i => {
+      const nome = i.produtos?.nome || 'Desconhecido'
+      const nomeAbrev = nome.length > 20 ? nome.substring(0, 20) + '…' : nome
+      if (!contagem[nomeAbrev]) contagem[nomeAbrev] = { nome: nomeAbrev, quantidade: 0 }
+      contagem[nomeAbrev].quantidade += i.quantidade
+    })
+    return Object.values(contagem).sort((a, b) => a.quantidade - b.quantidade).slice(0, 10)
+  }
+
+  // GRÁFICO 3 — Investimento por fornecedor (pizza + tabela)
   const dadosFornecedor = () => {
     const forns = {}
     investimentos.forEach(inv => {
       const forn = inv.fornecedor || 'Desconhecido'
-      if (!forns[forn]) forns[forn] = { fornecedor: forn.length > 15 ? forn.substring(0,15)+'...' : forn, investido: 0, lucroEstimado: 0 }
+      if (!forns[forn]) forns[forn] = { fornecedor: forn, investido: 0, qtdCompras: 0 }
       forns[forn].investido += parseFloat(inv.valor_total_pago)
-      forns[forn].lucroEstimado += parseFloat(inv.lucro_final || 0)
+      forns[forn].qtdCompras += 1
     })
     return Object.values(forns).sort((a, b) => b.investido - a.investido)
   }
 
-  // ── GRÁFICO 4 — Vendas por categoria (valor e qtd) ────
+  // GRÁFICO 4 — Categoria (pizza + barras)
   const dadosCategoria = () => {
     const cats = {}
     itensFiltrados.forEach(i => {
@@ -177,26 +201,25 @@ function BI() {
       cats[cat].valor += i.quantidade * parseFloat(i.valor_unitario)
       cats[cat].quantidade += i.quantidade
     })
-    // Subtrai devoluções por categoria
     devolucoes.forEach(dev => {
       const cat = dev.produtos?.categoria || 'Outros'
       if (cats[cat]) {
-        cats[cat].valor -= parseFloat(dev.valor_total || 0)
-        cats[cat].quantidade -= dev.quantidade
+        cats[cat].valor = Math.max(0, cats[cat].valor - parseFloat(dev.valor_total || 0))
+        cats[cat].quantidade = Math.max(0, cats[cat].quantidade - dev.quantidade)
       }
     })
     return Object.values(cats).sort((a, b) => b.valor - a.valor)
   }
 
-  // ── GRÁFICO 5 — Vendas vs Devoluções ──────────────────
-  const dadosVendasDevolucoes = () => {
+  // GRÁFICO 5 — Vendas vs Devoluções (composed)
+  const dadosVendasDev = () => {
     const meses = {}
     itensVenda.forEach(i => {
       const venda = vendas.find(v => v.id === i.venda_id)
       if (!venda) return
       const d = new Date(venda.data_venda)
       if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
-      const chave = `${MESES_NOMES[d.getMonth()]}/${d.getFullYear()}`
+      const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes: chave, qtdVendida: 0, valorVendido: 0, qtdDevolvida: 0, valorDevolvido: 0 }
       meses[chave].qtdVendida += i.quantidade
       meses[chave].valorVendido += i.quantidade * parseFloat(i.valor_unitario)
@@ -204,7 +227,7 @@ function BI() {
     devolucoes.forEach(dev => {
       const d = new Date(dev.criado_em)
       if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
-      const chave = `${MESES_NOMES[d.getMonth()]}/${d.getFullYear()}`
+      const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes: chave, qtdVendida: 0, valorVendido: 0, qtdDevolvida: 0, valorDevolvido: 0 }
       meses[chave].qtdDevolvida += dev.quantidade
       meses[chave].valorDevolvido += parseFloat(dev.valor_total || 0)
@@ -212,33 +235,26 @@ function BI() {
     return Object.values(meses)
   }
 
-  // Previsão próxima data comemorativa
-  const proxData = proximaDataComemorativa()
-  const prodsPrevistas = () => {
-    const contagem = {}
-    itensVenda
-      .filter(i => proxData.categorias.includes(i.produtos?.categoria))
-      .forEach(i => {
-        const nome = i.produtos?.nome || 'Desconhecido'
-        if (!contagem[nome]) contagem[nome] = { nome, quantidade: 0, categoria: i.produtos?.categoria }
-        contagem[nome].quantidade += i.quantidade
-      })
-    return Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade).slice(0, 5)
-  }
-
-  const produtosAcabando = produtos => produtos?.filter(p => p.estoque <= 3 && p.estoque >= 0).sort((a, b) => a.estoque - b.estoque).slice(0, 5) || []
-
-  const [prods, setProds] = useState([])
-  useEffect(() => {
-    supabase.from('produtos').select('*').then(({ data }) => { if (data) setProds(data) })
-  }, [])
-
+  // Previsão
   const previsaoVendas = () => {
     const dados = dadosLinha()
     if (dados.length < 2) return null
     const ultimos = dados.slice(-3)
     const media = ultimos.reduce((acc, m) => acc + m.vendido, 0) / ultimos.length
     return media.toFixed(2)
+  }
+
+  const produtosAcabando = prods.filter(p => p.estoque <= 3 && p.estoque >= 0).sort((a, b) => a.estoque - b.estoque).slice(0, 5)
+  const proxData = proximaDataComemorativa()
+
+  const prodsPrevistas = () => {
+    const contagem = {}
+    itensVenda.filter(i => proxData.categorias.includes(i.produtos?.categoria)).forEach(i => {
+      const nome = i.produtos?.nome || 'Desconhecido'
+      if (!contagem[nome]) contagem[nome] = { nome, quantidade: 0, categoria: i.produtos?.categoria }
+      contagem[nome].quantidade += i.quantidade
+    })
+    return Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade).slice(0, 5)
   }
 
   if (carregando) {
@@ -251,215 +267,282 @@ function BI() {
     )
   }
 
-  const card = {background:'white', borderRadius:'16px', padding:'24px', boxShadow:'0 4px 20px rgba(0,0,0,0.07)', marginBottom:'20px'}
-  const titulo = {fontSize:'15px', fontWeight:'bold', color:'#1a6b5a', marginBottom:'20px', paddingBottom:'12px', borderBottom:'2px solid #f0f0f0', display:'flex', alignItems:'center', gap:'8px'}
+  const card = { background:'white', borderRadius:'16px', padding:'24px', boxShadow:'0 4px 20px rgba(0,0,0,0.07)', marginBottom:'20px' }
+  const titulo = { fontSize:'15px', fontWeight:'bold', color:'#1a6b5a', marginBottom:'20px', paddingBottom:'12px', borderBottom:'2px solid #f0f0f0', display:'flex', alignItems:'center', gap:'8px' }
 
-  const { top10, bottom10 } = dadosMaisMenos()
+  const fornecedores = dadosFornecedor()
+  const totalInvestido = fornecedores.reduce((acc, f) => acc + f.investido, 0)
 
   return (
     <div>
+      {/* Filtros */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px', marginBottom:'16px'}}>
         <h2>Dashboard BI</h2>
         <div style={{display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center'}}>
-          <select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'dark'}}>
-            <option value="">Todos os anos</option>
-            {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <select value={filtroMes} onChange={e => setFiltroMes(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'dark'}}>
-            <option value="">Todos os meses</option>
-            {MESES_NOMES.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-          </select>
-          <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'dark'}}>
-            <option value="">Todas as categorias</option>
-            {categorias.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <button
-            onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }}
-            style={{background:'#eee', color:'#555', border:'none', padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}
-          >
+          {[
+            { value: filtroAno, set: setFiltroAno, placeholder: 'Todos os anos', options: anosDisponiveis.map(a => ({v:String(a), l:String(a)})) },
+            { value: filtroMes, set: setFiltroMes, placeholder: 'Todos os meses', options: MESES_NOMES.map((m, i) => ({v:String(i+1), l:m})) },
+            { value: filtroCategoria, set: setFiltroCategoria, placeholder: 'Todas categorias', options: categorias.map(c => ({v:c, l:c})) },
+          ].map((f, i) => (
+            <select key={i} value={f.value} onChange={e => f.set(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'white'}}>
+              <option value="">{f.placeholder}</option>
+              {f.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+            </select>
+          ))}
+          <button onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }} style={{background:'#eee', color:'#555', border:'none', padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
             Limpar
           </button>
           <button onClick={carregarDados} style={{background:'#1a6b5a', color:'white', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
-            🔄 Atualizar
+            🔄
           </button>
         </div>
       </div>
 
       {/* KPIs */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'20px'}}>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:'12px', marginBottom:'20px'}}>
         {[
           { label:'Total Vendido', valor:`R$ ${totalVendido.toFixed(2)}`, cor:'#1a6b5a', icon:'💰' },
           { label:'Total Recebido', valor:`R$ ${totalRecebido.toFixed(2)}`, cor:'#29abe2', icon:'✅' },
           { label:'Ticket Médio', valor:`R$ ${ticketMedio.toFixed(2)}`, cor:'#f5821f', icon:'🎯' },
-          { label:'Taxa Inadimplência', valor:`${taxaInad}%`, cor: parseFloat(taxaInad) > 20 ? '#ef4444' : '#10b981', icon:'⚠️' },
-          { label:'Total de Vendas', valor:vendasFiltradas.length, cor:'#8b5cf6', icon:'🛒' },
+          { label:'Inadimplência', valor:`${taxaInad}%`, cor: parseFloat(taxaInad) > 20 ? '#ef4444' : '#10b981', icon:'⚠️' },
+          { label:'Total Vendas', valor:vendasFiltradas.length, cor:'#8b5cf6', icon:'🛒' },
           { label:'Clientes Ativos', valor:clientes.length, cor:'#e91e8c', icon:'👥' },
         ].map((kpi, i) => (
           <div key={i} style={{background:'white', borderRadius:'14px', padding:'16px', boxShadow:'0 4px 16px rgba(0,0,0,0.07)', borderTop:`4px solid ${kpi.cor}`}}>
             <div style={{fontSize:'22px', marginBottom:'4px'}}>{kpi.icon}</div>
-            <div style={{fontSize:'12px', color:'#888', marginBottom:'4px'}}>{kpi.label}</div>
-            <div style={{fontSize:'18px', fontWeight:'bold', color:kpi.cor}}>{kpi.valor}</div>
+            <div style={{fontSize:'11px', color:'#888', marginBottom:'4px'}}>{kpi.label}</div>
+            <div style={{fontSize:'17px', fontWeight:'bold', color:kpi.cor}}>{kpi.valor}</div>
           </div>
         ))}
       </div>
 
-      {/* GRÁFICO 1 — Linha de vendas por mês */}
+      {/* GRÁFICO 1 — Area + Line: Vendas por mês */}
       <div style={card}>
-        <div style={titulo}>📈 Vendas por Mês</div>
+        <div style={titulo}>📈 Total Vendido por Mês</div>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={dadosLinha()} margin={{top:10, right:30, left:10, bottom:10}}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5"/>
-            <XAxis dataKey="mes" tick={{fontSize:12}} />
-            <YAxis tick={{fontSize:12}} tickFormatter={v => `R$${v}`}/>
+          <ComposedChart data={dadosLinha()} margin={{top:10, right:20, left:10, bottom:10}}>
+            <defs>
+              <linearGradient id="gradVendido" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#1a6b5a" stopOpacity={0.25}/>
+                <stop offset="95%" stopColor="#1a6b5a" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="gradRecebido" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#29abe2" stopOpacity={0.2}/>
+                <stop offset="95%" stopColor="#29abe2" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
+            <XAxis dataKey="mes" tick={{fontSize:12, fill:'#666'}} axisLine={false} tickLine={false}/>
+            <YAxis hide/>
             <Tooltip content={<TooltipCustom/>}/>
-            <Legend/>
-            <Line type="monotone" dataKey="vendido" name="Valor Vendido" stroke="#1a6b5a" strokeWidth={3} dot={{r:5, fill:'#1a6b5a'}} activeDot={{r:8}}>
-              <LabelList dataKey="vendido" position="top" formatter={v => `R$${parseFloat(v).toFixed(0)}`} style={{fontSize:'11px', fill:'#1a6b5a', fontWeight:'bold'}}/>
-            </Line>
-            <Line type="monotone" dataKey="recebido" name="Valor Recebido" stroke="#29abe2" strokeWidth={2} strokeDasharray="5 5" dot={{r:4}}/>
-            <Line type="monotone" dataKey="meta" name="Meta R$3.000" stroke="#f5821f" strokeWidth={2} strokeDasharray="8 3" dot={false}/>
-          </LineChart>
+            <Legend iconType="circle" iconSize={10}/>
+            <Area type="monotone" dataKey="vendido" name="Valor Vendido" stroke="#1a6b5a" strokeWidth={3} fill="url(#gradVendido)" dot={{r:5, fill:'#1a6b5a', strokeWidth:2, stroke:'white'}} activeDot={{r:8}}>
+              <LabelList dataKey="vendido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'11px', fill:'#1a6b5a', fontWeight:'bold'}}/>
+            </Area>
+            <Area type="monotone" dataKey="recebido" name="Valor Recebido" stroke="#29abe2" strokeWidth={2} fill="url(#gradRecebido)" dot={{r:4}} strokeDasharray="5 5"/>
+            <Line type="monotone" dataKey="meta" name="Meta R$3.000" stroke="#f5821f" strokeWidth={2} strokeDasharray="8 4" dot={false}/>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      {/* GRÁFICO 2 — 10 mais vendidos */}
+      {/* GRÁFICO 2 — Top 10 mais vendidos (barras horizontais) */}
       <div style={card}>
         <div style={titulo}>🏆 Top 10 Produtos Mais Vendidos</div>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={top10} layout="vertical" margin={{top:0, right:80, left:10, bottom:0}}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={false}/>
-            <XAxis type="number" tick={{fontSize:11}}/>
-            <YAxis dataKey="nome" type="category" tick={{fontSize:11}} width={130}/>
-            <Tooltip content={<TooltipCustom/>}/>
-            <Bar dataKey="quantidade" name="Quantidade" radius={[0,8,8,0]} maxBarSize={28}>
-              {top10.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
-              <LabelList dataKey="quantidade" position="right" style={{fontSize:'12px', fontWeight:'bold'}}/>
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div style={{overflowX:'auto'}}>
+          <div style={{minWidth:'320px'}}>
+            {dadosMaisVendidos().map((p, i) => (
+              <div key={i} style={{marginBottom:'10px'}}>
+                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'4px'}}>
+                  <span style={{fontSize:'13px', fontWeight:'bold', color:'#333'}}>{p.nome}</span>
+                  <span style={{fontSize:'13px', fontWeight:'bold', color:CORES[i % CORES.length]}}>{p.quantidade} un.</span>
+                </div>
+                <div style={{background:'#f0f0f0', borderRadius:'999px', height:'10px', overflow:'hidden'}}>
+                  <div style={{
+                    width:`${Math.min(100, (p.quantidade / (dadosMaisVendidos()[0]?.quantidade || 1)) * 100)}%`,
+                    background:CORES[i % CORES.length],
+                    height:'100%',
+                    borderRadius:'999px',
+                    transition:'width 0.5s ease'
+                  }}/>
+                </div>
+                <div style={{fontSize:'11px', color:'#888', marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* GRÁFICO 2b — 10 menos vendidos */}
+      {/* GRÁFICO 2b — Top 10 menos vendidos */}
       <div style={card}>
         <div style={titulo}>📉 Top 10 Produtos Menos Vendidos</div>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={bottom10} layout="vertical" margin={{top:0, right:80, left:10, bottom:0}}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={false}/>
-            <XAxis type="number" tick={{fontSize:11}}/>
-            <YAxis dataKey="nome" type="category" tick={{fontSize:11}} width={130}/>
-            <Tooltip content={<TooltipCustom/>}/>
-            <Bar dataKey="quantidade" name="Quantidade" radius={[0,8,8,0]} maxBarSize={28}>
-              {bottom10.map((_, i) => <Cell key={i} fill={['#ef4444','#f97316','#f59e0b','#84cc16','#06b6d4','#8b5cf6','#e91e8c','#10b981','#29abe2','#f5821f'][i % 10]}/>)}
-              <LabelList dataKey="quantidade" position="right" style={{fontSize:'12px', fontWeight:'bold'}}/>
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div style={{overflowX:'auto'}}>
+          <div style={{minWidth:'320px'}}>
+            {dadosMenosVendidos().map((p, i) => {
+              const max = dadosMaisVendidos()[0]?.quantidade || 1
+              return (
+                <div key={i} style={{marginBottom:'10px'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', marginBottom:'4px'}}>
+                    <span style={{fontSize:'13px', fontWeight:'bold', color:'#333'}}>{p.nome}</span>
+                    <span style={{fontSize:'13px', fontWeight:'bold', color:'#ef4444'}}>{p.quantidade} un.</span>
+                  </div>
+                  <div style={{background:'#f0f0f0', borderRadius:'999px', height:'10px', overflow:'hidden'}}>
+                    <div style={{
+                      width:`${Math.max(2, (p.quantidade / max) * 100)}%`,
+                      background:`linear-gradient(90deg, #ef4444, #f97316)`,
+                      height:'100%',
+                      borderRadius:'999px'
+                    }}/>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* GRÁFICO 3 — Investimento por fornecedor */}
+      {/* GRÁFICO 3 — Fornecedores: Pizza + Tabela */}
       <div style={card}>
         <div style={titulo}>🏪 Investimento por Fornecedor</div>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={dadosFornecedor()} margin={{top:10, right:30, left:10, bottom:40}}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5"/>
-            <XAxis dataKey="fornecedor" tick={{fontSize:11}} angle={-25} textAnchor="end" interval={0}/>
-            <YAxis tick={{fontSize:11}} tickFormatter={v => `R$${v}`}/>
-            <Tooltip content={<TooltipCustom/>}/>
-            <Legend/>
-            <Bar dataKey="investido" name="Valor Investido" radius={[6,6,0,0]} maxBarSize={50}>
-              {dadosFornecedor().map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
-              <LabelList dataKey="investido" position="top" formatter={v => `R$${parseFloat(v).toFixed(0)}`} style={{fontSize:'11px', fontWeight:'bold'}}/>
-            </Bar>
-            <Bar dataKey="lucroEstimado" name="Lucro Estimado" radius={[6,6,0,0]} maxBarSize={50} fill="#10b981"/>
-          </BarChart>
-        </ResponsiveContainer>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'24px', alignItems:'center'}}>
+
+          {/* Pizza */}
+          <div>
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie
+                  data={fornecedores}
+                  dataKey="investido"
+                  nameKey="fornecedor"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  innerRadius={55}
+                  paddingAngle={3}
+                  labelLine={false}
+                  label={LabelPizza}
+                >
+                  {fornecedores.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
+                </Pie>
+                <Tooltip formatter={v => `R$ ${parseFloat(v).toFixed(2)}`}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Tabela de fornecedores */}
+          <div>
+            {fornecedores.map((f, i) => (
+              <div key={i} style={{display:'flex', alignItems:'center', gap:'12px', padding:'10px', borderRadius:'10px', marginBottom:'8px', background:'#f9f9f9'}}>
+                <div style={{width:'12px', height:'12px', borderRadius:'50%', background:CORES[i % CORES.length], flexShrink:0}}/>
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontSize:'13px', fontWeight:'bold', color:'#333', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{f.fornecedor}</div>
+                  <div style={{fontSize:'11px', color:'#888'}}>{f.qtdCompras} compra(s)</div>
+                </div>
+                <div style={{textAlign:'right', flexShrink:0}}>
+                  <div style={{fontSize:'13px', fontWeight:'bold', color:CORES[i % CORES.length]}}>R$ {f.investido.toFixed(2)}</div>
+                  <div style={{fontSize:'11px', color:'#888'}}>{totalInvestido > 0 ? ((f.investido / totalInvestido) * 100).toFixed(1) : 0}%</div>
+                </div>
+              </div>
+            ))}
+            {fornecedores.length === 0 && <p style={{color:'#aaa', textAlign:'center', padding:'20px'}}>Nenhum investimento registrado</p>}
+          </div>
+        </div>
       </div>
 
-      {/* GRÁFICO 4 — Vendas por categoria */}
+      {/* GRÁFICO 4 — Categoria: Pizza + Barras */}
       <div style={card}>
-        <div style={titulo}>📦 Vendas por Categoria — Valor e Quantidade</div>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={dadosCategoria()} margin={{top:10, right:30, left:10, bottom:50}}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5"/>
-            <XAxis dataKey="categoria" tick={{fontSize:11}} angle={-30} textAnchor="end" interval={0}/>
-            <YAxis yAxisId="valor" orientation="left" tick={{fontSize:11}} tickFormatter={v => `R$${v}`}/>
-            <YAxis yAxisId="qtd" orientation="right" tick={{fontSize:11}}/>
-            <Tooltip content={<TooltipCustom/>}/>
-            <Legend/>
-            <Bar yAxisId="valor" dataKey="valor" name="Valor Vendido (R$)" radius={[6,6,0,0]} maxBarSize={40}>
-              {dadosCategoria().map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
-              <LabelList dataKey="valor" position="top" formatter={v => `R$${parseFloat(v).toFixed(0)}`} style={{fontSize:'10px', fontWeight:'bold'}}/>
-            </Bar>
-            <Bar yAxisId="qtd" dataKey="quantidade" name="Quantidade" radius={[6,6,0,0]} maxBarSize={40} fill="#29abe2" opacity={0.7}>
-              <LabelList dataKey="quantidade" position="top" style={{fontSize:'10px', fontWeight:'bold'}}/>
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div style={titulo}>📦 Vendas por Categoria</div>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'24px', alignItems:'center'}}>
+
+          {/* Pizza de valor */}
+          <div>
+            <p style={{textAlign:'center', fontSize:'12px', color:'#888', marginBottom:'8px'}}>Por Valor (R$)</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={dadosCategoria()} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" outerRadius={90} innerRadius={45} paddingAngle={3} labelLine={false} label={LabelPizza}>
+                  {dadosCategoria().map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
+                </Pie>
+                <Tooltip formatter={v => `R$ ${parseFloat(v).toFixed(2)}`}/>
+                <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{fontSize:'11px'}}>{v}</span>}/>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Barras de quantidade */}
+          <div>
+            <p style={{textAlign:'center', fontSize:'12px', color:'#888', marginBottom:'8px'}}>Por Quantidade</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={dadosCategoria()} layout="vertical" margin={{top:0, right:40, left:0, bottom:0}} barSize={16}>
+                <XAxis type="number" hide/>
+                <YAxis dataKey="categoria" type="category" tick={{fontSize:11, fill:'#555'}} width={110} axisLine={false} tickLine={false}/>
+                <Tooltip content={<TooltipCustom/>}/>
+                <Bar dataKey="quantidade" name="Quantidade" radius={[0,8,8,0]}>
+                  {dadosCategoria().map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
+                  <LabelList dataKey="quantidade" position="right" style={{fontSize:'12px', fontWeight:'bold', fill:'#333'}}/>
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
-      {/* GRÁFICO 5 — Vendas vs Devoluções */}
+      {/* GRÁFICO 5 — Vendas vs Devoluções (Composed) */}
       <div style={card}>
         <div style={titulo}>🔄 Vendas vs Devoluções por Mês</div>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={dadosVendasDevolucoes()} margin={{top:10, right:30, left:10, bottom:10}}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5"/>
-            <XAxis dataKey="mes" tick={{fontSize:11}}/>
-            <YAxis yAxisId="valor" orientation="left" tick={{fontSize:11}} tickFormatter={v => `R$${v}`}/>
-            <YAxis yAxisId="qtd" orientation="right" tick={{fontSize:11}}/>
+        <ResponsiveContainer width="100%" height={300}>
+          <ComposedChart data={dadosVendasDev()} margin={{top:10, right:20, left:10, bottom:10}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
+            <XAxis dataKey="mes" tick={{fontSize:11, fill:'#666'}} axisLine={false} tickLine={false}/>
+            <YAxis hide/>
             <Tooltip content={<TooltipCustom/>}/>
-            <Legend/>
-            <Bar yAxisId="valor" dataKey="valorVendido" name="Valor Vendido" fill="#1a6b5a" radius={[6,6,0,0]} maxBarSize={35}>
-              <LabelList dataKey="valorVendido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'10px', fontWeight:'bold', fill:'#1a6b5a'}}/>
+            <Legend iconType="circle" iconSize={10}/>
+            <Bar dataKey="valorVendido" name="Valor Vendido" fill="#1a6b5a" radius={[6,6,0,0]} maxBarSize={40}>
+              <LabelList dataKey="valorVendido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'10px', fill:'#1a6b5a', fontWeight:'bold'}}/>
             </Bar>
-            <Bar yAxisId="valor" dataKey="valorDevolvido" name="Valor Devolvido" fill="#ef4444" radius={[6,6,0,0]} maxBarSize={35}>
-              <LabelList dataKey="valorDevolvido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'10px', fontWeight:'bold', fill:'#ef4444'}}/>
+            <Bar dataKey="valorDevolvido" name="Valor Devolvido" fill="#ef4444" radius={[6,6,0,0]} maxBarSize={40}>
+              <LabelList dataKey="valorDevolvido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'10px', fill:'#ef4444', fontWeight:'bold'}}/>
             </Bar>
-            <Bar yAxisId="qtd" dataKey="qtdVendida" name="Qtd Vendida" fill="#29abe2" radius={[6,6,0,0]} maxBarSize={35} opacity={0.7}/>
-            <Bar yAxisId="qtd" dataKey="qtdDevolvida" name="Qtd Devolvida" fill="#f5821f" radius={[6,6,0,0]} maxBarSize={35} opacity={0.7}/>
-          </BarChart>
+            <Line type="monotone" dataKey="qtdVendida" name="Qtd Vendida" stroke="#29abe2" strokeWidth={2} dot={{r:4, fill:'#29abe2'}}/>
+            <Line type="monotone" dataKey="qtdDevolvida" name="Qtd Devolvida" stroke="#f5821f" strokeWidth={2} dot={{r:4, fill:'#f5821f'}} strokeDasharray="5 5"/>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
       {/* PREVISÕES */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'20px', marginBottom:'20px'}}>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'20px', marginBottom:'20px'}}>
 
         {/* Previsão de vendas */}
         <div style={{...card, marginBottom:0, borderTop:'4px solid #8b5cf6'}}>
           <div style={titulo}>🔮 Previsão — Próximo Mês</div>
           {previsaoVendas() ? (
             <>
-              <div style={{fontSize:'34px', fontWeight:'bold', color:'#8b5cf6', marginBottom:'8px'}}>
+              <div style={{fontSize:'32px', fontWeight:'bold', color:'#8b5cf6', marginBottom:'8px'}}>
                 R$ {parseFloat(previsaoVendas()).toFixed(2)}
               </div>
-              <p style={{fontSize:'13px', color:'#666', marginBottom:'12px'}}>
-                Baseado na média dos últimos meses
-              </p>
+              <p style={{fontSize:'13px', color:'#666', marginBottom:'12px'}}>Média dos últimos meses com tendência</p>
               <div style={{background: parseFloat(previsaoVendas()) >= 3000 ? '#e8f5e9' : '#fff8e1', padding:'12px', borderRadius:'8px'}}>
                 <strong style={{color: parseFloat(previsaoVendas()) >= 3000 ? '#2e7d32' : '#f57f17', fontSize:'13px'}}>
-                  {parseFloat(previsaoVendas()) >= 3000 ? '✅ Projeção acima da meta!' : '⚠️ Projeção abaixo da meta de R$ 3.000'}
+                  {parseFloat(previsaoVendas()) >= 3000 ? '✅ Acima da meta!' : '⚠️ Abaixo da meta de R$ 3.000'}
                 </strong>
               </div>
             </>
           ) : (
-            <p style={{color:'#aaa'}}>Dados insuficientes para previsão</p>
+            <p style={{color:'#aaa'}}>Dados insuficientes</p>
           )}
         </div>
 
         {/* Estoque crítico */}
         <div style={{...card, marginBottom:0, borderTop:'4px solid #ef4444'}}>
-          <div style={titulo}>📦 Alerta — Estoque Crítico</div>
-          {produtosAcabando(prods).length === 0 ? (
-            <p style={{color:'#10b981', fontWeight:'bold'}}>✅ Nenhum produto em nível crítico!</p>
+          <div style={titulo}>📦 Estoque Crítico</div>
+          {produtosAcabando.length === 0 ? (
+            <p style={{color:'#10b981', fontWeight:'bold'}}>✅ Nenhum produto crítico!</p>
           ) : (
-            produtosAcabando(prods).map((p, i) => (
+            produtosAcabando.map((p, i) => (
               <div key={i} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', background: p.estoque === 0 ? '#ffebee' : '#fff8e1', borderRadius:'8px', marginBottom:'8px', borderLeft:`3px solid ${p.estoque === 0 ? '#ef4444' : '#f5821f'}`}}>
                 <div>
                   <strong style={{fontSize:'13px'}}>{p.nome}</strong><br/>
                   <small style={{color:'#666'}}>{p.categoria}</small>
                 </div>
-                <span style={{fontWeight:'bold', color: p.estoque <= 1 ? '#ef4444' : '#f5821f', fontSize:'18px'}}>
-                  {p.estoque} un.
-                </span>
+                <span style={{fontWeight:'bold', color: p.estoque <= 1 ? '#ef4444' : '#f5821f', fontSize:'20px'}}>{p.estoque}</span>
               </div>
             ))
           )}
@@ -467,20 +550,20 @@ function BI() {
 
         {/* Próxima data comemorativa */}
         <div style={{...card, marginBottom:0, borderTop:'4px solid #e91e8c'}}>
-          <div style={titulo}>🎉 {proxData.nome}</div>
+          <div style={titulo}>{proxData.nome}</div>
           <p style={{fontSize:'12px', color:'#888', marginBottom:'12px'}}>
-            Categorias em alta: {proxData.categorias.join(', ')}
+            Em alta: {proxData.categorias.join(', ')}
           </p>
           {prodsPrevistas().length === 0 ? (
             <p style={{color:'#aaa', fontSize:'13px'}}>Sem histórico para prever</p>
           ) : (
             prodsPrevistas().map((p, i) => (
-              <div key={i} style={{display:'flex', justifyContent:'space-between', padding:'8px', background:'#fdf0f8', borderRadius:'8px', marginBottom:'6px', borderLeft:'3px solid #e91e8c'}}>
+              <div key={i} style={{display:'flex', justifyContent:'space-between', padding:'8px 12px', background:'#fdf0f8', borderRadius:'8px', marginBottom:'6px', borderLeft:'3px solid #e91e8c'}}>
                 <div>
                   <strong style={{fontSize:'13px'}}>{p.nome}</strong><br/>
                   <small style={{color:'#888'}}>{p.categoria}</small>
                 </div>
-                <span style={{fontWeight:'bold', color:'#e91e8c'}}>{p.quantidade} un.</span>
+                <span style={{fontWeight:'bold', color:'#e91e8c', fontSize:'14px'}}>{p.quantidade} un.</span>
               </div>
             ))
           )}
