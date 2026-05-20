@@ -33,7 +33,7 @@ function Devolucoes() {
     if (!clienteId) return
     const { data } = await supabase
       .from('vendas')
-      .select('*, clientes(nome), desconto')
+      .select('*, clientes(nome), desconto, valor_bruto')
       .eq('cliente_id', clienteId)
       .order('data_venda', { ascending: false })
     if (!data || data.length === 0) { setMensagem('Nenhuma venda encontrada!'); return }
@@ -119,9 +119,8 @@ function Devolucoes() {
 
     // Calcula o valor unitário efetivamente pago (com desconto proporcional)
     function calcularValorPago(item, venda) {
-      const desconto = parseFloat(venda.desconto || 0)
-      const totalBruto = parseFloat(venda.valor_total) + desconto
-      const proporcao = totalBruto > 0 ? parseFloat(venda.valor_total) / totalBruto : 1
+      const valorBruto = parseFloat(venda.valor_bruto || 0)
+      const proporcao = valorBruto > 0 ? (valorBruto - parseFloat(venda.desconto || 0)) / valorBruto : 1
       return parseFloat(item.valor_unitario) * proporcao
     }
 

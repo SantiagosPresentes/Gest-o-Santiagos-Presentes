@@ -90,6 +90,7 @@ function Vendas() {
     const { data: venda, error } = await supabase.from('vendas').insert({
       cliente_id: cliente.id,
       data_para_pagar: parcelas[0].data,
+      valor_bruto: subtotalItens,
       valor_total: total,
       desconto: valorDesconto,
       recebido: 0,
