@@ -43,8 +43,8 @@ function Estoque() {
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <button onClick={() => { setBusca(''); setFiltroCategoria('') }} style={{background:'#eee', border:'none', padding:'8px 16px', borderRadius:'6px', cursor:'pointer'}}>
-          Limpar
+        <button onClick={() => { setBusca(''); setFiltroCategoria('') }} style={{background:'#e94560', border:'none', padding:'8px 16px', borderRadius:'6px', cursor:'pointer'}}>
+          🧹 Limpar
         </button>
         <div style={{marginLeft:'auto', fontSize:'13px', color:'#666', whiteSpace:'nowrap'}}>
           {produtosFiltrados.length} produto(s) | Total: <strong style={{color:'#1a6b5a'}}>R$ {totalEstoque.toFixed(2)}</strong>
