@@ -33,7 +33,7 @@ function Devolucoes() {
     if (!clienteId) return
     const { data } = await supabase
       .from('vendas')
-      .select('*, clientes(nome)')
+      .select('*, clientes(nome), desconto')
       .eq('cliente_id', clienteId)
       .order('data_venda', { ascending: false })
     if (!data || data.length === 0) { setMensagem('Nenhuma venda encontrada!'); return }
@@ -112,10 +112,24 @@ function Devolucoes() {
         produto_id: item.produto_id,
         venda_id: vendaSelecionada.id,
         quantidade: item.qtd_devolver,
-        valor_unitario: item.valor_unitario,
+        valor_unitario: calcularValorPago(item, vendaSelecionada),
         motivo: motivo
       })
     }
+
+    // Calcula o valor unitário efetivamente pago (com desconto proporcional)
+    function calcularValorPago(item, venda) {
+      const desconto = parseFloat(venda.desconto || 0)
+      const totalBruto = parseFloat(venda.valor_total) + desconto
+      const proporcao = totalBruto > 0 ? parseFloat(venda.valor_total) / totalBruto : 1
+      return parseFloat(item.valor_unitario) * proporcao
+    }
+
+    // Calcula o valor total da devolução com base no valor pago real
+    const totalDevolver = itensSelecionados.reduce((acc, i) => {
+      const valorPago = calcularValorPago(i, vendaSelecionada)
+      return acc + (i.qtd_devolver * valorPago)
+    }, 0)
 
     // Atualiza o valor total e recebido da venda
     const novoRecebido = Math.max(0, parseFloat(vendaSelecionada.recebido) - totalDevolver)

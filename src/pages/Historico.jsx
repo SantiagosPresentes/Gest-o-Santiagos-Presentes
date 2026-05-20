@@ -34,7 +34,7 @@ function Historico() {
   async function carregarDados() {
     const { data: vendasData } = await supabase
       .from('vendas')
-      .select('*, clientes(nome, telefone)')
+      .select('*, clientes(nome, telefone), desconto, vendedor')
       .order('data_venda', { ascending: false })
 
     const { data: devolucoesData } = await supabase
@@ -175,14 +175,16 @@ function Historico() {
         </div>
       )}
 
-      {/* Tabela com scroll horizontal */}
+      {/* Tabela */}
       <div className="tabela-wrapper" style={{marginTop:'16px'}}>
         <table>
           <thead>
             <tr>
               <th style={{textAlign:'left'}}>Cliente</th>
+              <th style={{textAlign:'left'}}>Vendedor</th>
               <th style={{textAlign:'left'}}>Produtos</th>
               <th style={{textAlign:'right'}}>Total</th>
+              <th style={{textAlign:'right'}}>Desconto</th>
               <th style={{textAlign:'right'}}>Recebido</th>
               <th style={{textAlign:'right'}}>Falta</th>
               <th style={{textAlign:'center'}}>Vencimento</th>
@@ -201,6 +203,9 @@ function Historico() {
                       <strong>{venda.clientes?.nome}</strong><br/>
                       <small style={{color:'#888'}}>{venda.clientes?.telefone}</small>
                     </td>
+                    <td style={{textAlign:'left', fontSize:'13px'}}>
+                      {venda.vendedor || '—'}
+                    </td>
                     <td style={{textAlign:'left'}}>
                       <span
                         onClick={() => setVendaExpandida(vendaExpandida === venda.id ? null : venda.id)}
@@ -210,6 +215,11 @@ function Historico() {
                       </span>
                     </td>
                     <td style={{textAlign:'right'}}><strong>R$ {parseFloat(venda.valor_total).toFixed(2)}</strong></td>
+                    <td style={{textAlign:'right', color: parseFloat(venda.desconto || 0) > 0 ? '#e65100' : '#aaa', fontSize:'13px'}}>
+                      {parseFloat(venda.desconto || 0) > 0
+                        ? `- R$ ${parseFloat(venda.desconto).toFixed(2)}`
+                        : '—'}
+                    </td>
                     <td style={{textAlign:'right', color:'green'}}>R$ {parseFloat(venda.recebido || 0).toFixed(2)}</td>
                     <td style={{textAlign:'right', color:'red'}}>R$ {(parseFloat(venda.valor_total) - parseFloat(venda.recebido || 0)).toFixed(2)}</td>
                     <td style={{textAlign:'center', whiteSpace:'nowrap'}}>
@@ -240,7 +250,15 @@ function Historico() {
 
                   {vendaExpandida === venda.id && (
                     <tr key={venda.id + '_det'}>
-                      <td colSpan="9" style={{background:'#f0f4ff', padding:'12px 16px'}}>
+                      <td colSpan="11" style={{background:'#f0f4ff', padding:'12px 16px'}}>
+                        <div style={{display:'flex', gap:'16px', marginBottom:'10px', fontSize:'13px', flexWrap:'wrap'}}>
+                          <span><strong>Vendedor:</strong> {venda.vendedor || '—'}</span>
+                          {parseFloat(venda.desconto || 0) > 0 && (
+                            <span style={{color:'#e65100'}}>
+                              <strong>Desconto aplicado:</strong> - R$ {parseFloat(venda.desconto).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                         <strong style={{fontSize:'13px', color:'#1a6b5a'}}>Produtos:</strong>
                         <div style={{marginTop:'8px', display:'flex', flexWrap:'wrap', gap:'8px'}}>
                           {venda.itens?.map(item => (

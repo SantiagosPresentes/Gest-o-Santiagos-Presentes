@@ -91,6 +91,7 @@ function Vendas() {
       cliente_id: cliente.id,
       data_para_pagar: parcelas[0].data,
       valor_total: total,
+      desconto: valorDesconto,
       recebido: 0,
       situacao: 'Pendente',
       observacao: [
