@@ -234,16 +234,19 @@ function Historico() {
                       {venda.observacao || '—'}
                     </td>
                     <td style={{textAlign:'center'}}>
-                      {venda.situacao_real !== 'Pago' && (
+                      {devs.length > 0 ? (
+                        <span style={{color:'#e65100', fontSize:'12px', whiteSpace:'nowrap', fontWeight:'bold'}}>
+                          ↩ Devolvido
+                        </span>
+                      ) : venda.situacao_real === 'Pago' ? (
+                        <span style={{color:'green', fontSize:'12px', whiteSpace:'nowrap'}}>✅ Pago</span>
+                      ) : (
                         <button
                           onClick={() => { setPagamentoVenda(venda); setMensagem('') }}
                           style={{background:'#1a6b5a', color:'white', border:'none', padding:'6px 10px', borderRadius:'6px', cursor:'pointer', fontSize:'12px', fontWeight:'bold', whiteSpace:'nowrap'}}
                         >
                           💰 Pagar
                         </button>
-                      )}
-                      {venda.situacao_real === 'Pago' && (
-                        <span style={{color:'green', fontSize:'12px', whiteSpace:'nowrap'}}>✅ Pago</span>
                       )}
                     </td>
                   </tr>
