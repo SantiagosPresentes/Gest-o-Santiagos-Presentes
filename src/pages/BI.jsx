@@ -34,7 +34,6 @@ function proximaDataComemorativa() {
 
 const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
-// Tooltip personalizado e moderno
 const TooltipCustom = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null
   return (
@@ -57,7 +56,6 @@ const TooltipCustom = ({ active, payload, label }) => {
   )
 }
 
-// Label customizado para pizza
 const LabelPizza = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
   if (percent < 0.05) return null
   const RADIAN = Math.PI / 180
@@ -120,9 +118,12 @@ function BI() {
   const categorias = [...new Set(itensVenda.map(i => i.produtos?.categoria).filter(Boolean))].sort()
 
   // KPIs
-  const totalVendido = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
+  const totalDevolvido = devolucoes.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
+  const qtdDevolucoes = devolucoes.reduce((acc, d) => acc + (d.quantidade || 1), 0)
+  const totalVendidoBruto = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
+  const totalVendido = Math.max(0, totalVendidoBruto - totalDevolvido)
   const totalRecebido = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
-  const ticketMedio = vendasFiltradas.length > 0 ? totalVendido / vendasFiltradas.length : 0
+  const ticketMedio = vendasFiltradas.length > 0 ? totalVendidoBruto / vendasFiltradas.length : 0
   const atrasados = vendasFiltradas.filter(v => {
     if (parseFloat(v.recebido || 0) >= parseFloat(v.valor_total)) return false
     const hoje = new Date(); hoje.setHours(0,0,0,0)
@@ -150,7 +151,7 @@ function BI() {
     return Object.values(meses)
   }
 
-  // GRÁFICO 2 — Top 10 mais vendidos (barras horizontais)
+  // GRÁFICO 2 — Top 10 mais vendidos
   const dadosMaisVendidos = () => {
     const contagem = {}
     itensFiltrados.forEach(i => {
@@ -180,7 +181,20 @@ function BI() {
     return Object.values(contagem).sort((a, b) => a.quantidade - b.quantidade).slice(0, 10)
   }
 
-  // GRÁFICO 3 — Investimento por fornecedor (pizza + tabela)
+  // GRÁFICO 2c — Top 10 mais devolvidos
+  const dadosMaisDevolvidos = () => {
+    const contagem = {}
+    devolucoes.forEach(dev => {
+      const nome = dev.produtos?.nome || 'Desconhecido'
+      const nomeAbrev = nome.length > 20 ? nome.substring(0, 20) + '…' : nome
+      if (!contagem[nomeAbrev]) contagem[nomeAbrev] = { nome: nomeAbrev, quantidade: 0, valor: 0 }
+      contagem[nomeAbrev].quantidade += dev.quantidade
+      contagem[nomeAbrev].valor += parseFloat(dev.valor_total || 0)
+    })
+    return Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade).slice(0, 10)
+  }
+
+  // GRÁFICO 3 — Investimento por fornecedor
   const dadosFornecedor = () => {
     const forns = {}
     investimentos.forEach(inv => {
@@ -192,7 +206,7 @@ function BI() {
     return Object.values(forns).sort((a, b) => b.investido - a.investido)
   }
 
-  // GRÁFICO 4 — Categoria (pizza + barras)
+  // GRÁFICO 4 — Categoria
   const dadosCategoria = () => {
     const cats = {}
     itensFiltrados.forEach(i => {
@@ -211,7 +225,7 @@ function BI() {
     return Object.values(cats).sort((a, b) => b.valor - a.valor)
   }
 
-  // GRÁFICO 5 — Vendas vs Devoluções (composed)
+  // GRÁFICO 5 — Vendas vs Devoluções
   const dadosVendasDev = () => {
     const meses = {}
     itensVenda.forEach(i => {
@@ -272,6 +286,7 @@ function BI() {
 
   const fornecedores = dadosFornecedor()
   const totalInvestido = fornecedores.reduce((acc, f) => acc + f.investido, 0)
+  const maisDev = dadosMaisDevolvidos()
 
   return (
     <div>
@@ -307,6 +322,8 @@ function BI() {
           { label:'Inadimplência', valor:`${taxaInad}%`, cor: parseFloat(taxaInad) > 20 ? '#ef4444' : '#10b981', icon:'⚠️' },
           { label:'Total Vendas', valor:vendasFiltradas.length, cor:'#8b5cf6', icon:'🛒' },
           { label:'Clientes Ativos', valor:clientes.length, cor:'#e91e8c', icon:'👥' },
+          { label:'Valor Devolvido', valor:`R$ ${totalDevolvido.toFixed(2)}`, cor:'#ef4444', icon:'↩️' },
+          { label:'Qtd Devoluções', valor:qtdDevolucoes, cor:'#f97316', icon:'📦' },
         ].map((kpi, i) => (
           <div key={i} style={{background:'white', borderRadius:'14px', padding:'16px', boxShadow:'0 4px 16px rgba(0,0,0,0.07)', borderTop:`4px solid ${kpi.cor}`}}>
             <div style={{fontSize:'22px', marginBottom:'4px'}}>{kpi.icon}</div>
@@ -345,7 +362,7 @@ function BI() {
         </ResponsiveContainer>
       </div>
 
-      {/* GRÁFICO 2 — Top 10 mais vendidos (barras horizontais) */}
+      {/* GRÁFICO 2 — Top 10 mais vendidos */}
       <div style={card}>
         <div style={titulo}>🏆 Top 10 Produtos Mais Vendidos</div>
         <div style={{overflowX:'auto'}}>
@@ -400,12 +417,41 @@ function BI() {
         </div>
       </div>
 
+      {/* GRÁFICO 2c — Top 10 mais devolvidos */}
+      <div style={card}>
+        <div style={titulo}>↩️ Top 10 Produtos Mais Devolvidos</div>
+        <div style={{overflowX:'auto'}}>
+          <div style={{minWidth:'320px'}}>
+            {maisDev.length === 0 ? (
+              <p style={{color:'#10b981', fontWeight:'bold', textAlign:'center', padding:'20px'}}>✅ Nenhuma devolução registrada!</p>
+            ) : (
+              maisDev.map((p, i) => (
+                <div key={i} style={{marginBottom:'10px'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', marginBottom:'4px'}}>
+                    <span style={{fontSize:'13px', fontWeight:'bold', color:'#333'}}>{p.nome}</span>
+                    <span style={{fontSize:'13px', fontWeight:'bold', color:'#ef4444'}}>{p.quantidade} un.</span>
+                  </div>
+                  <div style={{background:'#f0f0f0', borderRadius:'999px', height:'10px', overflow:'hidden'}}>
+                    <div style={{
+                      width:`${Math.min(100, (p.quantidade / (maisDev[0]?.quantidade || 1)) * 100)}%`,
+                      background:`linear-gradient(90deg, #ef4444, #f97316)`,
+                      height:'100%',
+                      borderRadius:'999px',
+                      transition:'width 0.5s ease'
+                    }}/>
+                  </div>
+                  <div style={{fontSize:'11px', color:'#888', marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* GRÁFICO 3 — Fornecedores: Pizza + Tabela */}
       <div style={card}>
         <div style={titulo}>🏪 Investimento por Fornecedor</div>
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'24px', alignItems:'center'}}>
-
-          {/* Pizza */}
           <div>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
@@ -427,8 +473,6 @@ function BI() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-
-          {/* Tabela de fornecedores */}
           <div>
             {fornecedores.map((f, i) => (
               <div key={i} style={{display:'flex', alignItems:'center', gap:'12px', padding:'10px', borderRadius:'10px', marginBottom:'8px', background:'#f9f9f9'}}>
@@ -452,8 +496,6 @@ function BI() {
       <div style={card}>
         <div style={titulo}>📦 Vendas por Categoria</div>
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'24px', alignItems:'center'}}>
-
-          {/* Pizza de valor */}
           <div>
             <p style={{textAlign:'center', fontSize:'12px', color:'#888', marginBottom:'8px'}}>Por Valor (R$)</p>
             <ResponsiveContainer width="100%" height={220}>
@@ -466,8 +508,6 @@ function BI() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-
-          {/* Barras de quantidade */}
           <div>
             <p style={{textAlign:'center', fontSize:'12px', color:'#888', marginBottom:'8px'}}>Por Quantidade</p>
             <ResponsiveContainer width="100%" height={220}>
@@ -485,7 +525,7 @@ function BI() {
         </div>
       </div>
 
-      {/* GRÁFICO 5 — Vendas vs Devoluções (Composed) */}
+      {/* GRÁFICO 5 — Vendas vs Devoluções */}
       <div style={card}>
         <div style={titulo}>🔄 Vendas vs Devoluções por Mês</div>
         <ResponsiveContainer width="100%" height={300}>

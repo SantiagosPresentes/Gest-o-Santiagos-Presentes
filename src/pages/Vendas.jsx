@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
+import html2canvas from 'html2canvas'
 
 function Vendas() {
   const [codigoBusca, setCodigoBusca] = useState('')
@@ -170,6 +171,32 @@ function Vendas() {
 
   const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'6px', border:'1px solid #ddd' }
 
+  // Função compartilhar
+async function compartilhar() {
+  try {
+    const canvas = await html2canvas(comprovanteRef.current, { scale: 2, useCORS: true })
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], 'comprovante-santiagos.png', { type: 'image/png' })
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Comprovante - Santiagos Presentes',
+        })
+      } else {
+        // Fallback: baixa a imagem
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'comprovante-santiagos.png'
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    }, 'image/png')
+  } catch (err) {
+    console.error('Erro ao compartilhar:', err)
+  }
+}
+
   return (
     <div>
       <h2>Nova Venda</h2>
@@ -282,14 +309,20 @@ function Vendas() {
                 🖨️ Imprimir
               </button>
               <button
+                onClick={compartilhar}
+                style={{flex:1, background:'linear-gradient(135deg, #25D366, #1da851)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}
+              >
+                📤 Compartilhar
+              </button>
+              <button
                 onClick={() => setVendaFinalizada(null)}
                 style={{flex:1, background:'#eee', color:'#333', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px'}}
               >
                 Fechar
               </button>
             </div>
-          </div>
-        </div>
+          </div>  
+        </div>  
       )}
 
       <div className="grid-2" style={{marginTop:'16px'}}>
