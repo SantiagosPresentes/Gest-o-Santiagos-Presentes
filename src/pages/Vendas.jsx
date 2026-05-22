@@ -268,21 +268,11 @@ async function compartilhar() {
               )}
 
               {/* Desconto */}
-              <div style={{marginBottom:'16px'}}>
-                <label style={{fontWeight:'bold', fontSize:'13px'}}>Desconto (R$)</label><br/>
-                <input
-                  type="number"
-                  value={desconto}
-                  onChange={e => setDesconto(e.target.value)}
-                  placeholder="Ex: 10.00"
-                  style={campo}
-                />
-                {valorDesconto > 0 && (
-                  <div style={{marginTop:'8px', background:'#e8f5e9', border:'1px solid #4caf50', borderRadius:'6px', padding:'8px 12px', fontSize:'13px'}}>
-                  <span style={{color:'#2e7d32'}}>✅ Desconto de <strong>R$ {valorDesconto.toFixed(2)}</strong> aplicado!</span>
+              {vendaFinalizada.total < vendaFinalizada.itens.reduce((acc, item) => acc + item.subtotal, 0) && (
+                <div style={{fontSize:'13px', color:'#2e7d32', marginBottom:'8px'}}>
+                  ✅ Desconto de <strong>R$ {(vendaFinalizada.itens.reduce((acc, item) => acc + item.subtotal, 0) - vendaFinalizada.total).toFixed(2)}</strong> aplicado!
                 </div>
-                )}
-              </div>
+              )}
 
               {/* Observação */}
               {vendaFinalizada.observacao && (
@@ -316,7 +306,7 @@ async function compartilhar() {
               </button>
               <button
                 onClick={() => setVendaFinalizada(null)}
-                style={{flex:1, background:'#eee', color:'#333', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px'}}
+                style={{flex:1, background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}
               >
                 Fechar
               </button>
