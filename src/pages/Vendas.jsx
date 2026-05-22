@@ -300,13 +300,13 @@ async function compartilhar() {
               </button>
               <button
                 onClick={compartilhar}
-                style={{flex:1, background:'linear-gradient(135deg, #25D366, #1da851)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}
+                style={{flex:1, background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}
               >
                 📤 Compartilhar
               </button>
               <button
                 onClick={() => setVendaFinalizada(null)}
-                style={{flex:1, background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}
+                style={{flex:1, background:'#eee', color:'#333', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px'}}
               >
                 Fechar
               </button>
