@@ -97,7 +97,7 @@ function Investimentos() {
           <input value={mes} onChange={e => setMes(e.target.value)} placeholder="Ex: Maio/2026" style={campo}/>
         </div>
 
-        <button onClick={salvarInvestimento} style={{background:'#1a6b5a', color:'white', border:'none', padding:'12px 24px', borderRadius:'8px', cursor:'pointer', fontSize:'16px', width:'100%'}}>
+        <button onClick={salvarInvestimento} style={{background:'linear-gradient(135deg, #f5821f, #c2185b)', color:'white', border:'none', padding:'12px 24px', borderRadius:'8px', cursor:'pointer', fontSize:'16px', width:'100%'}}>
           Registrar Investimento
         </button>
         {mensagem && <p style={{marginTop:'16px', color: mensagem.includes('sucesso') ? 'green' : 'red'}}>{mensagem}</p>}
