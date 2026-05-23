@@ -109,31 +109,37 @@ body {
 /* ─── ABAS DO HEADER ─── */
 .header-tabs {
   display: flex;
+  align-items: center;
+  gap: 6px;
   overflow-x: auto;
-  overflow-y: visible;
-  padding: 0 8px;
-  gap: 2px;
+  overflow-y: hidden;
+  white-space: nowrap;
+  padding: 0 10px;
   scrollbar-width: none;
+  -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
-  /* Mostra indicador sutil de que tem mais conteúdo */
-  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
-  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  scroll-behavior: smooth;
+}
+
+.header-tabs::-webkit-scrollbar {
+  display: none;
 }
 .header-tabs::-webkit-scrollbar { display: none; }
 
 .header-tabs a {
   display: flex;
   align-items: center;
-  gap: 5px;
-  color: rgba(255,255,255,0.65);
+  gap: 6px;
+  color: rgba(255,255,255,0.72);
   text-decoration: none;
-  padding: 8px 12px;
-  border-radius: 10px 10px 0 0;
+  padding: 10px 14px;
+  border-radius: 12px 12px 0 0;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all 0.2s;
+  min-width: max-content;
+  transition: all 0.2s ease;
   border-bottom: 3px solid transparent;
 }
 
