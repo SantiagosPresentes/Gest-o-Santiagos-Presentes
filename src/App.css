@@ -1,81 +1,156 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+ 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
+ 
 body {
-  font-family: 'Arial', sans-serif;
+  font-family: 'Nunito', 'Arial', sans-serif;
   background: #f0f4f2;
   color: #333;
 }
-
-.app { min-height: 100vh; }
-
-/* NAVBAR */
-.navbar {
-  background: linear-gradient(135deg, #1a6b5a 0%, #145a4a 100%);
-  padding: 10px 16px;
+ 
+/* ─── LAYOUT PRINCIPAL ─── */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+ 
+/* ─── TELA DE CARREGAMENTO ─── */
+.tela-carregando {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a6b5a 0%, #c2185b 60%, #f5821f 100%);
+  gap: 16px;
+}
+.tela-carregando p { color: white; font-size: 16px; font-family: 'Nunito', sans-serif; }
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+ 
+/* ─── HEADER ─── */
+.app-header {
+  background: linear-gradient(135deg, #1a6b5a 0%, #c2185b 60%, #f5821f 100%);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(26,107,90,0.35);
+}
+ 
+.header-top {
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 3px 12px rgba(26,107,90,0.4);
-  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
 }
-
-.logo {
+ 
+.header-logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  text-decoration: none;
 }
-
-.logo img {
-  height: 40px;
-  width: 40px;
-  border-radius: 50%;
+ 
+.header-logo img {
+  height: 44px;
+  width: 44px;
+  border-radius: 12px;
   object-fit: cover;
   border: 2px solid rgba(255,255,255,0.3);
 }
-
-.logo-texto {
+ 
+.header-titulo {
   color: white;
-  font-size: 14px;
-  font-weight: bold;
-  line-height: 1.2;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
 }
-
-.nav-links {
+ 
+.header-acoes {
   display: flex;
-  gap: 2px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
-
-.nav-links a {
-  color: rgba(255,255,255,0.75);
-  text-decoration: none;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.nav-links a:hover {
+ 
+.btn-sino {
   background: rgba(255,255,255,0.15);
+  border: none;
   color: white;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
 }
-
-.nav-links a.active {
-  background: #f5821f;
+.btn-sino:hover { background: rgba(255,255,255,0.25); }
+ 
+.btn-avatar {
+  background: #4a3f8f;
+  border: 2px solid rgba(255,255,255,0.4);
   color: white;
-  font-weight: bold;
-  box-shadow: 0 2px 8px rgba(245,130,31,0.4);
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
-
-/* CONTEÚDO */
+.btn-avatar:hover { opacity: 0.85; }
+ 
+/* ─── ABAS DO HEADER ─── */
+.header-tabs {
+  display: flex;
+  overflow-x: auto;
+  padding: 0 12px 0;
+  gap: 4px;
+  scrollbar-width: none;
+}
+.header-tabs::-webkit-scrollbar { display: none; }
+ 
+.header-tabs a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255,255,255,0.65);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 10px 10px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+}
+ 
+.header-tabs a:hover {
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.1);
+}
+ 
+.header-tabs a.active {
+  color: white;
+  background: rgba(255,255,255,0.15);
+  border-bottom: 3px solid white;
+}
+ 
+/* ─── CONTEÚDO ─── */
 .conteudo {
-  max-width: 1200px;
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
-  padding: 20px 12px;
+  padding: 20px 16px 90px; /* 90px para não ficar atrás do bottom nav */
 }
-
+ 
 .conteudo h2 {
   color: #1a6b5a;
   font-size: 20px;
@@ -83,81 +158,181 @@ body {
   border-left: 4px solid #f5821f;
   padding-left: 12px;
 }
-
-/* TABELAS COM SCROLL HORIZONTAL */
+ 
+/* ─── BOTTOM NAVIGATION ─── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  display: flex;
+  border-top: 1px solid #e8ecea;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+ 
+.bottom-nav a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 4px;
+  color: #aab5b1;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+ 
+.bottom-nav a span { font-family: 'Nunito', sans-serif; }
+ 
+.bottom-nav a:hover { color: #1a6b5a; }
+ 
+.bottom-nav a.active {
+  color: #1a6b5a;
+}
+ 
+.bottom-nav a.active svg {
+  background: #e8f5f1;
+  border-radius: 10px;
+  padding: 4px;
+  width: 34px; height: 34px;
+}
+ 
+/* ─── CARDS (usados nas telas) ─── */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  margin-bottom: 16px;
+}
+ 
+.card h3 {
+  color: #1a6b5a;
+  font-size: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+ 
+/* ─── INPUTS E SELECTS ─── */
+input, select, textarea {
+  font-family: 'Nunito', 'Arial', sans-serif;
+  font-size: 14px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #dde8e4;
+  border-radius: 10px;
+  background: white;
+  color: #333;
+  transition: border 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+ 
+input:focus, select:focus, textarea:focus {
+  border-color: #1a6b5a;
+  box-shadow: 0 0 0 3px rgba(26,107,90,0.1);
+}
+ 
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+}
+ 
+/* ─── BOTÕES ─── */
+.btn-primario {
+  background: linear-gradient(90deg, #f5821f, #c2185b);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.btn-primario:hover { opacity: 0.92; }
+.btn-primario:active { transform: scale(0.98); }
+ 
+.btn-secundario {
+  background: #f0f4f2;
+  color: #1a6b5a;
+  border: 1px solid #c8ddd7;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-secundario:hover { background: #e0eeea; }
+ 
+/* ─── CAMPO (wrapper de input com label) ─── */
+.campo { margin-bottom: 14px; }
+ 
+/* ─── TABELAS ─── */
 .tabela-wrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
-
+ 
 table {
   width: 100%;
   border-collapse: collapse;
   background: white;
   min-width: 600px;
 }
-
+ 
 thead tr {
   background: linear-gradient(135deg, #1a6b5a, #145a4a);
   color: white;
 }
-
+ 
 thead th {
   padding: 12px 14px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
+  text-align: left;
 }
-
+ 
 tbody tr:hover { background: #f5fbf9 !important; }
-
+ 
 tbody td {
   padding: 10px 14px;
   border-bottom: 1px solid #eef2f0;
   font-size: 13px;
 }
-
-/* GRID RESPONSIVO */
+ 
+/* ─── GRID ─── */
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
 }
-
-/* INPUTS */
-input, select {
-  font-family: 'Arial', sans-serif;
-  font-size: 14px;
-}
-
-/* BADGES */
-.badge-pago { background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
-.badge-atrasado { background: #ffebee; color: #c62828; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
-.badge-pendente { background: #fff8e1; color: #f57f17; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
-
-/* RESPONSIVO MOBILE */
+ 
+/* ─── BADGES ─── */
+.badge-pago    { background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-atrasado{ background: #ffebee; color: #c62828; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-pendente{ background: #fff8e1; color: #f57f17; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+ 
+/* ─── RESPONSIVO ─── */
 @media (max-width: 768px) {
-  .grid-2 {
-    grid-template-columns: 1fr;
-  }
-  .navbar {
-    padding: 8px 12px;
-    gap: 8px;
-  }
-  .nav-links a {
-    padding: 4px 8px;
-    font-size: 11px;
-  }
-  .conteudo {
-    padding: 12px 8px;
-  }
-  .conteudo h2 {
-    font-size: 17px;
-  }
-  thead th, tbody td {
-    padding: 8px 10px;
-    font-size: 12px;
-  }
+  .grid-2 { grid-template-columns: 1fr; }
+  .conteudo { padding: 14px 12px 90px; }
+  .conteudo h2 { font-size: 17px; }
+  thead th, tbody td { padding: 8px 10px; font-size: 12px; }
 }
+ 
