@@ -197,7 +197,7 @@ export default function Relatorios() {
               + Adicionar período
             </button>
           )}
-          <button onClick={buscarDados} disabled={carregando} className="btn-primario" style={{ flex: 2, minWidth: 180 }}>
+          <button onClick={buscarDados} disabled={carregando} className="btn-primario" style={{ flex: 2, minWidth: 150 }}>
             {carregando ? '⏳ Buscando...' : '🔍 Comparar Períodos'}
           </button>
         </div>
