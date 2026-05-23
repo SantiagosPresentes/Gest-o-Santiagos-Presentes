@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import html2canvas from 'html2canvas'
+import PageHeader from '../components/PageHeader'
 
 // Leitor de câmera usando a biblioteca ZXing via CDN (carregada dinamicamente)
 function LeitorCamera({ onLeitura, onFechar }) {
@@ -321,7 +322,26 @@ function Vendas() {
         />
       )}
 
-      <h2>Nova Venda</h2>
+      <PageHeader
+  title="Nova Venda"
+  subtitle="Registre vendas e controle pagamentos"
+  icon={
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="white"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="9" cy="21" r="1"/>
+      <circle cx="20" cy="21" r="1"/>
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+    </svg>
+  }
+/>
 
       {/* MODAL DO COMPROVANTE */}
       {vendaFinalizada && (
