@@ -241,7 +241,7 @@ function Encomendas() {
     btnMain: {
       width: '100%',
       padding: '14px',
-      background: '#1A6B5A',
+      background: 'linear-gradient(135deg, #f5821f, #c2185b)',
       color: 'white',
       border: 'none',
       borderRadius: 10,
