@@ -110,23 +110,29 @@ body {
 .header-tabs {
   display: flex;
   overflow-x: auto;
-  padding: 0 12px 0;
-  gap: 4px;
+  overflow-y: visible;
+  padding: 0 8px;
+  gap: 2px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* Mostra indicador sutil de que tem mais conteúdo */
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
 }
 .header-tabs::-webkit-scrollbar { display: none; }
 
 .header-tabs a {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: rgba(255,255,255,0.65);
   text-decoration: none;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: 10px 10px 0 0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.2s;
   border-bottom: 3px solid transparent;
 }
@@ -431,3 +437,189 @@ tbody td {
   transition: background 0.2s;
 }
 .menu-mais-sair:hover { background: #ffcdd2; }
+
+/* ─── HEADER EMAIL ─── */
+.header-email {
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: none;
+}
+@media (min-width: 600px) { .header-email { display: block; } }
+
+/* ─── RELATÓRIOS ─── */
+.periodos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.periodo-card {
+  background: #f8faf9;
+  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e0ecea;
+}
+
+.periodo-titulo {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.periodo-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.periodo-inputs label {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 2px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.periodo-inputs input {
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid #dde8e4;
+}
+
+.btn-remover-periodo {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #ffebee;
+  color: #c62828;
+  border: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resumo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.resumo-card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.resumo-periodo {
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.resumo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f4f2;
+  gap: 8px;
+}
+.resumo-item:last-child { border-bottom: none; }
+.resumo-item span { color: #777; }
+.resumo-item strong { font-size: 14px; }
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.legenda-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.legenda-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.barra-row {
+  margin-bottom: 16px;
+}
+
+.barra-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #444;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barra-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.barra-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.barra-track {
+  flex: 1;
+  background: #f0f4f2;
+  border-radius: 6px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.barra-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.barra-valor {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  min-width: 90px;
+  text-align: right;
+}
