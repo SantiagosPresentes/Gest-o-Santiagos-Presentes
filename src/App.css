@@ -151,10 +151,10 @@ body {
 /* ─── CONTEÚDO ─── */
 .conteudo {
   flex: 1;
-  max-width: 900px;
+  max-width: 1400px;
   width: 100%;
   margin: 0 auto;
-  padding: 20px 16px 90px; /* 90px para não ficar atrás do bottom nav */
+  padding: 20px 28px 90px; /* 90px para não ficar atrás do bottom nav */
 }
 
 .conteudo h2 {
