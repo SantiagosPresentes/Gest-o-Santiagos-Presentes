@@ -6,6 +6,7 @@ import {
   Legend, ResponsiveContainer, LabelList, ComposedChart
 } from 'recharts'
 import PageHeader from '../components/PageHeader'
+import { BarChart3 } from 'lucide-react'
 
 const CORES = ['#1a6b5a', '#f5821f', '#29abe2', '#e91e8c', '#8b5cf6', '#f7c948', '#10b981', '#ef4444', '#06b6d4', '#84cc16']
 
@@ -294,19 +295,9 @@ function BI() {
       <PageHeader
         title="Dashboard BI"
         subtitle="Análise de vendas, investimentos, devoluções e desempenho"
+        icon={<BarChart3 size={22} color="white" />}
       />
-
-      {/* Filtros */}
-      <div style={{
-        display:'flex',
-        justifyContent:'space-between',
-        alignItems:'center',
-        flexWrap:'wrap',
-        gap:'12px',
-        marginBottom:'16px'
-      }}>
-          
-    </div>
+      
       {/* Filtros */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px', marginBottom:'16px'}}>
         <h2>Dashboard BI</h2>
