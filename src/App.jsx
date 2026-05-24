@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import Vendas from './pages/Vendas'
 import Encomendas from './pages/Encomendas'
 import Produtos from './pages/Produtos'
@@ -13,34 +13,38 @@ import Login from './pages/Login'
 import BI from './pages/BI'
 import Relatorios from './pages/Relatorios'
 import { supabase } from './supabase'
-import {
-  ShoppingCart, ClipboardList, RotateCcw, Package,
-  TrendingUp, AlignJustify, DollarSign, History,
-  BarChart3, FileText, Users, Home, Layers
-} from 'lucide-react'
 import './App.css'
 
-const NAV_ITEMS = [
-  { to: '/',             label: 'Vendas',       icon: <ShoppingCart size={14}/> },
-  { to: '/encomendas',   label: 'Encomendas',   icon: <ClipboardList size={14}/> },
-  { to: '/devolucoes',   label: 'Devoluções',   icon: <RotateCcw size={14}/> },
-  { to: '/produtos',     label: 'Produtos',     icon: <Package size={14}/> },
-  { to: '/investimentos',label: 'Investimentos',icon: <TrendingUp size={14}/> },
-  { to: '/estoque',      label: 'Estoque',      icon: <Layers size={14}/> },
-  { to: '/clientes',     label: 'Clientes',     icon: <Users size={14}/> },
-  { to: '/capital',      label: 'Capital',      icon: <DollarSign size={14}/> },
-  { to: '/historico',    label: 'Histórico',    icon: <History size={14}/> },
-  { to: '/bi',           label: 'BI',           icon: <BarChart3 size={14}/> },
-  { to: '/relatorios',   label: 'Relatórios',   icon: <FileText size={14}/> },
-]
-
-const MOBILE_ITEMS = [
-  { to: '/',          label: 'Início',     icon: <Home size={22}/> },
-  { to: '/estoque',   label: 'Estoque',    icon: <Layers size={22}/> },
-  { to: '/capital',   label: 'Financeiro', icon: <DollarSign size={22}/> },
-  { to: '/relatorios',label: 'Relatórios', icon: <FileText size={22}/> },
-  { to: '/bi',        label: 'BI',         icon: <BarChart3 size={22}/> },
-]
+function NavTabs({ fazerLogout, usuario }) {
+  const iniciais = usuario?.email?.slice(0, 2).toUpperCase() || 'SP'
+  return (
+    <header className="app-header">
+      <div className="header-top">
+        <div className="header-logo">
+          <img src="/logo.png" alt="Logo" />
+          <span className="header-titulo">SANTIAGOS<br/>PRESENTES</span>
+        </div>
+        <div className="header-acoes">
+          <span className="header-email">{usuario?.email}</span>
+          <button className="btn-avatar" onClick={fazerLogout} title="Sair">{iniciais}</button>
+        </div>
+      </div>
+      <nav className="header-tabs">
+        <NavLink to="/" end><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Vendas</NavLink>
+        <NavLink to="/encomendas"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Encomendas</NavLink>
+        <NavLink to="/devolucoes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>Devoluções</NavLink>
+        <NavLink to="/produtos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Produtos</NavLink>
+        <NavLink to="/investimentos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Investimentos</NavLink>
+        <NavLink to="/estoque"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Estoque</NavLink>
+        <NavLink to="/clientes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Clientes</NavLink>
+        <NavLink to="/capital"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Capital</NavLink>
+        <NavLink to="/historico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Histórico</NavLink>
+        <NavLink to="/bi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>BI</NavLink>
+        <NavLink to="/relatorios"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Relatórios</NavLink>
+      </nav>
+    </header>
+  )
+}
 
 function App() {
   const [usuario, setUsuario] = useState(null)
@@ -57,51 +61,23 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function fazerLogout() {
-    await supabase.auth.signOut()
-  }
+  async function fazerLogout() { await supabase.auth.signOut() }
 
   if (carregando) {
     return (
-      <div style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#1a6b5a'}}>
-        <p style={{color:'white', fontSize:'18px'}}>Carregando...</p>
+      <div className="tela-carregando">
+        <div className="spinner"></div>
+        <p>Carregando...</p>
       </div>
     )
   }
 
   if (!usuario) return <Login />
 
-  const inicial = usuario.email?.[0]?.toUpperCase() || 'U'
-
   return (
     <BrowserRouter>
       <div className="app">
-        <nav className="navbar">
-          <div className="logo">
-            <img src="/logo.png" alt="Logo" />
-            <span className="logo-texto">Santiagos<br/>Presentes</span>
-          </div>
-
-          <div className="nav-links">
-            {NAV_ITEMS.map(item => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-              >
-                {item.icon}
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
-
-          <div className="navbar-user">
-            <span className="navbar-user-email">{usuario.email}</span>
-            <div className="navbar-avatar">{inicial}</div>
-            <button className="navbar-sair" onClick={fazerLogout}>Sair</button>
-          </div>
-        </nav>
-
+        <NavTabs fazerLogout={fazerLogout} usuario={usuario} />
         <main className="conteudo">
           <Routes>
             <Route path="/" element={<Vendas />} />
@@ -117,15 +93,27 @@ function App() {
             <Route path="/relatorios" element={<Relatorios />} />
           </Routes>
         </main>
-
-        {/* Barra inferior mobile */}
-        <nav className="mobile-bottom-bar">
-          {MOBILE_ITEMS.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'}>
-              {item.icon}
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+        <nav className="bottom-nav">
+          <NavLink to="/" end>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Início</span>
+          </NavLink>
+          <NavLink to="/estoque">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            <span>Estoque</span>
+          </NavLink>
+          <NavLink to="/capital">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>Financeiro</span>
+          </NavLink>
+          <NavLink to="/relatorios">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>Relatórios</span>
+          </NavLink>
+          <NavLink to="/bi">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+            <span>BI</span>
+          </NavLink>
         </nav>
       </div>
     </BrowserRouter>
