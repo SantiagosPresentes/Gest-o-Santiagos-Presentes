@@ -404,7 +404,7 @@ function BI() {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
-            <XAxis dataKey="mes" tick={{fontSize:12, fill:'#666'}} axisLine={false} tickLine={false}/>
+            <XAxis dataKey="mes" tick={{fontSize:12, fill:'#666'}} axisLine={false} tickLine={false} interval={0}/>
             <YAxis hide/>
             <Tooltip content={<TooltipCustom/>}/>
             <Legend iconType="circle" iconSize={10}/>
