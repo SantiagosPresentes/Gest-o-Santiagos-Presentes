@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import PageHeader from '../components/PageHeader'
 
 function Capital() {
   const [mes, setMes] = useState('')
@@ -103,7 +104,25 @@ function Capital() {
 
   return (
     <div>
-      <h2>Capital</h2>
+      <PageHeader
+        title="Capital"
+        subtitle="Controle financeiro e retiradas da empresa"
+        icon={
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 12V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>
+            <path d="M18 12h4v4h-4a2 2 0 0 1 0-4z"/>
+          </svg>
+        }
+      />
 
       {/* Seletor de mês */}
       <div style={{background:'white', padding:'20px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'16px'}}>

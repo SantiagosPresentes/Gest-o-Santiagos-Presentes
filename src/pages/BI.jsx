@@ -5,6 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, LabelList, ComposedChart
 } from 'recharts'
+import PageHeader from '../components/PageHeader'
 
 const CORES = ['#1a6b5a', '#f5821f', '#29abe2', '#e91e8c', '#8b5cf6', '#f7c948', '#10b981', '#ef4444', '#06b6d4', '#84cc16']
 
@@ -290,6 +291,22 @@ function BI() {
 
   return (
     <div>
+      <PageHeader
+        title="Dashboard BI"
+        subtitle="Análise de vendas, investimentos, devoluções e desempenho"
+      />
+
+      {/* Filtros */}
+      <div style={{
+        display:'flex',
+        justifyContent:'space-between',
+        alignItems:'center',
+        flexWrap:'wrap',
+        gap:'12px',
+        marginBottom:'16px'
+      }}>
+          
+    </div>
       {/* Filtros */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px', marginBottom:'16px'}}>
         <h2>Dashboard BI</h2>
