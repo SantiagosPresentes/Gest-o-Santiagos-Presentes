@@ -1,7 +1,5 @@
-// Importa os hooks e componentes necessários
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-// Importa todas as páginas do app
 import Vendas from './pages/Vendas'
 import Encomendas from './pages/Encomendas'
 import Produtos from './pages/Produtos'
@@ -14,38 +12,55 @@ import Historico from './pages/Historico'
 import Login from './pages/Login'
 import BI from './pages/BI'
 import Relatorios from './pages/Relatorios'
-// Importa a conexão com o Supabase
 import { supabase } from './supabase'
+import {
+  ShoppingCart, ClipboardList, RotateCcw, Package,
+  TrendingUp, AlignJustify, DollarSign, History,
+  BarChart3, FileText, Users, Home, Layers
+} from 'lucide-react'
 import './App.css'
 
+const NAV_ITEMS = [
+  { to: '/',             label: 'Vendas',       icon: <ShoppingCart size={14}/> },
+  { to: '/encomendas',   label: 'Encomendas',   icon: <ClipboardList size={14}/> },
+  { to: '/devolucoes',   label: 'Devoluções',   icon: <RotateCcw size={14}/> },
+  { to: '/produtos',     label: 'Produtos',     icon: <Package size={14}/> },
+  { to: '/investimentos',label: 'Investimentos',icon: <TrendingUp size={14}/> },
+  { to: '/estoque',      label: 'Estoque',      icon: <Layers size={14}/> },
+  { to: '/clientes',     label: 'Clientes',     icon: <Users size={14}/> },
+  { to: '/capital',      label: 'Capital',      icon: <DollarSign size={14}/> },
+  { to: '/historico',    label: 'Histórico',    icon: <History size={14}/> },
+  { to: '/bi',           label: 'BI',           icon: <BarChart3 size={14}/> },
+  { to: '/relatorios',   label: 'Relatórios',   icon: <FileText size={14}/> },
+]
+
+const MOBILE_ITEMS = [
+  { to: '/',          label: 'Início',     icon: <Home size={22}/> },
+  { to: '/estoque',   label: 'Estoque',    icon: <Layers size={22}/> },
+  { to: '/capital',   label: 'Financeiro', icon: <DollarSign size={22}/> },
+  { to: '/relatorios',label: 'Relatórios', icon: <FileText size={22}/> },
+  { to: '/bi',        label: 'BI',         icon: <BarChart3 size={22}/> },
+]
+
 function App() {
-  // Estado para guardar o usuário logado
   const [usuario, setUsuario] = useState(null)
-  // Estado para controlar o carregamento inicial
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
-    // Verifica se já existe uma sessão ativa ao abrir o app
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUsuario(session?.user ?? null)
       setCarregando(false)
     })
-
-    // Escuta mudanças de login/logout em tempo real
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUsuario(session?.user ?? null)
     })
-
-    // Remove o listener quando o componente for desmontado
     return () => subscription.unsubscribe()
   }, [])
 
-  // Função para fazer logout
   async function fazerLogout() {
     await supabase.auth.signOut()
   }
 
-  // Enquanto verifica a sessão, mostra tela de carregamento
   if (carregando) {
     return (
       <div style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#1a6b5a'}}>
@@ -54,46 +69,39 @@ function App() {
     )
   }
 
-  // Se não há usuário logado, mostra a tela de login
-  if (!usuario) {
-    return <Login />
-  }
+  if (!usuario) return <Login />
 
-  // Se está logado, mostra o app completo
+  const inicial = usuario.email?.[0]?.toUpperCase() || 'U'
+
   return (
     <BrowserRouter>
       <div className="app">
         <nav className="navbar">
           <div className="logo">
-            <img src="/logo.png" alt="Logo Santiagos Presentes" />
+            <img src="/logo.png" alt="Logo" />
             <span className="logo-texto">Santiagos<br/>Presentes</span>
           </div>
+
           <div className="nav-links">
-            <NavLink to="/">Vendas</NavLink>
-            <NavLink to="/encomendas">Encomendas</NavLink>
-            <NavLink to="/produtos">Produtos</NavLink>
-            <NavLink to="/clientes">Clientes</NavLink>
-            <NavLink to="/investimentos">Investimentos</NavLink>
-            <NavLink to="/estoque">Estoque</NavLink>
-            <NavLink to="/capital">Capital</NavLink>
-            <NavLink to="/devolucoes">Devoluções</NavLink>
-            <NavLink to="/historico">Histórico</NavLink>
-            <NavLink to="/bi">BI</NavLink>
-            <NavLink to="/relatorios">Relatórios</NavLink>
+            {NAV_ITEMS.map(item => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/'}
+              >
+                {item.icon}
+                {item.label}
+              </NavLink>
+            ))}
           </div>
-          {/* Botão de logout com email do usuário */}
-          <div style={{marginLeft:'auto', display:'flex', alignItems:'center', gap:'12px'}}>
-            <span style={{color:'rgba(255,255,255,0.7)', fontSize:'12px'}}>
-              {usuario.email}
-            </span>
-            <button
-              onClick={fazerLogout}
-              style={{background:'rgba(255,255,255,0.15)', color:'white', border:'1px solid rgba(255,255,255,0.3)', padding:'6px 14px', borderRadius:'6px', cursor:'pointer', fontSize:'13px'}}
-            >
-              Sair
-            </button>
+
+          <div className="navbar-user">
+            <span className="navbar-user-email">{usuario.email}</span>
+            <div className="navbar-avatar">{inicial}</div>
+            <button className="navbar-sair" onClick={fazerLogout}>Sair</button>
           </div>
         </nav>
+
         <main className="conteudo">
           <Routes>
             <Route path="/" element={<Vendas />} />
@@ -109,6 +117,16 @@ function App() {
             <Route path="/relatorios" element={<Relatorios />} />
           </Routes>
         </main>
+
+        {/* Barra inferior mobile */}
+        <nav className="mobile-bottom-bar">
+          {MOBILE_ITEMS.map(item => (
+            <NavLink key={item.to} to={item.to} end={item.to === '/'}>
+              {item.icon}
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
       </div>
     </BrowserRouter>
   )
