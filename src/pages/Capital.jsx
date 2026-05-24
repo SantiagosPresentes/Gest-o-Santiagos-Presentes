@@ -30,13 +30,13 @@ function Capital() {
   }, [mes])
 
   async function buscarTotalVendido() {
-    const { data } = await supabase.from('vendas').select('valor_total, data_venda')
+    const { data } = await supabase.from('vendas').select('valor_total, data_para_pagar')
     if (data) {
       const [nomeMes, ano] = mes.split('/')
       const indice = meses.findIndex(m => m.startsWith(nomeMes))
       const total = data
         .filter(v => {
-          const d = new Date(v.data_venda)
+          const d = new Date(v.data_para_pagar + 'T12:00:00')
           return d.getMonth() === indice && d.getFullYear() === parseInt(ano)
         })
         .reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
@@ -54,7 +54,7 @@ function Capital() {
   }
 
   async function carregarRegistros() {
-    const { data: vendasData } = await supabase.from('vendas').select('valor_total, data_venda')
+    const { data: vendasData } = await supabase.from('vendas').select('valor_total, data_para_pagar')
     const { data: retiradasData } = await supabase.from('retiradas').select('*')
     if (vendasData && retiradasData) {
       const porMes = {}
@@ -63,7 +63,7 @@ function Capital() {
         const indice = meses.findIndex(mes => mes.startsWith(nomeMes))
         const totalVendas = vendasData
           .filter(v => {
-            const d = new Date(v.data_venda)
+            const d = new Date(v.data_para_pagar + 'T12:00:00')
             return d.getMonth() === indice && d.getFullYear() === parseInt(ano)
           })
           .reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
