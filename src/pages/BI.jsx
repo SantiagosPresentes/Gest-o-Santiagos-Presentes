@@ -149,7 +149,12 @@ function BI() {
       const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (meses[chave]) meses[chave].vendido = Math.max(0, meses[chave].vendido - parseFloat(dev.valor_total || 0))
     })
-    return Object.values(meses)
+    return Object.values(meses).sort((a, b) => {
+      const [mA, aA] = a.mes.split('/')
+      const [mB, aB] = b.mes.split('/')
+      const meses_idx = {'Jan':0,'Fev':1,'Mar':2,'Abr':3,'Mai':4,'Jun':5,'Jul':6,'Ago':7,'Set':8,'Out':9,'Nov':10,'Dez':11}
+      return (parseInt(aA) * 12 + meses_idx[mA]) - (parseInt(aB) * 12 + meses_idx[mB])
+    })
   }
 
   const dadosMaisVendidos = () => {
@@ -241,7 +246,12 @@ function BI() {
       meses[chave].qtdDevolvida += dev.quantidade
       meses[chave].valorDevolvido += parseFloat(dev.valor_total || 0)
     })
-    return Object.values(meses)
+    return Object.values(meses).sort((a, b) => {
+      const [mA, aA] = a.mes.split('/')
+      const [mB, aB] = b.mes.split('/')
+      const meses_idx = {'Jan':0,'Fev':1,'Mar':2,'Abr':3,'Mai':4,'Jun':5,'Jul':6,'Ago':7,'Set':8,'Out':9,'Nov':10,'Dez':11}
+      return (parseInt(aA) * 12 + meses_idx[mA]) - (parseInt(aB) * 12 + meses_idx[mB])
+    })
   }
 
   const previsaoVendas = () => {
@@ -404,7 +414,7 @@ function BI() {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
-            <XAxis dataKey="mes" tick={{fontSize:12, fill:'#666'}} axisLine={false} tickLine={false} interval={0}/>
+            <XAxis dataKey="mes" tick={{fontSize:11, fill:'#666'}} axisLine={false} tickLine={false} interval={0} padding={{left:20, right:20}}/>
             <YAxis hide/>
             <Tooltip content={<TooltipCustom/>}/>
             <Legend iconType="circle" iconSize={10}/>
@@ -575,7 +585,7 @@ function BI() {
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={dadosVendasDev()} margin={{top:10, right:20, left:10, bottom:10}}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
-            <XAxis dataKey="mes" tick={{fontSize:11, fill:'#666'}} axisLine={false} tickLine={false}/>
+            <XAxis dataKey="mes" tick={{fontSize:11, fill:'#666'}} axisLine={false} tickLine={false} interval={0} padding={{left:20, right:20}}/>
             <YAxis hide/>
             <Tooltip content={<TooltipCustom/>}/>
             <Legend iconType="circle" iconSize={10}/>
