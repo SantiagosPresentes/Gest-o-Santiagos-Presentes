@@ -409,8 +409,8 @@ function BI() {
                 <stop offset="95%" stopColor="#1a6b5a" stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="gradRecebido" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#29abe2" stopOpacity={0.2}/>
-                <stop offset="95%" stopColor="#29abe2" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#e91e8c" stopOpacity={0.15}/>
+                <stop offset="95%" stopColor="#e91e8c" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
@@ -421,7 +421,9 @@ function BI() {
             <Area type="monotone" dataKey="vendido" name="Valor Vendido" stroke="#1a6b5a" strokeWidth={3} fill="url(#gradVendido)" dot={{r:5, fill:'#1a6b5a', strokeWidth:2, stroke:'white'}} activeDot={{r:8}}>
               <LabelList dataKey="vendido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'11px', fill:'#1a6b5a', fontWeight:'bold'}}/>
             </Area>
-            <Area type="monotone" dataKey="recebido" name="Valor Recebido" stroke="#29abe2" strokeWidth={2} fill="url(#gradRecebido)" dot={{r:4}} strokeDasharray="5 5"/>
+            <Area type="monotone" dataKey="recebido" name="Valor Recebido" stroke="#e91e8c" strokeWidth={2.5} fill="url(#gradRecebido)" dot={{r:5, fill:'#e91e8c', strokeWidth:2, stroke:'white'}} activeDot={{r:8}}>
+              <LabelList dataKey="recebido" position="bottom" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'11px', fill:'#e91e8c', fontWeight:'bold'}}/>
+            </Area>
             <Line type="monotone" dataKey="meta" name="Meta R$3.000" stroke="#f5821f" strokeWidth={2} strokeDasharray="8 4" dot={false}/>
           </ComposedChart>
         </ResponsiveContainer>
