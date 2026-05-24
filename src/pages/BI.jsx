@@ -106,7 +106,7 @@ function BI() {
   }
 
   const vendasFiltradas = vendas.filter(v => {
-    const d = new Date(v.data_venda)
+    const d = new Date(v.data_para_pagar + 'T12:00:00')
     if (filtroMes && d.getMonth() + 1 !== parseInt(filtroMes)) return false
     if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return false
     return true
@@ -117,7 +117,7 @@ function BI() {
     return true
   })
 
-  const anosDisponiveis = [...new Set(vendas.map(v => new Date(v.data_venda).getFullYear()))].sort()
+  const anosDisponiveis = [...new Set(vendas.map(v => new Date(v.data_para_pagar + 'T12:00:00').getFullYear()))].sort()
   const categorias = [...new Set(itensVenda.map(i => i.produtos?.categoria).filter(Boolean))].sort()
 
   const totalDevolvido = devolucoes.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
@@ -136,7 +136,7 @@ function BI() {
   const dadosLinha = () => {
     const meses = {}
     vendas.forEach(v => {
-      const d = new Date(v.data_venda)
+      const d = new Date(v.data_para_pagar + 'T12:00:00')
       if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
       const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes: chave, vendido: 0, recebido: 0, meta: 3000 }
@@ -226,7 +226,7 @@ function BI() {
     itensVenda.forEach(i => {
       const venda = vendas.find(v => v.id === i.venda_id)
       if (!venda) return
-      const d = new Date(venda.data_venda)
+      const d = new Date(venda.data_para_pagar + 'T12:00:00')
       if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
       const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes: chave, qtdVendida: 0, valorVendido: 0, qtdDevolvida: 0, valorDevolvido: 0 }
