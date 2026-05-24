@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 
 function Capital() {
   const [mes, setMes] = useState('')
@@ -106,22 +107,8 @@ function Capital() {
     <div>
       <PageHeader
         title="Capital"
-        subtitle="Controle financeiro e retiradas da empresa"
-        icon={
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M20 12V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>
-            <path d="M18 12h4v4h-4a2 2 0 0 1 0-4z"/>
-          </svg>
-        }
+        subtitle="Fluxo financeiro, caixa e capital da empresa"
+        icon={<DollarSign size={22} color="white" />}
       />
 
       {/* Seletor de mês */}

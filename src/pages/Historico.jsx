@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import PageHeader from '../components/PageHeader'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 
 function Historico() {
   const [vendas, setVendas] = useState([])
@@ -96,7 +98,11 @@ function Historico() {
 
   return (
     <div>
-      <h2>Histórico Geral</h2>
+      <PageHeader
+        title="Histórico"
+        subtitle="Visualize o histórico completo de movimentações"
+        icon={<History size={22} color="white" />}
+      />
 
       {/* Modal de pagamento */}
       {pagamentoVenda && (

@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 // Importa a conexão com o Supabase
 import { supabase } from '../supabase'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
+import PageHeader from '../components/PageHeader'
 
 function Devolucoes() {
   const [clientes, setClientes] = useState([])
@@ -127,7 +129,11 @@ function Devolucoes() {
 
   return (
     <div>
-      <h2>Devoluções</h2>
+      <PageHeader
+        title="Devoluções"
+        subtitle="Controle de trocas e produtos devolvidos"
+        icon={<RotateCcw size={22} color="white" />}
+      />
       <div style={{background:'white', padding:'24px', borderRadius:'12px', maxWidth:'700px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.1)'}}>
 
         {/* Dropdown de seleção de cliente */}

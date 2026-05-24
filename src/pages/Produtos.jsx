@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import PageHeader from '../components/PageHeader'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 
 function Produtos() {
   const [codigo, setCodigo] = useState('')
@@ -70,7 +72,11 @@ function Produtos() {
 
   return (
     <div>
-      <h2>Produtos</h2>
+      <PageHeader
+        title="Produtos"
+        subtitle="Cadastro e gerenciamento de produtos"
+        icon={<Package size={22} color="white" />}
+      />
 
       {/* FORMULÁRIO — sempre no topo */}
       <div style={{background:'white', padding:'24px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', borderTop: editando ? '3px solid #f5821f' : '3px solid #1a6b5a'}}>

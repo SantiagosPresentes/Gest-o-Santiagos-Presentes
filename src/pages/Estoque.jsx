@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
+import PageHeader from '../components/PageHeader'
 
 function Estoque() {
   const [produtos, setProdutos] = useState([])
@@ -26,7 +28,11 @@ function Estoque() {
 
   return (
     <div>
-      <h2>Estoque</h2>
+      <PageHeader
+        title="Estoque"
+        subtitle="Controle de entrada, saída e quantidade disponível"
+        icon={<Boxes size={22} color="white" />}
+      />
 
       <div style={{background:'white', padding:'16px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap'}}>
         <div style={{flex:1, minWidth:'180px'}}>

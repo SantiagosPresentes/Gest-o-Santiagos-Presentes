@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import PageHeader from '../components/PageHeader'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 
 const COR = ['#1a6b5a', '#f5821f', '#c2185b', '#7b1fa2', '#0288d1', '#388e3c']
 
@@ -164,7 +166,11 @@ export default function Relatorios() {
 
   return (
     <div>
-      <h2>Relatórios Comparativos</h2>
+      <PageHeader
+        title="Relatórios"
+        subtitle="Relatórios estratégicos e exportação de dados"
+        icon={<FileText size={22} color="white" />}
+      />
 
       {/* CONFIGURAÇÃO DOS PERÍODOS */}
       <div className="card" style={{ marginTop: 16 }}>

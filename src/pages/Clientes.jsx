@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
-import { Users } from 'lucide-react'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 
 function Clientes() {
   const [nome, setNome] = useState('')
@@ -61,8 +61,8 @@ function Clientes() {
     <div>
       <PageHeader
         title="Clientes"
-        subtitle="Cadastro de clientes"
-        icon={<Users size={22} />}
+        subtitle="Gerencie os clientes cadastrados no sistema"
+        icon={<Users size={22} color="white" />}
       />
 
       {/* FORMULÁRIO — sempre no topo */}

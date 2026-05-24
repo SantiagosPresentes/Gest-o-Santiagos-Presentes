@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
-import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+import {LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer, LabelList, ComposedChart
-} from 'recharts'
+  Legend, ResponsiveContainer, LabelList, ComposedChart} from 'recharts'
 import PageHeader from '../components/PageHeader'
-import { BarChart3 } from 'lucide-react'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
+import {CalendarDays, Tags, RefreshCw} from 'lucide-react'
+import { motion } from 'framer-motion'
 
 const CORES = ['#1a6b5a', '#f5821f', '#29abe2', '#e91e8c', '#8b5cf6', '#f7c948', '#10b981', '#ef4444', '#06b6d4', '#84cc16']
 
@@ -82,6 +82,7 @@ function BI() {
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroMes, setFiltroMes] = useState('')
   const [filtroAno, setFiltroAno] = useState('')
+  const [kpiSelecionado, setKpiSelecionado] = useState(null)
 
   useEffect(() => { carregarDados() }, [])
 
@@ -283,7 +284,9 @@ function BI() {
     )
   }
 
-  const card = { background:'white', borderRadius:'16px', padding:'24px', boxShadow:'0 4px 20px rgba(0,0,0,0.07)', marginBottom:'20px' }
+  const card = {
+    background:'#fff', borderRadius:'18px', padding:'24px', boxShadow:'0 6px 24px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', marginBottom:'20px'
+  }
   const titulo = { fontSize:'15px', fontWeight:'bold', color:'#1a6b5a', marginBottom:'20px', paddingBottom:'12px', borderBottom:'2px solid #f0f0f0', display:'flex', alignItems:'center', gap:'8px' }
 
   const fornecedores = dadosFornecedor()
@@ -297,17 +300,25 @@ function BI() {
         subtitle="Análise de vendas, investimentos, devoluções e desempenho"
         icon={<BarChart3 size={22} color="white" />}
       />
-      
+
       {/* Filtros */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px', marginBottom:'16px'}}>
-        <h2>Dashboard BI</h2>
+        <div style={{
+          display:'flex',
+          justifyContent:'flex-end',
+          alignItems:'center',
+          flexWrap:'wrap',
+          gap:'12px',
+          marginBottom:'24px'
+        }}>
+        </div>
         <div style={{display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center'}}>
           {[
             { value: filtroAno, set: setFiltroAno, placeholder: 'Todos os anos', options: anosDisponiveis.map(a => ({v:String(a), l:String(a)})) },
             { value: filtroMes, set: setFiltroMes, placeholder: 'Todos os meses', options: MESES_NOMES.map((m, i) => ({v:String(i+1), l:m})) },
             { value: filtroCategoria, set: setFiltroCategoria, placeholder: 'Todas categorias', options: categorias.map(c => ({v:c, l:c})) },
           ].map((f, i) => (
-            <select key={i} value={f.value} onChange={e => f.set(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'dark'}}>
+            <select key={i} value={f.value} onChange={e => f.set(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'#1f1f1f'}}>
               <option value="">{f.placeholder}</option>
               {f.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
             </select>
@@ -333,11 +344,38 @@ function BI() {
           { label:'Valor Devolvido', valor:`R$ ${totalDevolvido.toFixed(2)}`, cor:'#ef4444', icon:'↩️' },
           { label:'Qtd Devoluções', valor:qtdDevolucoes, cor:'#f97316', icon:'📦' },
         ].map((kpi, i) => (
-          <div key={i} style={{background:'white', borderRadius:'14px', padding:'16px', boxShadow:'0 4px 16px rgba(0,0,0,0.07)', borderTop:`4px solid ${kpi.cor}`}}>
+          <motion.div
+            key={i}
+            whileHover={{
+              y: -6,
+              scale: 1.02,
+              boxShadow:'0 12px 28px rgba(0,0,0,0.12)'
+            }}
+            whileTap={{
+              scale: 0.97
+            }}
+            transition={{
+              duration: 0.2
+            }}
+            onClick={() => setKpiSelecionado(kpi.label)}
+            style={{
+              background:'white',
+              borderRadius:'14px',
+              padding:'16px',
+              cursor:'pointer',
+              boxShadow:'0 4px 16px rgba(0,0,0,0.07)',
+              borderTop:`4px solid ${kpi.cor}`,
+              border:
+                kpiSelecionado === kpi.label
+                  ? `2px solid ${kpi.cor}`
+                  : '2px solid transparent',
+              transition:'all 0.2s ease'
+            }}
+          >
             <div style={{fontSize:'22px', marginBottom:'4px'}}>{kpi.icon}</div>
             <div style={{fontSize:'11px', color:'#888', marginBottom:'4px'}}>{kpi.label}</div>
             <div style={{fontSize:'17px', fontWeight:'bold', color:kpi.cor}}>{kpi.valor}</div>
-          </div>
+          </motion.div> 
         ))}
       </div>
 

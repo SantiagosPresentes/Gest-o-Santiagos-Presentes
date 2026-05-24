@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import PageHeader from '../components/PageHeader'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 
 function Investimentos() {
   const [codigo, setCodigo] = useState('')
@@ -55,7 +57,11 @@ function Investimentos() {
 
   return (
     <div>
-      <h2>Registro de Investimentos</h2>
+      <PageHeader
+        title="Investimentos"
+        subtitle="Compras, fornecedores e investimentos realizados"
+        icon={<TrendingUp size={22} color="white" />}
+      />
       <div style={card}>
         <div style={{marginBottom:'16px'}}>
           <label>Código do Produto</label><br/>
