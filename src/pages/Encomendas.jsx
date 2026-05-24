@@ -433,17 +433,11 @@ function Encomendas() {
     <div style={s.page}>
 
       {/* ── Cabeçalho da página ── */}
-      <div style={s.pageHeader}>
-        <div style={s.pageHeaderIcon}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-          </svg>
-        </div>
-        <div>
-          <h2 style={s.pageHeaderTitle}>Encomendas</h2>
-          <p style={s.pageHeaderSub}>Registre e acompanhe pedidos</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Encomendas"
+        subtitle="Registre e acompanhe pedidos"
+        icon={<Package size={22} color="white" />}
+      />
 
       <div style={s.layout}>
 

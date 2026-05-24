@@ -120,7 +120,6 @@ function BI() {
   const anosDisponiveis = [...new Set(vendas.map(v => new Date(v.data_venda).getFullYear()))].sort()
   const categorias = [...new Set(itensVenda.map(i => i.produtos?.categoria).filter(Boolean))].sort()
 
-  // KPIs
   const totalDevolvido = devolucoes.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
   const qtdDevolucoes = devolucoes.reduce((acc, d) => acc + (d.quantidade || 1), 0)
   const totalVendidoBruto = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
@@ -134,7 +133,6 @@ function BI() {
   }).length
   const taxaInad = vendasFiltradas.length > 0 ? ((atrasados / vendasFiltradas.length) * 100).toFixed(1) : 0
 
-  // GRÁFICO 1 — Linha + Area (vendas por mês)
   const dadosLinha = () => {
     const meses = {}
     vendas.forEach(v => {
@@ -154,7 +152,6 @@ function BI() {
     return Object.values(meses)
   }
 
-  // GRÁFICO 2 — Top 10 mais vendidos
   const dadosMaisVendidos = () => {
     const contagem = {}
     itensFiltrados.forEach(i => {
@@ -172,7 +169,6 @@ function BI() {
     return Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade).slice(0, 10)
   }
 
-  // GRÁFICO 2b — Top 10 menos vendidos
   const dadosMenosVendidos = () => {
     const contagem = {}
     itensFiltrados.forEach(i => {
@@ -184,7 +180,6 @@ function BI() {
     return Object.values(contagem).sort((a, b) => a.quantidade - b.quantidade).slice(0, 10)
   }
 
-  // GRÁFICO 2c — Top 10 mais devolvidos
   const dadosMaisDevolvidos = () => {
     const contagem = {}
     devolucoes.forEach(dev => {
@@ -197,7 +192,6 @@ function BI() {
     return Object.values(contagem).sort((a, b) => b.quantidade - a.quantidade).slice(0, 10)
   }
 
-  // GRÁFICO 3 — Investimento por fornecedor
   const dadosFornecedor = () => {
     const forns = {}
     investimentos.forEach(inv => {
@@ -209,7 +203,6 @@ function BI() {
     return Object.values(forns).sort((a, b) => b.investido - a.investido)
   }
 
-  // GRÁFICO 4 — Categoria
   const dadosCategoria = () => {
     const cats = {}
     itensFiltrados.forEach(i => {
@@ -228,7 +221,6 @@ function BI() {
     return Object.values(cats).sort((a, b) => b.valor - a.valor)
   }
 
-  // GRÁFICO 5 — Vendas vs Devoluções
   const dadosVendasDev = () => {
     const meses = {}
     itensVenda.forEach(i => {
@@ -252,7 +244,6 @@ function BI() {
     return Object.values(meses)
   }
 
-  // Previsão
   const previsaoVendas = () => {
     const dados = dadosLinha()
     if (dados.length < 2) return null
@@ -285,7 +276,7 @@ function BI() {
   }
 
   const card = {
-    background:'#fff', borderRadius:'18px', padding:'24px', boxShadow:'0 6px 24px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', marginBottom:'20px'
+    background:'#fff', borderRadius:'18px', padding:'24px', boxShadow:'0 2px 12px rgba(15,23,42,0.07)', border:'1px solid #eef2f7', marginBottom:'20px'
   }
   const titulo = { fontSize:'15px', fontWeight:'bold', color:'#1a6b5a', marginBottom:'20px', paddingBottom:'12px', borderBottom:'2px solid #f0f0f0', display:'flex', alignItems:'center', gap:'8px' }
 
@@ -293,47 +284,72 @@ function BI() {
   const totalInvestido = fornecedores.reduce((acc, f) => acc + f.investido, 0)
   const maisDev = dadosMaisDevolvidos()
 
+  const filtroIcones = [<CalendarDays size={16} color="#aaa"/>, <CalendarDays size={16} color="#aaa"/>, <Tags size={16} color="#aaa"/>]
+  const filtroLabels = ['Ano', 'Mês', 'Categoria']
+
   return (
-    <div>
+    <div style={{background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0'}}>
       <PageHeader
         title="Dashboard BI"
         subtitle="Análise de vendas, investimentos, devoluções e desempenho"
         icon={<BarChart3 size={22} color="white" />}
       />
 
-      {/* Filtros */}
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'12px', marginBottom:'16px'}}>
-        <div style={{
-          display:'flex',
-          justifyContent:'flex-end',
-          alignItems:'center',
-          flexWrap:'wrap',
-          gap:'12px',
-          marginBottom:'24px'
-        }}>
-        </div>
-        <div style={{display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center'}}>
+      {/* Filtros — card branco estilo imagem */}
+      <div style={{background:'#fff', borderRadius:'16px', padding:'20px 24px', boxShadow:'0 2px 12px rgba(15,23,42,0.07)', border:'1px solid #eef2f7', margin:'20px 0'}}>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'16px', alignItems:'end'}}>
           {[
-            { value: filtroAno, set: setFiltroAno, placeholder: 'Todos os anos', options: anosDisponiveis.map(a => ({v:String(a), l:String(a)})) },
-            { value: filtroMes, set: setFiltroMes, placeholder: 'Todos os meses', options: MESES_NOMES.map((m, i) => ({v:String(i+1), l:m})) },
-            { value: filtroCategoria, set: setFiltroCategoria, placeholder: 'Todas categorias', options: categorias.map(c => ({v:c, l:c})) },
+            { label:'Ano', value: filtroAno, set: setFiltroAno, placeholder: 'Todos os anos', options: anosDisponiveis.map(a => ({v:String(a), l:String(a)})), icon: <CalendarDays size={16} color="#aaa"/> },
+            { label:'Mês', value: filtroMes, set: setFiltroMes, placeholder: 'Todos os meses', options: MESES_NOMES.map((m, i) => ({v:String(i+1), l:m})), icon: <CalendarDays size={16} color="#aaa"/> },
+            { label:'Categoria', value: filtroCategoria, set: setFiltroCategoria, placeholder: 'Todas categorias', options: categorias.map(c => ({v:c, l:c})), icon: <Tags size={16} color="#aaa"/> },
           ].map((f, i) => (
-            <select key={i} value={f.value} onChange={e => f.set(e.target.value)} style={{padding:'8px 12px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'13px', background:'#1f1f1f'}}>
-              <option value="">{f.placeholder}</option>
-              {f.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-            </select>
+            <div key={i}>
+              <label style={{display:'block', fontSize:'12px', fontWeight:'600', color:'#888', marginBottom:'6px'}}>{f.label}</label>
+              <div style={{position:'relative'}}>
+                <select
+                  value={f.value}
+                  onChange={e => f.set(e.target.value)}
+                  style={{
+                    width:'100%',
+                    padding:'10px 36px 10px 14px',
+                    borderRadius:'10px',
+                    border:'1.5px solid #e5e7eb',
+                    fontSize:'13px',
+                    color:'#555',
+                    background:'#fff',
+                    appearance:'none',
+                    cursor:'pointer',
+                    outline:'none',
+                  }}
+                >
+                  <option value="">{f.placeholder}</option>
+                  {f.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
+                <div style={{position:'absolute', right:'10px', top:'50%', transform:'translateY(-50%)', pointerEvents:'none'}}>
+                  {f.icon}
+                </div>
+              </div>
+            </div>
           ))}
-          <button onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }} style={{background:'#e94560', color:'#eee', border:'none', padding:'8px 14px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
-            🧹 Limpar
-          </button>
-          <button onClick={carregarDados} style={{background:'#1a6b5a', color:'white', border:'none', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}>
-            🔄 Atualizar
-          </button>
+          <div style={{display:'flex', gap:'10px', alignItems:'flex-end'}}>
+            <button
+              onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }}
+              style={{flex:1, background:'#e94560', color:'#fff', border:'none', padding:'10px 14px', borderRadius:'10px', cursor:'pointer', fontSize:'13px', fontWeight:'600', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
+            >
+              🧹 Limpar
+            </button>
+            <button
+              onClick={carregarDados}
+              style={{flex:1, background:'#1a6b5a', color:'white', border:'none', padding:'10px 14px', borderRadius:'10px', cursor:'pointer', fontSize:'13px', fontWeight:'600', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
+            >
+              <RefreshCw size={14}/> Atualizar
+            </button>
+          </div>
         </div>
       </div>
 
       {/* KPIs */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:'12px', marginBottom:'20px'}}>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'14px', marginBottom:'20px'}}>
         {[
           { label:'Total Vendido', valor:`R$ ${totalVendido.toFixed(2)}`, cor:'#1a6b5a', icon:'💰' },
           { label:'Total Recebido', valor:`R$ ${totalRecebido.toFixed(2)}`, cor:'#29abe2', icon:'✅' },
@@ -346,36 +362,29 @@ function BI() {
         ].map((kpi, i) => (
           <motion.div
             key={i}
-            whileHover={{
-              y: -6,
-              scale: 1.02,
-              boxShadow:'0 12px 28px rgba(0,0,0,0.12)'
-            }}
-            whileTap={{
-              scale: 0.97
-            }}
-            transition={{
-              duration: 0.2
-            }}
+            whileHover={{ y: -4, boxShadow:'0 8px 24px rgba(0,0,0,0.10)' }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ duration: 0.18 }}
             onClick={() => setKpiSelecionado(kpi.label)}
             style={{
-              background:'white',
-              borderRadius:'14px',
-              padding:'16px',
+              background:'#fff',
+              borderRadius:'16px',
+              padding:'20px 18px',
               cursor:'pointer',
-              boxShadow:'0 4px 16px rgba(0,0,0,0.07)',
-              borderTop:`4px solid ${kpi.cor}`,
-              border:
-                kpiSelecionado === kpi.label
-                  ? `2px solid ${kpi.cor}`
-                  : '2px solid transparent',
-              transition:'all 0.2s ease'
+              boxShadow:'0 2px 10px rgba(0,0,0,0.06)',
+              borderLeft:`4px solid ${kpi.cor}`,
+              border: kpiSelecionado === kpi.label ? `2px solid ${kpi.cor}` : '2px solid transparent',
+              display:'flex',
+              alignItems:'center',
+              gap:'14px',
             }}
           >
-            <div style={{fontSize:'22px', marginBottom:'4px'}}>{kpi.icon}</div>
-            <div style={{fontSize:'11px', color:'#888', marginBottom:'4px'}}>{kpi.label}</div>
-            <div style={{fontSize:'17px', fontWeight:'bold', color:kpi.cor}}>{kpi.valor}</div>
-          </motion.div> 
+            <div style={{fontSize:'32px', lineHeight:1}}>{kpi.icon}</div>
+            <div>
+              <div style={{fontSize:'11px', color:'#999', marginBottom:'4px', fontWeight:'600', textTransform:'uppercase', letterSpacing:'0.5px'}}>{kpi.label}</div>
+              <div style={{fontSize:'18px', fontWeight:'bold', color:kpi.cor}}>{kpi.valor}</div>
+            </div>
+          </motion.div>
         ))}
       </div>
 
@@ -501,18 +510,7 @@ function BI() {
           <div>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie
-                  data={fornecedores}
-                  dataKey="investido"
-                  nameKey="fornecedor"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  innerRadius={55}
-                  paddingAngle={3}
-                  labelLine={false}
-                  label={LabelPizza}
-                >
+                <Pie data={fornecedores} dataKey="investido" nameKey="fornecedor" cx="50%" cy="50%" outerRadius={100} innerRadius={55} paddingAngle={3} labelLine={false} label={LabelPizza}>
                   {fornecedores.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
                 </Pie>
                 <Tooltip formatter={v => `R$ ${parseFloat(v).toFixed(2)}`}/>
@@ -596,7 +594,6 @@ function BI() {
       {/* PREVISÕES */}
       <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'20px', marginBottom:'20px'}}>
 
-        {/* Previsão de vendas */}
         <div style={{...card, marginBottom:0, borderTop:'4px solid #8b5cf6'}}>
           <div style={titulo}>🔮 Previsão — Próximo Mês</div>
           {previsaoVendas() ? (
@@ -616,7 +613,6 @@ function BI() {
           )}
         </div>
 
-        {/* Estoque crítico */}
         <div style={{...card, marginBottom:0, borderTop:'4px solid #ef4444'}}>
           <div style={titulo}>📦 Estoque Crítico</div>
           {produtosAcabando.length === 0 ? (
@@ -634,7 +630,6 @@ function BI() {
           )}
         </div>
 
-        {/* Próxima data comemorativa */}
         <div style={{...card, marginBottom:0, borderTop:'4px solid #e91e8c'}}>
           <div style={titulo}>{proxData.nome}</div>
           <p style={{fontSize:'12px', color:'#888', marginBottom:'12px'}}>
