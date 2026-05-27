@@ -210,7 +210,7 @@ function Historico() {
                       <small style={{color:'#888'}}>{venda.clientes?.telefone}</small>
                     </td>
                     <td style={{textAlign:'left', fontSize:'13px'}}>
-                      {venda.vendedor || '—'}
+                      {venda.vendedor_nome || '—'}
                     </td>
                     <td style={{textAlign:'left'}}>
                       <span
@@ -261,7 +261,7 @@ function Historico() {
                     <tr key={venda.id + '_det'}>
                       <td colSpan="11" style={{background:'#f0f4ff', padding:'12px 16px'}}>
                         <div style={{display:'flex', gap:'16px', marginBottom:'10px', fontSize:'13px', flexWrap:'wrap'}}>
-                          <span><strong>Vendedor:</strong> {venda.vendedor || '—'}</span>
+                          <span><strong>Vendedor:</strong> {venda.vendedor_nome || '—'}</span>
                           {parseFloat(venda.desconto || 0) > 0 && (
                             <span style={{color:'#e65100'}}>
                               <strong>Desconto aplicado:</strong> - R$ {parseFloat(venda.desconto).toFixed(2)}

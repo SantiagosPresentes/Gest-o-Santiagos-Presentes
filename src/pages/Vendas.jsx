@@ -142,7 +142,7 @@ function Vendas() {
   const [vendaFinalizada, setVendaFinalizada] = useState(null)
   const [cameraAberta, setCameraAberta] = useState(false)
   const comprovanteRef = useRef(null)
-
+  const [vendedorNome, setVendedorNome] = useState('')
   const subtotalItens = itens.reduce((acc, item) => acc + item.subtotal, 0)
   const valorDesconto = desconto && parseFloat(desconto) > 0 ? parseFloat(desconto) : 0
   const total = subtotalItens - valorDesconto
@@ -150,6 +150,18 @@ function Vendas() {
   useEffect(() => {
     supabase.from('clientes').select('*').order('nome').then(({ data }) => {
       if (data) setClientes(data)
+    })
+
+    // Busca o usuário logado
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        const nome =
+          data.user.user_metadata?.full_name ||
+          data.user.user_metadata?.name ||
+          data.user.email?.split('@')[0] || // fallback: parte antes do @
+          'Vendedor'
+        setVendedorNome(nome)
+      }
     })
   }, [])
 
@@ -248,6 +260,7 @@ function Vendas() {
       desconto: valorDesconto,
       recebido: 0,
       situacao: 'Pendente',
+      vendedor_nome: vendedorNome,
       observacao: [
         obsParcelamento,
         valorDesconto > 0 ? `Desconto: R$ ${valorDesconto.toFixed(2)}` : '',
