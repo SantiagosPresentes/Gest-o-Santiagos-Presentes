@@ -51,21 +51,22 @@ function Capital() {
   }, [mes])
 
   async function buscarSaldoGeral() {
+    // Soma coluna "recebido" (valor numérico) de todas as vendas com situacao = 'Pago'
     const { data: vendasData } = await supabase
       .from('vendas')
-      .select('valor_total')
-      .eq('recebido', true)
+      .select('recebido')
+      .eq('situacao', 'Pago')
     const { data: retiradasData } = await supabase.from('retiradas').select('valor')
-    const totalV = vendasData?.reduce((acc, v) => acc + parseFloat(v.valor_total), 0) || 0
-    const totalR = retiradasData?.reduce((acc, r) => acc + parseFloat(r.valor), 0) || 0
+    const totalV = vendasData?.reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0) || 0
+    const totalR = retiradasData?.reduce((acc, r) => acc + parseFloat(r.valor || 0), 0) || 0
     setSaldoGeral(totalV - totalR)
   }
 
   async function buscarTotalVendido() {
     const { data } = await supabase
       .from('vendas')
-      .select('valor_total, data_para_pagar')
-      .eq('recebido', true)
+      .select('recebido, data_para_pagar')
+      .eq('situacao', 'Pago')
     if (data) {
       const [nomeMes, ano] = mes.split('/')
       const indice = mesParaIndice(nomeMes)
@@ -74,7 +75,7 @@ function Capital() {
           const d = new Date(v.data_para_pagar + 'T12:00:00')
           return d.getMonth() === indice && d.getFullYear() === parseInt(ano)
         })
-        .reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
+        .reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
       setTotalVendido(total)
     }
   }
@@ -91,8 +92,8 @@ function Capital() {
   async function carregarRegistros() {
     const { data: vendasData } = await supabase
       .from('vendas')
-      .select('valor_total, data_para_pagar')
-      .eq('recebido', true)
+      .select('recebido, data_para_pagar')
+      .eq('situacao', 'Pago')
     const { data: retiradasData } = await supabase.from('retiradas').select('*')
     if (vendasData && retiradasData) {
       const porMes = {}
@@ -102,13 +103,12 @@ function Capital() {
         if (ano < 2025) return
         const chave = `${nomeMeses[d.getMonth()]}/${ano}`
         if (!porMes[chave]) porMes[chave] = { mes: chave, total_vendido: 0, retiradas: 0 }
-        porMes[chave].total_vendido += parseFloat(v.valor_total)
+        porMes[chave].total_vendido += parseFloat(v.recebido || 0)
       })
       retiradasData.forEach(r => {
         if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, total_vendido: 0, retiradas: 0 }
-        porMes[r.mes].retiradas += parseFloat(r.valor)
+        porMes[r.mes].retiradas += parseFloat(r.valor || 0)
       })
-      // Ordena crescente por data
       const ordenado = Object.values(porMes).sort((a, b) => {
         const [mA, aA] = a.mes.split('/')
         const [mB, aB] = b.mes.split('/')
@@ -142,7 +142,7 @@ function Capital() {
     buscarSaldoGeral()
   }
 
-  const totalRetiradas = retiradas.reduce((acc, r) => acc + parseFloat(r.valor), 0)
+  const totalRetiradas = retiradas.reduce((acc, r) => acc + parseFloat(r.valor || 0), 0)
   const saldo = totalVendido - totalRetiradas
   const saldoExibido = mes ? saldo : saldoGeral
   const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'6px', border:'1px solid #ddd' }

@@ -3,7 +3,6 @@ import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
 import { FileText } from 'lucide-react'
 
-// Período 1 agora é #eeeeee — texto escuro para contraste
 const COR = ['#eeeeee', '#f5821f', '#c2185b', '#7b1fa2', '#0288d1', '#388e3c']
 const COR_TEXTO = ['#333333', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff']
 
@@ -12,13 +11,22 @@ function fmt(v) {
 }
 
 function PeriodoCard({ index, periodo, onChange, vendedores }) {
-  const cor = COR[index]
-  const corTexto = COR_TEXTO[index]
   const isClaro = index === 0
 
+  function toggleVendedor(nome) {
+    const atual = periodo.vendedores || []
+    const novos = atual.includes(nome)
+      ? atual.filter(v => v !== nome)
+      : [...atual, nome]
+    onChange('vendedores', novos)
+  }
+
+  const selecionados = periodo.vendedores || []
+  const disponiveis = vendedores.filter(v => !selecionados.includes(v))
+
   return (
-    <div className="periodo-card" style={{ borderTop: `3px solid ${isClaro ? '#aaaaaa' : cor}` }}>
-      <div className="periodo-titulo" style={{ color: isClaro ? '#555' : cor }}>
+    <div className="periodo-card" style={{ borderTop: `3px solid ${isClaro ? '#aaaaaa' : COR[index]}` }}>
+      <div className="periodo-titulo" style={{ color: isClaro ? '#555' : COR[index] }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="4" width="18" height="18" rx="2"/>
           <line x1="16" y1="2" x2="16" y2="6"/>
@@ -39,64 +47,88 @@ function PeriodoCard({ index, periodo, onChange, vendedores }) {
         </div>
       </div>
 
-      {/* Filtro de vendedor — opcional */}
-      <div style={{ marginTop: 10 }}>
-        <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>
-          Vendedor (opcional)
-        </label>
-        <select
-          value={periodo.vendedor}
-          onChange={e => onChange('vendedor', e.target.value)}
-          style={{
-            width: '100%',
-            padding: '6px 10px',
-            borderRadius: 6,
-            border: '1px solid #ddd',
-            fontSize: 13,
-            background: '#fff',
-            color: '#333',
-          }}
-        >
-          <option value="">— Todos os vendedores —</option>
-          {vendedores.map(v => (
-            <option key={v} value={v}>{v}</option>
-          ))}
-        </select>
-      </div>
+      {disponiveis.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>
+            Filtrar por vendedor (opcional)
+          </label>
+          <select
+            value=""
+            onChange={e => { if (e.target.value) toggleVendedor(e.target.value) }}
+            style={{
+              width: '100%',
+              padding: '6px 10px',
+              borderRadius: 6,
+              border: '1px solid #ddd',
+              fontSize: 13,
+              background: '#fff',
+              color: '#333',
+            }}
+          >
+            <option value="">+ Adicionar vendedor...</option>
+            {disponiveis.map(v => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
-      {/* Badge do vendedor selecionado */}
-      {periodo.vendedor && (
-        <div style={{
-          marginTop: 8,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          background: isClaro ? '#ddd' : cor,
-          color: isClaro ? '#333' : corTexto,
-          borderRadius: 20,
-          padding: '3px 10px',
-          fontSize: 12,
-          fontWeight: 600,
-        }}>
-          👤 {periodo.vendedor}
-          <span
-            style={{ cursor: 'pointer', opacity: 0.7 }}
-            onClick={() => onChange('vendedor', '')}
-          >×</span>
+      {selecionados.length > 0 && (
+        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {selecionados.map(v => (
+            <div
+              key={v}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                background: isClaro ? '#e0e0e0' : COR[index],
+                color: isClaro ? '#333' : COR_TEXTO[index],
+                borderRadius: 20,
+                padding: '3px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              👤 {v}
+              <span
+                style={{ cursor: 'pointer', opacity: 0.6, fontWeight: 900 }}
+                onClick={() => toggleVendedor(v)}
+              >×</span>
+            </div>
+          ))}
+          {selecionados.length > 1 && (
+            <div
+              onClick={() => onChange('vendedores', [])}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                background: '#ffebee',
+                color: '#c62828',
+                borderRadius: 20,
+                padding: '3px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              ✕ Limpar todos
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-function BarraComparativa({ label, valores, max, periodos }) {
+function BarraComparativa({ label, valores, max }) {
   return (
     <div className="barra-row">
       <span className="barra-label">{label}</span>
       <div className="barra-grupo">
         {valores.map((v, i) => {
           const isClaro = i === 0
-          const cor = COR[i]
           return (
             <div key={i} className="barra-item">
               <div className="barra-track">
@@ -104,12 +136,12 @@ function BarraComparativa({ label, valores, max, periodos }) {
                   className="barra-fill"
                   style={{
                     width: max > 0 ? `${(v / max) * 100}%` : '0%',
-                    background: isClaro ? '#aaa' : cor,
+                    background: isClaro ? '#aaa' : COR[i],
                     minWidth: v > 0 ? '4px' : '0',
                   }}
                 />
               </div>
-              <span className="barra-valor" style={{ color: isClaro ? '#555' : cor }}>
+              <span className="barra-valor" style={{ color: isClaro ? '#555' : COR[i] }}>
                 {typeof v === 'number' && v % 1 !== 0 ? fmt(v) : v}
               </span>
             </div>
@@ -122,15 +154,14 @@ function BarraComparativa({ label, valores, max, periodos }) {
 
 export default function Relatorios() {
   const [periodos, setPeriodos] = useState([
-    { inicio: '', fim: '', vendedor: '' },
-    { inicio: '', fim: '', vendedor: '' },
+    { inicio: '', fim: '', vendedores: [] },
+    { inicio: '', fim: '', vendedores: [] },
   ])
   const [vendedores, setVendedores] = useState([])
   const [resultados, setResultados] = useState([])
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
 
-  // Carrega lista de vendedores únicos ao montar
   useEffect(() => {
     async function carregarVendedores() {
       const { data, error } = await supabase
@@ -152,7 +183,7 @@ export default function Relatorios() {
 
   function adicionarPeriodo() {
     if (periodos.length >= 6) return
-    setPeriodos([...periodos, { inicio: '', fim: '', vendedor: '' }])
+    setPeriodos([...periodos, { inicio: '', fim: '', vendedores: [] }])
     setResultados([])
   }
 
@@ -176,9 +207,8 @@ export default function Relatorios() {
           .gte('data_para_pagar', p.inicio)
           .lte('data_para_pagar', p.fim)
 
-        // Aplica filtro de vendedor se selecionado
-        if (p.vendedor) {
-          query = query.eq('vendedor_nome', p.vendedor)
+        if (p.vendedores?.length > 0) {
+          query = query.in('vendedor_nome', p.vendedores)
         }
 
         const { data: vendas } = await query
@@ -239,7 +269,11 @@ export default function Relatorios() {
           return `${f(p.inicio)} – ${f(p.fim)}`
         })()
       : `Período ${i + 1}`
-    return p.vendedor ? `${base} · ${p.vendedor}` : base
+
+    const vends = p.vendedores || []
+    if (vends.length === 0) return base
+    if (vends.length === 1) return `${base} · ${vends[0]}`
+    return `${base} · ${vends.length} vendedores`
   }
 
   return (
@@ -250,7 +284,6 @@ export default function Relatorios() {
         icon={<FileText size={22} color="white" />}
       />
 
-      {/* CONFIGURAÇÃO DOS PERÍODOS */}
       <div className="card" style={{ marginTop: 16 }}>
         <h3>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a6b5a" strokeWidth="2">
@@ -300,17 +333,13 @@ export default function Relatorios() {
         )}
       </div>
 
-      {/* RESULTADOS */}
       {resultados.length > 0 && (
         <>
-          {/* CARDS RESUMO */}
           <div className="resumo-grid" style={{ marginTop: 20 }}>
             {resultados.map((r, i) => {
               const isClaro = i === 0
               return (
-                <div key={i} className="resumo-card" style={{
-                  borderTop: `4px solid ${isClaro ? '#aaaaaa' : COR[i]}`,
-                }}>
+                <div key={i} className="resumo-card" style={{ borderTop: `4px solid ${isClaro ? '#aaaaaa' : COR[i]}` }}>
                   <div className="resumo-periodo" style={{ color: isClaro ? '#555' : COR[i] }}>
                     {labelPeriodo(r.periodo, i)}
                   </div>
@@ -326,10 +355,14 @@ export default function Relatorios() {
                     <span>📊 Ticket médio</span>
                     <strong>{fmt(r.ticketMedio)}</strong>
                   </div>
-                  {r.periodo.vendedor && (
+                  {r.periodo.vendedores?.length > 0 && (
                     <div className="resumo-item" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #eee' }}>
-                      <span>👤 Vendedor</span>
-                      <strong style={{ color: isClaro ? '#333' : COR[i] }}>{r.periodo.vendedor}</strong>
+                      <span>👤 Vendedores</span>
+                      <strong style={{ color: isClaro ? '#333' : COR[i], textAlign: 'right', maxWidth: '60%' }}>
+                        {r.periodo.vendedores.length === 1
+                          ? r.periodo.vendedores[0]
+                          : r.periodo.vendedores.join(', ')}
+                      </strong>
                     </div>
                   )}
                 </div>
@@ -337,7 +370,6 @@ export default function Relatorios() {
             })}
           </div>
 
-          {/* LEGENDA */}
           <div className="legenda">
             {resultados.map((r, i) => {
               const isClaro = i === 0
@@ -356,7 +388,6 @@ export default function Relatorios() {
             })}
           </div>
 
-          {/* COMPARATIVO RECEITA */}
           <div className="card" style={{ marginTop: 16 }}>
             <h3>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a6b5a" strokeWidth="2">
@@ -365,12 +396,11 @@ export default function Relatorios() {
               </svg>
               Comparativo de Receita
             </h3>
-            <BarraComparativa label="Receita total"  valores={resultados.map(r => r.totalReceita)} max={maxReceita} periodos={periodos} />
-            <BarraComparativa label="Qtd. de vendas" valores={resultados.map(r => r.qtdVendas)}    max={maxQtd}     periodos={periodos} />
-            <BarraComparativa label="Ticket médio"   valores={resultados.map(r => r.ticketMedio)}  max={maxTicket}  periodos={periodos} />
+            <BarraComparativa label="Receita total"  valores={resultados.map(r => r.totalReceita)} max={maxReceita} />
+            <BarraComparativa label="Qtd. de vendas" valores={resultados.map(r => r.qtdVendas)}    max={maxQtd} />
+            <BarraComparativa label="Ticket médio"   valores={resultados.map(r => r.ticketMedio)}  max={maxTicket} />
           </div>
 
-          {/* PRODUTOS MAIS VENDIDOS */}
           {todosProdutos.length > 0 && (
             <div className="card" style={{ marginTop: 16 }}>
               <h3>
@@ -387,13 +417,11 @@ export default function Relatorios() {
                   label={nome}
                   valores={resultados.map(r => r.produtosMaisVendidos.find(p => p.nome === nome)?.receita || 0)}
                   max={maxProd}
-                  periodos={periodos}
                 />
               ))}
             </div>
           )}
 
-          {/* TABELA DETALHADA */}
           <div className="card" style={{ marginTop: 16 }}>
             <h3>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a6b5a" strokeWidth="2">
