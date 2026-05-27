@@ -152,14 +152,18 @@ function Vendas() {
       if (data) setClientes(data)
     })
 
-    // Busca o usuário logado
+    // Mapeamento de email → nome do vendedor
+    const nomesPorEmail = {
+      'levilaureano@gmail.com': 'Levy Santiago',
+      'bruninhaa_oliveiraa@hotmail.com': 'Bruna Ambrózio',
+      'pr.ubaldosantiago@gmail.com': 'Ubaldo Santiago',
+      'vivianesantiago580@gmail.com': 'Viviane Santiago',
+    }
+
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
-        const nome =
-          data.user.user_metadata?.full_name ||
-          data.user.user_metadata?.name ||
-          data.user.email?.split('@')[0] || // fallback: parte antes do @
-          'Vendedor'
+        const email = data.user.email
+        const nome = nomesPorEmail[email] || email.split('@')[0]
         setVendedorNome(nome)
       }
     })
