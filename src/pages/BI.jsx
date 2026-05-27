@@ -114,14 +114,28 @@ function BI() {
 
   const itensFiltrados = itensVenda.filter(i => {
     if (filtroCategoria && i.produtos?.categoria !== filtroCategoria) return false
+    if (filtroMes || filtroAno) {
+      const venda = vendas.find(v => v.id === i.venda_id)
+      if (!venda) return false
+      const d = new Date(venda.data_para_pagar + 'T12:00:00')
+      if (filtroMes && d.getMonth() + 1 !== parseInt(filtroMes)) return false
+      if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return false
+    }
+    return true
+  })
+
+  const devolucoesFiltradas = devolucoes.filter(dev => {
+    const d = new Date(dev.criado_em)
+    if (filtroMes && d.getMonth() + 1 !== parseInt(filtroMes)) return false
+    if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return false
     return true
   })
 
   const anosDisponiveis = [...new Set(vendas.map(v => new Date(v.data_para_pagar + 'T12:00:00').getFullYear()))].sort()
   const categorias = [...new Set(itensVenda.map(i => i.produtos?.categoria).filter(Boolean))].sort()
 
-  const totalDevolvido = devolucoes.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
-  const qtdDevolucoes = devolucoes.reduce((acc, d) => acc + (d.quantidade || 1), 0)
+  const totalDevolvido = devolucoesFiltradas.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
+  const qtdDevolucoes = devolucoesFiltradas.reduce((acc, d) => acc + (d.quantidade || 1), 0)
   const totalVendidoBruto = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
   const totalVendido = Math.max(0, totalVendidoBruto - totalDevolvido)
   const totalRecebido = vendasFiltradas.reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
@@ -166,7 +180,7 @@ function BI() {
       contagem[nomeAbrev].quantidade += i.quantidade
       contagem[nomeAbrev].valor += i.quantidade * parseFloat(i.valor_unitario)
     })
-    devolucoes.forEach(dev => {
+    devolucoesFiltradas.forEach(dev => {
       const nome = dev.produtos?.nome || 'Desconhecido'
       const nomeAbrev = nome.length > 20 ? nome.substring(0, 20) + '…' : nome
       if (contagem[nomeAbrev]) contagem[nomeAbrev].quantidade = Math.max(0, contagem[nomeAbrev].quantidade - dev.quantidade)
@@ -187,7 +201,7 @@ function BI() {
 
   const dadosMaisDevolvidos = () => {
     const contagem = {}
-    devolucoes.forEach(dev => {
+    devolucoesFiltradas.forEach(dev => {
       const nome = dev.produtos?.nome || 'Desconhecido'
       const nomeAbrev = nome.length > 20 ? nome.substring(0, 20) + '…' : nome
       if (!contagem[nomeAbrev]) contagem[nomeAbrev] = { nome: nomeAbrev, quantidade: 0, valor: 0 }
@@ -216,7 +230,7 @@ function BI() {
       cats[cat].valor += i.quantidade * parseFloat(i.valor_unitario)
       cats[cat].quantidade += i.quantidade
     })
-    devolucoes.forEach(dev => {
+    devolucoesFiltradas.forEach(dev => {
       const cat = dev.produtos?.categoria || 'Outros'
       if (cats[cat]) {
         cats[cat].valor = Math.max(0, cats[cat].valor - parseFloat(dev.valor_total || 0))
@@ -232,15 +246,16 @@ function BI() {
       const venda = vendas.find(v => v.id === i.venda_id)
       if (!venda) return
       const d = new Date(venda.data_para_pagar + 'T12:00:00')
+      if (filtroMes && d.getMonth() + 1 !== parseInt(filtroMes)) return
       if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
+      if (filtroCategoria && i.produtos?.categoria !== filtroCategoria) return
       const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes: chave, qtdVendida: 0, valorVendido: 0, qtdDevolvida: 0, valorDevolvido: 0 }
       meses[chave].qtdVendida += i.quantidade
       meses[chave].valorVendido += i.quantidade * parseFloat(i.valor_unitario)
     })
-    devolucoes.forEach(dev => {
+    devolucoesFiltradas.forEach(dev => {
       const d = new Date(dev.criado_em)
-      if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
       const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes: chave, qtdVendida: 0, valorVendido: 0, qtdDevolvida: 0, valorDevolvido: 0 }
       meses[chave].qtdDevolvida += dev.quantidade
@@ -594,22 +609,26 @@ function BI() {
       {/* GRÁFICO 5 — Vendas vs Devoluções */}
       <div style={card}>
         <div style={titulo}>🔄 Vendas vs Devoluções por Mês</div>
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={dadosVendasDev()} margin={{top:10, right:20, left:10, bottom:10}}>
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={dadosVendasDev()} margin={{top:20, right:20, left:10, bottom:10}} barCategoryGap="20%" barGap={3}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
             <XAxis dataKey="mes" tick={{fontSize:11, fill:'#666'}} axisLine={false} tickLine={false} interval={0} padding={{left:20, right:20}}/>
             <YAxis hide/>
             <Tooltip content={<TooltipCustom/>}/>
             <Legend iconType="circle" iconSize={10}/>
-            <Bar dataKey="valorVendido" name="Valor Vendido" fill="#1a6b5a" radius={[6,6,0,0]} maxBarSize={40}>
+            <Bar dataKey="valorVendido" name="Valor Vendido" fill="#1a6b5a" radius={[6,6,0,0]} maxBarSize={32}>
               <LabelList dataKey="valorVendido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'10px', fill:'#1a6b5a', fontWeight:'bold'}}/>
             </Bar>
-            <Bar dataKey="valorDevolvido" name="Valor Devolvido" fill="#ef4444" radius={[6,6,0,0]} maxBarSize={40}>
+            <Bar dataKey="valorDevolvido" name="Valor Devolvido" fill="#ef4444" radius={[6,6,0,0]} maxBarSize={32}>
               <LabelList dataKey="valorDevolvido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{fontSize:'10px', fill:'#ef4444', fontWeight:'bold'}}/>
             </Bar>
-            <Line type="monotone" dataKey="qtdVendida" name="Qtd Vendida" stroke="#29abe2" strokeWidth={2} dot={{r:4, fill:'#29abe2'}}/>
-            <Line type="monotone" dataKey="qtdDevolvida" name="Qtd Devolvida" stroke="#f5821f" strokeWidth={2} dot={{r:4, fill:'#f5821f'}} strokeDasharray="5 5"/>
-          </ComposedChart>
+            <Bar dataKey="qtdVendida" name="Qtd Vendida" fill="#29abe2" radius={[6,6,0,0]} maxBarSize={32}>
+              <LabelList dataKey="qtdVendida" position="top" formatter={v => v > 0 ? v : ''} style={{fontSize:'10px', fill:'#29abe2', fontWeight:'bold'}}/>
+            </Bar>
+            <Bar dataKey="qtdDevolvida" name="Qtd Devolvida" fill="#f5821f" radius={[6,6,0,0]} maxBarSize={32}>
+              <LabelList dataKey="qtdDevolvida" position="top" formatter={v => v > 0 ? v : ''} style={{fontSize:'10px', fill:'#f5821f', fontWeight:'bold'}}/>
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
       </div>
 

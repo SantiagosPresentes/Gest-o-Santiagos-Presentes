@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
-import PageHeader from '../components/PageHeader'
-import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
+import html2canvas from 'html2canvas'
 
 function Historico() {
   const [vendas, setVendas] = useState([])
@@ -15,6 +14,8 @@ function Historico() {
   const [pagamentoVenda, setPagamentoVenda] = useState(null)
   const [valorPago, setValorPago] = useState('')
   const [mensagem, setMensagem] = useState('')
+  const [comprovanteVenda, setComprovanteVenda] = useState(null)
+  const comprovanteRef = useRef(null)
 
   useEffect(() => {
     carregarDados()
@@ -36,7 +37,7 @@ function Historico() {
   async function carregarDados() {
     const { data: vendasData } = await supabase
       .from('vendas')
-      .select('*, clientes(nome, telefone), desconto, vendedor')
+      .select('*, clientes(nome, telefone), desconto, vendedor_nome')
       .order('data_venda', { ascending: false })
 
     const { data: devolucoesData } = await supabase
@@ -94,15 +95,162 @@ function Historico() {
     return devolucoes.filter(d => d.venda_id === vendaId)
   }
 
+  // Extrai parcelas da observação salva
+  function extrairParcelas(venda) {
+    if (!venda.observacao) return null
+    const match = venda.observacao.match(/(\d+)x:(.+?)(?:\||$)/)
+    if (!match) return null
+    return { qtd: match[1], detalhe: match[2].trim() }
+  }
+
+  async function imprimirComprovante() {
+    const conteudo = comprovanteRef.current.innerHTML
+    const janela = window.open('', '_blank')
+    janela.document.write(`
+      <html><head><title>Comprovante - Santiagos Presentes</title>
+      <style>* { margin:0; padding:0; box-sizing:border-box; } body { font-family:Arial,sans-serif; padding:20px; max-width:400px; margin:0 auto; } @media print { button { display:none; } }</style>
+      </head><body>${conteudo}</body></html>
+    `)
+    janela.document.close()
+    janela.focus()
+    setTimeout(() => { janela.print() }, 500)
+  }
+
+  async function compartilharComprovante() {
+    try {
+      const canvas = await html2canvas(comprovanteRef.current, { scale: 2, useCORS: true })
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], 'comprovante-santiagos.png', { type: 'image/png' })
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'Comprovante - Santiagos Presentes' })
+        } else {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url; a.download = 'comprovante-santiagos.png'; a.click()
+          URL.revokeObjectURL(url)
+        }
+      }, 'image/png')
+    } catch (err) { console.error('Erro ao compartilhar:', err) }
+  }
+
   const campo = { padding:'8px 12px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'13px' }
 
   return (
     <div>
-      <PageHeader
-        title="Histórico"
-        subtitle="Visualize o histórico completo de movimentações"
-        icon={<History size={22} color="white" />}
-      />
+      <h2>Histórico Geral</h2>
+
+      {/* Modal de comprovante */}
+      {comprovanteVenda && (
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'16px'}}>
+          <div style={{background:'white', borderRadius:'16px', width:'100%', maxWidth:'440px', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,0.3)'}}>
+            <div ref={comprovanteRef} style={{padding:'24px'}}>
+              {/* Cabeçalho */}
+              <div style={{textAlign:'center', marginBottom:'12px'}}>
+                <img src="/logo.png" alt="Logo" style={{width:'80px', height:'80px', borderRadius:'50%', objectFit:'cover', border:'2px solid #1a6b5a'}} />
+                <h2 style={{color:'#1a6b5a', fontSize:'18px', marginTop:'8px'}}>Santiagos Presentes</h2>
+                <p style={{color:'#666', fontSize:'13px'}}>📞 (24) 98161-8699</p>
+                <p style={{color:'#999', fontSize:'12px'}}>
+                  {comprovanteVenda.data_venda
+                    ? new Date(comprovanteVenda.data_venda).toLocaleDateString('pt-BR')
+                    : new Date(comprovanteVenda.data_para_pagar + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+
+              <div style={{borderTop:'1px dashed #999', margin:'12px 0'}} />
+
+              {/* Cliente */}
+              <div style={{marginBottom:'12px', fontSize:'14px'}}>
+                <strong style={{color:'#1a6b5a'}}>Cliente:</strong> {comprovanteVenda.clientes?.nome}<br/>
+                {comprovanteVenda.clientes?.telefone && (
+                  <span style={{color:'#666', fontSize:'13px'}}>📞 {comprovanteVenda.clientes.telefone}</span>
+                )}
+              </div>
+
+              <div style={{borderTop:'1px dashed #999', margin:'12px 0'}} />
+
+              {/* Produtos */}
+              <div style={{marginBottom:'8px'}}><strong style={{fontSize:'13px', color:'#555'}}>PRODUTOS</strong></div>
+              {comprovanteVenda.itens?.map((item, i) => (
+                <div key={i} style={{display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'6px'}}>
+                  <span style={{flex:1, paddingRight:'8px'}}>{item.produtos?.nome}</span>
+                  <span style={{color:'#666', marginRight:'8px'}}>{item.quantidade}x R$ {parseFloat(item.valor_unitario).toFixed(2)}</span>
+                  <strong>R$ {(item.quantidade * parseFloat(item.valor_unitario)).toFixed(2)}</strong>
+                </div>
+              ))}
+
+              <div style={{borderTop:'2px solid #333', margin:'12px 0'}} />
+
+              {/* Desconto e Total */}
+              {parseFloat(comprovanteVenda.desconto || 0) > 0 && (
+                <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', color:'#2e7d32', marginBottom:'4px'}}>
+                  <span>Desconto</span>
+                  <span>- R$ {parseFloat(comprovanteVenda.desconto).toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:'18px', fontWeight:'bold', color:'#1a6b5a', marginBottom:'8px'}}>
+                <span>TOTAL</span>
+                <span>R$ {parseFloat(comprovanteVenda.valor_total).toFixed(2)}</span>
+              </div>
+
+              {/* Parcelas */}
+              {(() => {
+                const parcelas = extrairParcelas(comprovanteVenda)
+                if (parcelas) {
+                  return (
+                    <div style={{background:'#f8f8f8', borderRadius:'8px', padding:'12px', marginBottom:'8px'}}>
+                      <strong style={{fontSize:'13px', color:'#555'}}>PARCELAMENTO — {parcelas.qtd}x</strong>
+                      <p style={{fontSize:'12px', color:'#666', marginTop:'6px'}}>{parcelas.detalhe}</p>
+                    </div>
+                  )
+                }
+                return (
+                  <div style={{fontSize:'13px', color:'#555', marginBottom:'8px'}}>
+                    <strong>Vencimento:</strong> {comprovanteVenda.data_para_pagar
+                      ? new Date(comprovanteVenda.data_para_pagar + 'T12:00:00').toLocaleDateString('pt-BR')
+                      : '—'}
+                  </div>
+                )
+              })()}
+
+              {/* Observação (sem a parte de parcelamento que já foi mostrada) */}
+              {comprovanteVenda.observacao && (() => {
+                const obsLimpa = comprovanteVenda.observacao
+                  .replace(/\d+x:.+?(\||$)/, '')
+                  .replace(/Desconto: R\$ [\d.]+/, '')
+                  .replace(/^\s*\|\s*/, '')
+                  .replace(/\|\s*$/, '')
+                  .trim()
+                return obsLimpa ? (
+                  <p style={{fontSize:'12px', color:'#777', fontStyle:'italic', marginTop:'8px'}}>Obs: {obsLimpa}</p>
+                ) : null
+              })()}
+
+              {/* Vendedor */}
+              {comprovanteVenda.vendedor_nome && (
+                <p style={{fontSize:'11px', color:'#bbb', marginTop:'8px', textAlign:'right'}}>
+                  Vendedor: {comprovanteVenda.vendedor_nome}
+                </p>
+              )}
+
+              <div style={{borderTop:'1px dashed #999', margin:'12px 0'}} />
+              <p style={{textAlign:'center', fontSize:'12px', color:'#999'}}>Obrigado pela preferência!<br/>Santiagos Presentes 🏪</p>
+            </div>
+
+            {/* Botões */}
+            <div style={{padding:'16px 24px', borderTop:'1px solid #eee', display:'flex', gap:'8px'}}>
+              <button onClick={imprimirComprovante} style={{flex:1, background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}>
+                🖨️ Imprimir
+              </button>
+              <button onClick={compartilharComprovante} style={{flex:1, background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}>
+                📤 Compartilhar
+              </button>
+              <button onClick={() => setComprovanteVenda(null)} style={{flex:1, background:'#eee', color:'#333', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px'}}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de pagamento */}
       {pagamentoVenda && (
@@ -197,6 +345,7 @@ function Historico() {
               <th style={{textAlign:'center'}}>Situação</th>
               <th style={{textAlign:'left'}}>Observação</th>
               <th style={{textAlign:'center'}}>Ação</th>
+              <th style={{textAlign:'center'}}>Comprovante</th>
             </tr>
           </thead>
           <tbody>
@@ -241,9 +390,7 @@ function Historico() {
                     </td>
                     <td style={{textAlign:'center'}}>
                       {devs.length > 0 ? (
-                        <span style={{color:'#e65100', fontSize:'12px', whiteSpace:'nowrap', fontWeight:'bold'}}>
-                          ↩ Devolvido
-                        </span>
+                        <span style={{color:'#e65100', fontSize:'12px', whiteSpace:'nowrap', fontWeight:'bold'}}>↩ Devolvido</span>
                       ) : venda.situacao_real === 'Pago' ? (
                         <span style={{color:'green', fontSize:'12px', whiteSpace:'nowrap'}}>✅ Pago</span>
                       ) : (
@@ -255,11 +402,20 @@ function Historico() {
                         </button>
                       )}
                     </td>
+                    <td style={{textAlign:'center'}}>
+                      <button
+                        onClick={() => setComprovanteVenda(venda)}
+                        title="Ver comprovante"
+                        style={{background:'#f0f4ff', color:'#3b5bdb', border:'1px solid #c5d0f5', padding:'6px 10px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', whiteSpace:'nowrap', fontWeight:'bold'}}
+                      >
+                        🧾 Ver
+                      </button>
+                    </td>
                   </tr>
 
                   {vendaExpandida === venda.id && (
                     <tr key={venda.id + '_det'}>
-                      <td colSpan="11" style={{background:'#f0f4ff', padding:'12px 16px'}}>
+                      <td colSpan="12" style={{background:'#f0f4ff', padding:'12px 16px'}}>
                         <div style={{display:'flex', gap:'16px', marginBottom:'10px', fontSize:'13px', flexWrap:'wrap'}}>
                           <span><strong>Vendedor:</strong> {venda.vendedor_nome || '—'}</span>
                           {parseFloat(venda.desconto || 0) > 0 && (

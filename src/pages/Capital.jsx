@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
-import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
+import { DollarSign } from 'lucide-react'
 
 function Capital() {
   const [mes, setMes] = useState('')
@@ -13,14 +13,39 @@ function Capital() {
   const [registros, setRegistros] = useState([])
   const [mensagem, setMensagem] = useState('')
   const [mostrarCaixa, setMostrarCaixa] = useState(false)
+  const [saldoGeral, setSaldoGeral] = useState(0)
 
-  const meses = [
-    'Janeiro/2026','Fevereiro/2026','Março/2026','Abril/2026',
-    'Maio/2026','Junho/2026','Julho/2026','Agosto/2026',
-    'Setembro/2026','Outubro/2026','Novembro/2026','Dezembro/2026'
-  ]
+  // Gera meses de Jan/2025 até 2 anos à frente do ano atual, do mais recente ao mais antigo
+  function gerarMeses() {
+    const nomeMeses = [
+      'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+    ]
+    const anoInicio = 2025
+    const anoFim = new Date().getFullYear() + 2
+    const lista = []
+    for (let ano = anoFim; ano >= anoInicio; ano--) {
+      for (let m = 11; m >= 0; m--) {
+        lista.push(`${nomeMeses[m]}/${ano}`)
+      }
+    }
+    return lista
+  }
 
-  useEffect(() => { carregarRegistros() }, [])
+  const meses = gerarMeses()
+
+  function mesParaIndice(nomeMes) {
+    const nomes = [
+      'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+    ]
+    return nomes.indexOf(nomeMes)
+  }
+
+  useEffect(() => {
+    carregarRegistros()
+    buscarSaldoGeral()
+  }, [])
 
   useEffect(() => {
     if (mes) {
@@ -29,11 +54,19 @@ function Capital() {
     }
   }, [mes])
 
+  async function buscarSaldoGeral() {
+    const { data: vendasData } = await supabase.from('vendas').select('valor_total')
+    const { data: retiradasData } = await supabase.from('retiradas').select('valor')
+    const totalV = vendasData?.reduce((acc, v) => acc + parseFloat(v.valor_total), 0) || 0
+    const totalR = retiradasData?.reduce((acc, r) => acc + parseFloat(r.valor), 0) || 0
+    setSaldoGeral(totalV - totalR)
+  }
+
   async function buscarTotalVendido() {
     const { data } = await supabase.from('vendas').select('valor_total, data_para_pagar')
     if (data) {
       const [nomeMes, ano] = mes.split('/')
-      const indice = meses.findIndex(m => m.startsWith(nomeMes))
+      const indice = mesParaIndice(nomeMes)
       const total = data
         .filter(v => {
           const d = new Date(v.data_para_pagar + 'T12:00:00')
@@ -58,23 +91,32 @@ function Capital() {
     const { data: retiradasData } = await supabase.from('retiradas').select('*')
     if (vendasData && retiradasData) {
       const porMes = {}
-      meses.forEach(m => {
-        const [nomeMes, ano] = m.split('/')
-        const indice = meses.findIndex(mes => mes.startsWith(nomeMes))
-        const totalVendas = vendasData
-          .filter(v => {
-            const d = new Date(v.data_para_pagar + 'T12:00:00')
-            return d.getMonth() === indice && d.getFullYear() === parseInt(ano)
-          })
-          .reduce((acc, v) => acc + parseFloat(v.valor_total), 0)
-        const totalRetiradas = retiradasData
-          .filter(r => r.mes === m)
-          .reduce((acc, r) => acc + parseFloat(r.valor), 0)
-        if (totalVendas > 0 || totalRetiradas > 0) {
-          porMes[m] = { mes: m, total_vendido: totalVendas, retiradas: totalRetiradas }
-        }
+      // Agrupa vendas por mês/ano dinamicamente
+      vendasData.forEach(v => {
+        const d = new Date(v.data_para_pagar + 'T12:00:00')
+        const ano = d.getFullYear()
+        if (ano < 2025) return
+        const nomeMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+          'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][d.getMonth()]
+        const chave = `${nomeMes}/${ano}`
+        if (!porMes[chave]) porMes[chave] = { mes: chave, total_vendido: 0, retiradas: 0 }
+        porMes[chave].total_vendido += parseFloat(v.valor_total)
       })
-      setRegistros(Object.values(porMes))
+      // Agrupa retiradas por mês/ano
+      retiradasData.forEach(r => {
+        if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, total_vendido: 0, retiradas: 0 }
+        porMes[r.mes].retiradas += parseFloat(r.valor)
+      })
+      // Ordena do mais recente ao mais antigo
+      const nomeMeses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+      const ordenado = Object.values(porMes).sort((a, b) => {
+        const [mA, aA] = a.mes.split('/')
+        const [mB, aB] = b.mes.split('/')
+        if (aB !== aA) return parseInt(aB) - parseInt(aA)
+        return nomeMeses.indexOf(mB) - nomeMeses.indexOf(mA)
+      })
+      setRegistros(ordenado)
     }
   }
 
@@ -91,16 +133,19 @@ function Capital() {
     setTipoRetirada(''); setDescricaoRetirada(''); setValorRetirada('')
     buscarRetiradas()
     carregarRegistros()
+    buscarSaldoGeral()
   }
 
   async function removerRetirada(id) {
     await supabase.from('retiradas').delete().eq('id', id)
     buscarRetiradas()
     carregarRegistros()
+    buscarSaldoGeral()
   }
 
   const totalRetiradas = retiradas.reduce((acc, r) => acc + parseFloat(r.valor), 0)
   const saldo = totalVendido - totalRetiradas
+  const saldoExibido = mes ? saldo : saldoGeral
   const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'6px', border:'1px solid #ddd' }
 
   return (
@@ -111,38 +156,40 @@ function Capital() {
         icon={<DollarSign size={22} color="white" />}
       />
 
+      {/* CAIXA — sempre visível */}
+      <div style={{background: mostrarCaixa ? 'linear-gradient(135deg, #1a6b5a, #145a4a)' : 'white', borderRadius:'12px', padding:'20px', border:'2px solid #1a6b5a', transition:'all 0.3s', marginTop:'16px', marginBottom:'16px'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <div>
+            <strong style={{color: mostrarCaixa ? 'white' : '#1a6b5a', fontSize:'16px'}}>💰 Saldo em Caixa</strong>
+            <p style={{margin:'2px 0 0', fontSize:'12px', color: mostrarCaixa ? 'rgba(255,255,255,0.6)' : '#999'}}>
+              {mes ? `Referente a ${mes}` : 'Total geral (todas as vendas − todas as retiradas)'}
+            </p>
+          </div>
+          <button
+            onClick={() => setMostrarCaixa(!mostrarCaixa)}
+            style={{background: mostrarCaixa ? 'rgba(255,255,255,0.2)' : '#f0f9f0', border: mostrarCaixa ? '1px solid rgba(255,255,255,0.4)' : '1px solid #1a6b5a', color: mostrarCaixa ? 'white' : '#1a6b5a', padding:'6px 16px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'bold'}}
+          >
+            {mostrarCaixa ? '🙈 Ocultar' : '👁️ Visualizar'}
+          </button>
+        </div>
+        {mostrarCaixa && (
+          <div style={{marginTop:'16px', textAlign:'center'}}>
+            <strong style={{fontSize:'40px', color:'white'}}>R$ {saldoExibido.toFixed(2)}</strong>
+          </div>
+        )}
+      </div>
+
       {/* Seletor de mês */}
-      <div style={{background:'white', padding:'20px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
-        <label style={{fontWeight:'bold', color:'#1a6b5a'}}>Mês de Referência</label><br/>
+      <div style={{background:'white', padding:'20px', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
+        <label style={{fontWeight:'bold', color:'#1a6b5a'}}>Filtrar por Mês</label><br/>
         <select value={mes} onChange={e => setMes(e.target.value)} style={{...campo, maxWidth:'300px'}}>
-          <option value="">Selecione o mês...</option>
+          <option value="">Todos os meses</option>
           {meses.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
       </div>
 
       {mes && (
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'24px'}}>
-
-          {/* CAIXA COM MOSTRAR/OCULTAR */}
-          <div style={{gridColumn:'1/-1', background: mostrarCaixa ? 'linear-gradient(135deg, #1a6b5a, #145a4a)' : 'white', borderRadius:'12px', padding:'20px', border:'2px solid #1a6b5a', transition:'all 0.3s'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <strong style={{color: mostrarCaixa ? 'white' : '#1a6b5a', fontSize:'16px'}}>💰 Saldo em Caixa</strong>
-              <button
-                onClick={() => setMostrarCaixa(!mostrarCaixa)}
-                style={{background: mostrarCaixa ? 'rgba(255,255,255,0.2)' : '#f0f9f0', border: mostrarCaixa ? '1px solid rgba(255,255,255,0.4)' : '1px solid #1a6b5a', color: mostrarCaixa ? 'white' : '#1a6b5a', padding:'6px 16px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'bold'}}
-              >
-                {mostrarCaixa ? '🙈 Ocultar' : '👁️ Visualizar'}
-              </button>
-            </div>
-            {mostrarCaixa && (
-              <div style={{marginTop:'16px', textAlign:'center'}}>
-                <strong style={{fontSize:'40px', color:'white'}}>R$ {saldo.toFixed(2)}</strong><br/>
-                <small style={{color:'rgba(255,255,255,0.7)'}}>Total Vendido − Retiradas do mês</small>
-              </div>
-            )}
-          </div>
-
-          {/* CARDS DE RESUMO */}
           <div style={{background:'#e8f5e9', borderRadius:'12px', padding:'20px', borderLeft:'4px solid #2e7d32'}}>
             <p style={{color:'#666', fontSize:'13px', marginBottom:'4px'}}>Total Vendido</p>
             <strong style={{fontSize:'24px', color:'#2e7d32'}}>R$ {totalVendido.toFixed(2)}</strong>
