@@ -254,6 +254,18 @@ function BI() {
     })
   }
 
+  // ── NOVO: dados por vendedor (reage a filtroMes e filtroAno via vendasFiltradas) ──
+  const dadosVendedor = () => {
+    const vendedores = {}
+    vendasFiltradas.forEach(v => {
+      const nome = v.vendedor_nome || 'Sem vendedor'
+      if (!vendedores[nome]) vendedores[nome] = { vendedor: nome, quantidade: 0, valor: 0 }
+      vendedores[nome].quantidade += 1
+      vendedores[nome].valor += parseFloat(v.valor_total || 0)
+    })
+    return Object.values(vendedores).sort((a, b) => b.valor - a.valor)
+  }
+
   const previsaoVendas = () => {
     const dados = dadosLinha()
     if (dados.length < 2) return null
@@ -293,9 +305,7 @@ function BI() {
   const fornecedores = dadosFornecedor()
   const totalInvestido = fornecedores.reduce((acc, f) => acc + f.investido, 0)
   const maisDev = dadosMaisDevolvidos()
-
-  const filtroIcones = [<CalendarDays size={16} color="#aaa"/>, <CalendarDays size={16} color="#aaa"/>, <Tags size={16} color="#aaa"/>]
-  const filtroLabels = ['Ano', 'Mês', 'Categoria']
+  const dadosVend = dadosVendedor()
 
   return (
     <div style={{background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0'}}>
@@ -305,7 +315,7 @@ function BI() {
         icon={<BarChart3 size={22} color="white" />}
       />
 
-      {/* Filtros — card branco estilo imagem */}
+      {/* Filtros */}
       <div style={{background:'#fff', borderRadius:'16px', padding:'20px 24px', boxShadow:'0 2px 12px rgba(15,23,42,0.07)', border:'1px solid #eef2f7', margin:'20px 0'}}>
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'16px', alignItems:'end'}}>
           {[
@@ -601,6 +611,88 @@ function BI() {
             <Line type="monotone" dataKey="qtdDevolvida" name="Qtd Devolvida" stroke="#f5821f" strokeWidth={2} dot={{r:4, fill:'#f5821f'}} strokeDasharray="5 5"/>
           </ComposedChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* GRÁFICO 6 — Desempenho por Vendedor */}
+      <div style={card}>
+        <div style={titulo}>
+          🧑‍💼 Desempenho por Vendedor
+          {(filtroMes || filtroAno) && (
+            <span style={{marginLeft:'8px', fontSize:'12px', fontWeight:'normal', color:'#888', background:'#f0f0f0', padding:'3px 10px', borderRadius:'20px'}}>
+              {filtroMes ? MESES_NOMES[parseInt(filtroMes) - 1] : ''}{filtroMes && filtroAno ? '/' : ''}{filtroAno}
+            </span>
+          )}
+        </div>
+
+        {dadosVend.length === 0 ? (
+          <p style={{color:'#aaa', textAlign:'center', padding:'30px'}}>Nenhuma venda encontrada para o período selecionado.</p>
+        ) : (
+          <>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'24px', alignItems:'center', marginBottom:'24px'}}>
+
+              {/* Barras — Valor */}
+              <div>
+                <p style={{textAlign:'center', fontSize:'12px', color:'#888', marginBottom:'8px'}}>Por Valor (R$)</p>
+                <ResponsiveContainer width="100%" height={Math.max(180, dadosVend.length * 52)}>
+                  <BarChart data={dadosVend} layout="vertical" margin={{top:0, right:70, left:0, bottom:0}} barSize={20}>
+                    <XAxis type="number" hide/>
+                    <YAxis dataKey="vendedor" type="category" tick={{fontSize:12, fill:'#555'}} width={110} axisLine={false} tickLine={false}/>
+                    <Tooltip content={<TooltipCustom/>}/>
+                    <Bar dataKey="valor" name="Valor Vendido" radius={[0,8,8,0]}>
+                      {dadosVend.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
+                      <LabelList dataKey="valor" position="right" formatter={v => `R$${parseFloat(v).toFixed(0)}`} style={{fontSize:'12px', fontWeight:'bold', fill:'#333'}}/>
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Barras — Quantidade */}
+              <div>
+                <p style={{textAlign:'center', fontSize:'12px', color:'#888', marginBottom:'8px'}}>Por Qtd de Vendas</p>
+                <ResponsiveContainer width="100%" height={Math.max(180, dadosVend.length * 52)}>
+                  <BarChart data={dadosVend} layout="vertical" margin={{top:0, right:50, left:0, bottom:0}} barSize={20}>
+                    <XAxis type="number" hide/>
+                    <YAxis dataKey="vendedor" type="category" tick={{fontSize:12, fill:'#555'}} width={110} axisLine={false} tickLine={false}/>
+                    <Tooltip content={<TooltipCustom/>}/>
+                    <Bar dataKey="quantidade" name="Qtd Vendas" radius={[0,8,8,0]}>
+                      {dadosVend.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]}/>)}
+                      <LabelList dataKey="quantidade" position="right" style={{fontSize:'12px', fontWeight:'bold', fill:'#333'}}/>
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Tabela resumo */}
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%', borderCollapse:'collapse', fontSize:'13px'}}>
+                <thead>
+                  <tr style={{background:'#f4f6f9'}}>
+                    <th style={{padding:'10px 14px', textAlign:'left', color:'#555', fontWeight:'600', borderRadius:'8px 0 0 8px'}}>Vendedor</th>
+                    <th style={{padding:'10px 14px', textAlign:'center', color:'#555', fontWeight:'600'}}>Qtd Vendas</th>
+                    <th style={{padding:'10px 14px', textAlign:'center', color:'#555', fontWeight:'600'}}>Valor Total</th>
+                    <th style={{padding:'10px 14px', textAlign:'center', color:'#555', fontWeight:'600', borderRadius:'0 8px 8px 0'}}>Ticket Médio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dadosVend.map((v, i) => (
+                    <tr key={i} style={{borderBottom:'1px solid #f0f0f0'}}>
+                      <td style={{padding:'10px 14px'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                          <div style={{width:'10px', height:'10px', borderRadius:'50%', background:CORES[i % CORES.length], flexShrink:0}}/>
+                          <strong>{v.vendedor}</strong>
+                        </div>
+                      </td>
+                      <td style={{padding:'10px 14px', textAlign:'center', color:'#555'}}>{v.quantidade}</td>
+                      <td style={{padding:'10px 14px', textAlign:'center', fontWeight:'bold', color:CORES[i % CORES.length]}}>R$ {v.valor.toFixed(2)}</td>
+                      <td style={{padding:'10px 14px', textAlign:'center', color:'#888'}}>R$ {(v.valor / v.quantidade).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* PREVISÕES */}
