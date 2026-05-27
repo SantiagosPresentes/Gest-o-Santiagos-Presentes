@@ -15,17 +15,17 @@ function Capital() {
   const [mostrarCaixa, setMostrarCaixa] = useState(false)
   const [saldoGeral, setSaldoGeral] = useState(0)
 
-  // Gera meses de Jan/2025 até 2 anos à frente do ano atual, do mais recente ao mais antigo
+  const nomeMeses = [
+    'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+  ]
+
   function gerarMeses() {
-    const nomeMeses = [
-      'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
-    ]
     const anoInicio = 2025
     const anoFim = new Date().getFullYear() + 2
     const lista = []
-    for (let ano = anoFim; ano >= anoInicio; ano--) {
-      for (let m = 11; m >= 0; m--) {
+    for (let ano = anoInicio; ano <= anoFim; ano++) {
+      for (let m = 0; m <= 11; m++) {
         lista.push(`${nomeMeses[m]}/${ano}`)
       }
     }
@@ -35,11 +35,7 @@ function Capital() {
   const meses = gerarMeses()
 
   function mesParaIndice(nomeMes) {
-    const nomes = [
-      'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
-    ]
-    return nomes.indexOf(nomeMes)
+    return nomeMeses.indexOf(nomeMes)
   }
 
   useEffect(() => {
@@ -55,7 +51,10 @@ function Capital() {
   }, [mes])
 
   async function buscarSaldoGeral() {
-    const { data: vendasData } = await supabase.from('vendas').select('valor_total')
+    const { data: vendasData } = await supabase
+      .from('vendas')
+      .select('valor_total')
+      .eq('recebido', true)
     const { data: retiradasData } = await supabase.from('retiradas').select('valor')
     const totalV = vendasData?.reduce((acc, v) => acc + parseFloat(v.valor_total), 0) || 0
     const totalR = retiradasData?.reduce((acc, r) => acc + parseFloat(r.valor), 0) || 0
@@ -63,7 +62,10 @@ function Capital() {
   }
 
   async function buscarTotalVendido() {
-    const { data } = await supabase.from('vendas').select('valor_total, data_para_pagar')
+    const { data } = await supabase
+      .from('vendas')
+      .select('valor_total, data_para_pagar')
+      .eq('recebido', true)
     if (data) {
       const [nomeMes, ano] = mes.split('/')
       const indice = mesParaIndice(nomeMes)
@@ -87,34 +89,31 @@ function Capital() {
   }
 
   async function carregarRegistros() {
-    const { data: vendasData } = await supabase.from('vendas').select('valor_total, data_para_pagar')
+    const { data: vendasData } = await supabase
+      .from('vendas')
+      .select('valor_total, data_para_pagar')
+      .eq('recebido', true)
     const { data: retiradasData } = await supabase.from('retiradas').select('*')
     if (vendasData && retiradasData) {
       const porMes = {}
-      // Agrupa vendas por mês/ano dinamicamente
       vendasData.forEach(v => {
         const d = new Date(v.data_para_pagar + 'T12:00:00')
         const ano = d.getFullYear()
         if (ano < 2025) return
-        const nomeMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-          'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][d.getMonth()]
-        const chave = `${nomeMes}/${ano}`
+        const chave = `${nomeMeses[d.getMonth()]}/${ano}`
         if (!porMes[chave]) porMes[chave] = { mes: chave, total_vendido: 0, retiradas: 0 }
         porMes[chave].total_vendido += parseFloat(v.valor_total)
       })
-      // Agrupa retiradas por mês/ano
       retiradasData.forEach(r => {
         if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, total_vendido: 0, retiradas: 0 }
         porMes[r.mes].retiradas += parseFloat(r.valor)
       })
-      // Ordena do mais recente ao mais antigo
-      const nomeMeses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+      // Ordena crescente por data
       const ordenado = Object.values(porMes).sort((a, b) => {
         const [mA, aA] = a.mes.split('/')
         const [mB, aB] = b.mes.split('/')
-        if (aB !== aA) return parseInt(aB) - parseInt(aA)
-        return nomeMeses.indexOf(mB) - nomeMeses.indexOf(mA)
+        if (aA !== aB) return parseInt(aA) - parseInt(aB)
+        return nomeMeses.indexOf(mA) - nomeMeses.indexOf(mB)
       })
       setRegistros(ordenado)
     }
@@ -162,7 +161,7 @@ function Capital() {
           <div>
             <strong style={{color: mostrarCaixa ? 'white' : '#1a6b5a', fontSize:'16px'}}>💰 Saldo em Caixa</strong>
             <p style={{margin:'2px 0 0', fontSize:'12px', color: mostrarCaixa ? 'rgba(255,255,255,0.6)' : '#999'}}>
-              {mes ? `Referente a ${mes}` : 'Total geral (todas as vendas − todas as retiradas)'}
+              {mes ? `Recebidos em ${mes} − retiradas do mês` : 'Total recebido − todas as retiradas'}
             </p>
           </div>
           <button
@@ -191,7 +190,7 @@ function Capital() {
       {mes && (
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'24px'}}>
           <div style={{background:'#e8f5e9', borderRadius:'12px', padding:'20px', borderLeft:'4px solid #2e7d32'}}>
-            <p style={{color:'#666', fontSize:'13px', marginBottom:'4px'}}>Total Vendido</p>
+            <p style={{color:'#666', fontSize:'13px', marginBottom:'4px'}}>Total Recebido</p>
             <strong style={{fontSize:'24px', color:'#2e7d32'}}>R$ {totalVendido.toFixed(2)}</strong>
           </div>
           <div style={{background:'#ffebee', borderRadius:'12px', padding:'20px', borderLeft:'4px solid #c62828'}}>
@@ -264,7 +263,7 @@ function Capital() {
           <thead>
             <tr>
               <th style={{textAlign:'left'}}>Mês</th>
-              <th style={{textAlign:'right'}}>Total Vendido</th>
+              <th style={{textAlign:'right'}}>Total Recebido</th>
               <th style={{textAlign:'right'}}>Meta</th>
               <th style={{textAlign:'right'}}>Retiradas</th>
               <th style={{textAlign:'right'}}>Saldo</th>
