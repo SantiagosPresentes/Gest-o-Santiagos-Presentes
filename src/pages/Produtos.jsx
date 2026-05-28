@@ -9,6 +9,8 @@ function Produtos() {
   const [categoria, setCategoria] = useState('')
   const [preco, setPreco] = useState('')
   const [mensagem, setMensagem] = useState('')
+  const [estoqueMinimo, setEstoqueMinimo] = useState('')
+  const [estoqueMaximo, setEstoqueMaximo] = useState('')
   const [produtos, setProdutos] = useState([])
   const [editando, setEditando] = useState(null)
   const [busca, setBusca] = useState('')
@@ -25,11 +27,16 @@ function Produtos() {
       setMensagem('Preencha todos os campos!'); return
     }
     const { error } = await supabase.from('produtos').insert({
-      codigo, nome, categoria, preco_venda: parseFloat(preco), estoque: 0
-    })
+  codigo,nome,categoria,
+  preco_venda: parseFloat(preco),
+  estoque: 0,
+  estoque_minimo: parseInt(estoqueMinimo) || 0,
+  estoque_maximo: parseInt(estoqueMaximo) || 0
+})
     if (error) { setMensagem('Erro ao salvar: ' + error.message); return }
     setMensagem('Produto cadastrado com sucesso!')
-    setCodigo(''); setNome(''); setCategoria(''); setPreco('')
+    setCodigo(''); setNome(''); setCategoria(''); setPreco(''); setEstoqueMinimo('')
+setEstoqueMaximo('')
     carregarProdutos()
   }
 
@@ -38,12 +45,15 @@ function Produtos() {
       setMensagem('Preencha todos os campos!'); return
     }
     const { error } = await supabase.from('produtos').update({
-      nome, categoria, preco_venda: parseFloat(preco)
-    }).eq('id', editando.id)
+  nome,categoria,
+  preco_venda: parseFloat(preco),
+  estoque_minimo: parseInt(estoqueMinimo) || 0,
+  estoque_maximo: parseInt(estoqueMaximo) || 0
+}).eq('id', editando.id)
     if (error) { setMensagem('Erro ao atualizar: ' + error.message); return }
     setMensagem('Produto atualizado! Vendas anteriores não foram afetadas.')
     setEditando(null)
-    setCodigo(''); setNome(''); setCategoria(''); setPreco('')
+    setCodigo(''); setNome(''); setCategoria(''); setPreco('');       setEstoqueMinimo(''); setEstoqueMaximo('')
     carregarProdutos()
   }
 
@@ -53,15 +63,24 @@ function Produtos() {
     setNome(produto.nome)
     setCategoria(produto.categoria)
     setPreco(produto.preco_venda)
+    setEstoqueMinimo(produto.estoque_minimo || 0)
+    setEstoqueMaximo(produto.estoque_maximo || 0)
     setMensagem('')
     window.scrollTo(0, 0)
   }
 
   function cancelarEdicao() {
-    setEditando(null)
-    setCodigo(''); setNome(''); setCategoria(''); setPreco('')
-    setMensagem('')
-  }
+  setEditando(null)
+
+  setCodigo('')
+  setNome('')
+  setCategoria('')
+  setPreco('')
+  setEstoqueMinimo('')
+  setEstoqueMaximo('')
+
+  setMensagem('')
+}
 
   const produtosFiltrados = produtos.filter(p =>
     p.nome.toLowerCase().includes(busca.toLowerCase()) ||
@@ -124,7 +143,33 @@ function Produtos() {
             <input type="number" value={preco} onChange={e => setPreco(e.target.value)} placeholder="Ex: 25.90" style={campo}/>
             {editando && <small style={{color:'#1a6b5a'}}>⚠️ Não afeta vendas já realizadas</small>}
           </div>
-        </div>
+        <div>
+  <label style={{fontWeight:'bold', fontSize:'13px'}}>
+    Estoque Mínimo
+  </label><br/>
+
+  <input
+    type="number"
+    value={estoqueMinimo}
+    onChange={e => setEstoqueMinimo(e.target.value)}
+    placeholder="Ex: 5"
+    style={campo}
+  />
+</div>
+
+<div>
+  <label style={{fontWeight:'bold', fontSize:'13px'}}>
+    Estoque Máximo
+  </label><br/>
+
+  <input
+    type="number"
+    value={estoqueMaximo}
+    onChange={e => setEstoqueMaximo(e.target.value)}
+    placeholder="Ex: 100"
+    style={campo}
+  />
+</div>
 
         <div style={{marginTop:'20px', display:'flex', gap:'8px'}}>
           {editando ? (
