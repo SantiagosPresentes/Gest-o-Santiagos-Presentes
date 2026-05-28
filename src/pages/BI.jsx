@@ -7,6 +7,7 @@ import PageHeader from '../components/PageHeader'
 import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 import {CalendarDays, Tags, RefreshCw} from 'lucide-react'
 import { motion } from 'framer-motion'
+import { FilterX } from 'lucide-react'
 
 const CORES = ['#1a6b5a', '#f5821f', '#29abe2', '#e91e8c', '#8b5cf6', '#f7c948', '#10b981', '#ef4444', '#06b6d4', '#84cc16']
 
@@ -323,6 +324,7 @@ function BI() {
   const dadosVend = dadosVendedor()
   const maisVendidos = dadosMaisVendidos()
   const menosVendidos = dadosMenosVendidos()
+  const temFiltroAtivo = filtroAno !== '' || filtroMes !== '' || filtroCategoria !== ''
 
   return (
     <div style={{background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0'}}>
@@ -370,10 +372,32 @@ function BI() {
           ))}
           <div style={{display:'flex', gap:'10px', alignItems:'flex-end'}}>
             <button
-              onClick={() => { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }}
-              style={{flex:1, background:'#e94560', color:'#fff', border:'none', padding:'10px 14px', borderRadius:'10px', cursor:'pointer', fontSize:'13px', fontWeight:'600', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}
+              onClick={() => {
+                setFiltroAno('')
+                setFiltroMes('')
+                setFiltroCategoria('')
+              }}
+              disabled={!temFiltroAtivo}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                border: temFiltroAtivo ? '1px solid #e94560' : '1px solid #c0392b',
+                background: temFiltroAtivo ? '#e94560' : '#fff',
+                color: temFiltroAtivo ? 'white' : '#c0392b',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: temFiltroAtivo ? 'pointer' : 'default',
+                transition: 'all 0.2s ease',
+                opacity: temFiltroAtivo ? 1 : 0.6,
+              }}
             >
-              🧹 Limpar
+              <FilterX size={14} />
+              Limpar filtros
             </button>
             <button
               onClick={carregarDados}
