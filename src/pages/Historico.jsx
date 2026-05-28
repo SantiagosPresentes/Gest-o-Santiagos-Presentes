@@ -37,10 +37,13 @@ function Historico() {
   }
 
   async function carregarDados() {
-    const { data: vendasData } = await supabase
-      .from('vendas')
-      .select('*, clientes(nome, telefone), desconto, vendedor_nome')
-      .order('data_venda', { ascending: false })
+    const { data: vendasData, error } = await supabase
+  .from('vendas')
+  .select('*')
+  .order('data_venda', { ascending: false })
+
+console.log('VENDAS:', vendasData)
+console.log('ERRO:', error)
 
     const { data: devolucoesData } = await supabase
       .from('devolucoes')
