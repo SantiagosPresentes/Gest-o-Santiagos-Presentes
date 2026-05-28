@@ -138,8 +138,12 @@ function Historico() {
   const campo = { padding:'8px 12px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'13px' }
 
   return (
-    <div>
-      <h2>Histórico Geral</h2>
+    <div style={{background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0'}}>
+      <PageHeader
+        title="Histórico"
+        subtitle="Gerêncie seu histórico de vendas"
+        icon={<History size={22} color="white" />}
+      />
 
       {/* Modal de comprovante */}
       {comprovanteVenda && (
