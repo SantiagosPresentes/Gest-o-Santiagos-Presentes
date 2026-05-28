@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import html2canvas from 'html2canvas'
+import PageHeader from '../components/PageHeader'
 
 function Historico() {
   const [vendas, setVendas] = useState([])
