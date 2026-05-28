@@ -98,7 +98,6 @@ function Produtos() {
           {editando ? `✏️ Editando: ${editando.nome}` : 'Novo Produto'}
         </h3>
 
-        {/* GRID DE CAMPOS */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
 
           <div>
@@ -140,31 +139,33 @@ function Produtos() {
             {editando && <small style={{ color: '#1a6b5a' }}>⚠️ Não afeta vendas já realizadas</small>}
           </div>
 
-          <div>
-            <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Estoque Mínimo</label><br />
-            <input
-              type="number"
-              value={estoqueMinimo}
-              onChange={e => setEstoqueMinimo(e.target.value)}
-              placeholder="Ex: 5"
-              style={campo}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Estoque Máximo</label><br />
-            <input
-              type="number"
-              value={estoqueMaximo}
-              onChange={e => setEstoqueMaximo(e.target.value)}
-              placeholder="Ex: 100"
-              style={campo}
-            />
+          {/* Mínimo e Máximo lado a lado */}
+          <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Estoque Mínimo</label><br />
+              <input
+                type="number"
+                value={estoqueMinimo}
+                onChange={e => setEstoqueMinimo(e.target.value)}
+                placeholder="Ex: 5"
+                style={campo}
+              />
+            </div>
+            <div>
+              <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Estoque Máximo</label><br />
+              <input
+                type="number"
+                value={estoqueMaximo}
+                onChange={e => setEstoqueMaximo(e.target.value)}
+                placeholder="Ex: 100"
+                style={campo}
+              />
+            </div>
           </div>
 
         </div>{/* FIM DO GRID */}
 
-        {/* BOTÕES — fora do grid */}
+        {/* BOTÕES */}
         <div style={{ marginTop: '20px', display: 'flex', gap: '8px' }}>
           {editando ? (
             <>
