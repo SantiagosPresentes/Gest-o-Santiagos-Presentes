@@ -43,7 +43,7 @@ function Historico() {
 
     const { data: devolucoesData } = await supabase
       .from('devolucoes')
-      .select('*, clientes!fk_cliente(nome, telefone), desconto, vendedor_nome')
+      .select('*, clientes(nome), produtos(nome)')
       .order('criado_em', { ascending: false })
 
     if (vendasData) {
