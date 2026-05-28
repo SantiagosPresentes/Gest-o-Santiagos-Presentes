@@ -168,7 +168,7 @@ setEstoqueMaximo('')
     onChange={e => setEstoqueMaximo(e.target.value)}
     placeholder="Ex: 100"
     style={campo}
-  />
+  </div>
 </div>
 
         <div style={{marginTop:'20px', display:'flex', gap:'8px'}}>
