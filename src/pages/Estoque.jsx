@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
-import { ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, FilterX } from 'lucide-react'
+import { ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, FilterX, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 function Estoque() {
@@ -47,12 +47,13 @@ function Estoque() {
       />
 
       <div style={{ background: 'white', padding: '16px', borderRadius: '12px', marginTop: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '180px' }}>
+        <div style={{ flex: 1, minWidth: '180px', position: 'relative' }}>
+          <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#999', pointerEvents: 'none' }} />
           <input
             value={busca}
             onChange={e => setBusca(e.target.value)}
-            placeholder="🔍 Buscar por nome ou código..."
-            style={{ ...campo, width: '100%' }}
+            placeholder="Buscar por nome ou código..."
+            style={{ ...campo, width: '100%', paddingLeft: '34px', boxSizing: 'border-box' }}
           />
         </div>
         <div>
@@ -70,9 +71,9 @@ function Estoque() {
             gap: '6px',
             padding: '8px 16px',
             borderRadius: '8px',
-            border: temFiltroAtivo ? '1px solid #e94560' : '1px solid #ddd',
-            background: temFiltroAtivo ? '#e94560' : '#f5f5f5',
-            color: temFiltroAtivo ? 'white' : '#999',
+            border: temFiltroAtivo ? '1px solid #e94560' : '1px solid #c0392b',
+            background: temFiltroAtivo ? '#e94560' : '#fff',
+            color: temFiltroAtivo ? 'white' : '#c0392b',
             fontSize: '13px',
             fontWeight: '500',
             cursor: temFiltroAtivo ? 'pointer' : 'default',
