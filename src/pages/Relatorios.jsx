@@ -436,7 +436,7 @@ export default function Relatorios() {
                   <tr>
                     <th>Métrica</th>
                     {resultados.map((r, i) => (
-                      <th key={i} style={{ color: i === 0 ? '#555' : COR[i] }}>
+                      <th key={i} style={{ color: i === 0 ? '#eeeeee' : COR[i] }}>
                         {labelPeriodo(r.periodo, i)}
                       </th>
                     ))}
