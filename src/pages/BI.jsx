@@ -193,8 +193,9 @@ function BI() {
     itensFiltrados.forEach(i => {
       const nome = i.produtos?.nome || 'Desconhecido'
       const nomeAbrev = nome.length > 20 ? nome.substring(0, 20) + '…' : nome
-      if (!contagem[nomeAbrev]) contagem[nomeAbrev] = { nome: nomeAbrev, quantidade: 0 }
+      if (!contagem[nomeAbrev]) contagem[nomeAbrev] = { nome: nomeAbrev, quantidade: 0, valor: 0 }
       contagem[nomeAbrev].quantidade += i.quantidade
+      contagem[nomeAbrev].valor += i.quantidade * parseFloat(i.valor_unitario)
     })
     return Object.values(contagem).sort((a, b) => a.quantidade - b.quantidade).slice(0, 10)
   }
@@ -269,7 +270,6 @@ function BI() {
     })
   }
 
-  // ── NOVO: dados por vendedor (reage a filtroMes e filtroAno via vendasFiltradas) ──
   const dadosVendedor = () => {
     const vendedores = {}
     vendasFiltradas.forEach(v => {
@@ -321,6 +321,8 @@ function BI() {
   const totalInvestido = fornecedores.reduce((acc, f) => acc + f.investido, 0)
   const maisDev = dadosMaisDevolvidos()
   const dadosVend = dadosVendedor()
+  const maisVendidos = dadosMaisVendidos()
+  const menosVendidos = dadosMenosVendidos()
 
   return (
     <div style={{background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0'}}>
@@ -454,21 +456,21 @@ function BI() {
         </ResponsiveContainer>
       </div>
 
-      {/* GRÁFICO 2 — Top 10 mais vendidos */}
+      {/* GRÁFICO 2 — Top 10 mais vendidos — barras gradiente verde */}
       <div style={card}>
         <div style={titulo}>🏆 Top 10 Produtos Mais Vendidos</div>
         <div style={{overflowX:'auto'}}>
           <div style={{minWidth:'320px'}}>
-            {dadosMaisVendidos().map((p, i) => (
+            {maisVendidos.map((p, i) => (
               <div key={i} style={{marginBottom:'10px'}}>
                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'4px'}}>
                   <span style={{fontSize:'13px', fontWeight:'bold', color:'#333'}}>{p.nome}</span>
-                  <span style={{fontSize:'13px', fontWeight:'bold', color:CORES[i % CORES.length]}}>{p.quantidade} un.</span>
+                  <span style={{fontSize:'13px', fontWeight:'bold', color:'#1a6b5a'}}>{p.quantidade} un.</span>
                 </div>
                 <div style={{background:'#f0f0f0', borderRadius:'999px', height:'10px', overflow:'hidden'}}>
                   <div style={{
-                    width:`${Math.min(100, (p.quantidade / (dadosMaisVendidos()[0]?.quantidade || 1)) * 100)}%`,
-                    background:CORES[i % CORES.length],
+                    width:`${Math.min(100, (p.quantidade / (maisVendidos[0]?.quantidade || 1)) * 100)}%`,
+                    background:'linear-gradient(90deg, #1a6b5a, #4ade80)',
                     height:'100%',
                     borderRadius:'999px',
                     transition:'width 0.5s ease'
@@ -481,13 +483,13 @@ function BI() {
         </div>
       </div>
 
-      {/* GRÁFICO 2b — Top 10 menos vendidos */}
+      {/* GRÁFICO 2b — Top 10 menos vendidos — gradiente vermelho + valor */}
       <div style={card}>
         <div style={titulo}>📉 Top 10 Produtos Menos Vendidos</div>
         <div style={{overflowX:'auto'}}>
           <div style={{minWidth:'320px'}}>
-            {dadosMenosVendidos().map((p, i) => {
-              const max = dadosMaisVendidos()[0]?.quantidade || 1
+            {menosVendidos.map((p, i) => {
+              const max = maisVendidos[0]?.quantidade || 1
               return (
                 <div key={i} style={{marginBottom:'10px'}}>
                   <div style={{display:'flex', justifyContent:'space-between', marginBottom:'4px'}}>
@@ -502,6 +504,7 @@ function BI() {
                       borderRadius:'999px'
                     }}/>
                   </div>
+                  <div style={{fontSize:'11px', color:'#888', marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
                 </div>
               )
             })}
@@ -648,8 +651,6 @@ function BI() {
         ) : (
           <>
             <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'24px', alignItems:'center', marginBottom:'24px'}}>
-
-              {/* Barras — Valor */}
               <div>
                 <p style={{textAlign:'center', fontSize:'12px', color:'#888', marginBottom:'8px'}}>Por Valor (R$)</p>
                 <ResponsiveContainer width="100%" height={Math.max(180, dadosVend.length * 52)}>
@@ -664,8 +665,6 @@ function BI() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-
-              {/* Barras — Quantidade */}
               <div>
                 <p style={{textAlign:'center', fontSize:'12px', color:'#888', marginBottom:'8px'}}>Por Qtd de Vendas</p>
                 <ResponsiveContainer width="100%" height={Math.max(180, dadosVend.length * 52)}>
@@ -682,7 +681,6 @@ function BI() {
               </div>
             </div>
 
-            {/* Tabela resumo */}
             <div style={{overflowX:'auto'}}>
               <table style={{width:'100%', borderCollapse:'collapse', fontSize:'13px'}}>
                 <thead>
