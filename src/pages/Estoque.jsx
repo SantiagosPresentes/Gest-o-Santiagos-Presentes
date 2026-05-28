@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
-import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
+import { ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, FilterX } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 function Estoque() {
@@ -24,7 +24,19 @@ function Estoque() {
 
   const totalEstoque = produtosFiltrados.reduce((acc, p) => acc + (p.estoque * parseFloat(p.preco_venda)), 0)
   const categorias = [...new Set(produtos.map(p => p.categoria))].sort()
-  const campo = { padding:'8px 12px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'14px' }
+  const campo = { padding: '8px 12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }
+
+  const temFiltroAtivo = busca !== '' || filtroCategoria !== ''
+
+  function getEstoqueStyle(p) {
+    if (p.estoque === 0) {
+      return { background: '#ffebee', color: '#c62828' }
+    } else if (p.estoque <= p.estoque_minimo) {
+      return { background: '#fff8e1', color: '#f57f17' }
+    } else {
+      return { background: '#e8f5e9', color: '#2e7d32' }
+    }
+  }
 
   return (
     <div>
@@ -34,13 +46,13 @@ function Estoque() {
         icon={<Boxes size={22} color="white" />}
       />
 
-      <div style={{background:'white', padding:'16px', borderRadius:'12px', marginTop:'16px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', display:'flex', gap:'12px', alignItems:'center', flexWrap:'wrap'}}>
-        <div style={{flex:1, minWidth:'180px'}}>
+      <div style={{ background: 'white', padding: '16px', borderRadius: '12px', marginTop: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '180px' }}>
           <input
             value={busca}
             onChange={e => setBusca(e.target.value)}
             placeholder="🔍 Buscar por nome ou código..."
-            style={{...campo, width:'100%'}}
+            style={{ ...campo, width: '100%' }}
           />
         </div>
         <div>
@@ -49,49 +61,69 @@ function Estoque() {
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <button onClick={() => { setBusca(''); setFiltroCategoria('') }} style={{background:'#e94560', border:'none', padding:'8px 16px', borderRadius:'6px', cursor:'pointer'}}>
-          🧹 Limpar
+
+        <button
+          onClick={() => { setBusca(''); setFiltroCategoria('') }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: temFiltroAtivo ? '1px solid #e94560' : '1px solid #ddd',
+            background: temFiltroAtivo ? '#e94560' : '#f5f5f5',
+            color: temFiltroAtivo ? 'white' : '#999',
+            fontSize: '13px',
+            fontWeight: '500',
+            cursor: temFiltroAtivo ? 'pointer' : 'default',
+            transition: 'all 0.2s ease',
+            opacity: temFiltroAtivo ? 1 : 0.6,
+          }}
+          disabled={!temFiltroAtivo}
+        >
+          <FilterX size={15} />
+          Limpar filtros
         </button>
-        <div style={{marginLeft:'auto', fontSize:'13px', color:'#666', whiteSpace:'nowrap'}}>
-          {produtosFiltrados.length} produto(s) | Total: <strong style={{color:'#1a6b5a'}}>R$ {totalEstoque.toFixed(2)}</strong>
+
+        <div style={{ marginLeft: 'auto', fontSize: '13px', color: '#666', whiteSpace: 'nowrap' }}>
+          {produtosFiltrados.length} produto(s) | Total: <strong style={{ color: '#1a6b5a' }}>R$ {totalEstoque.toFixed(2)}</strong>
         </div>
       </div>
 
-      <div className="tabela-wrapper" style={{marginTop:'16px'}}>
+      <div className="tabela-wrapper" style={{ marginTop: '16px' }}>
         <table>
           <thead>
             <tr>
-              <th style={{textAlign:'left'}}>Código</th>
-              <th style={{textAlign:'left'}}>Produto</th>
-              <th style={{textAlign:'left'}}>Categoria</th>
-              <th style={{textAlign:'center'}}>Estoque</th>
-              <th style={{textAlign:'right'}}>Preço Unit.</th>
-              <th style={{textAlign:'right'}}>Total em Estoque</th>
+              <th style={{ textAlign: 'left' }}>Código</th>
+              <th style={{ textAlign: 'left' }}>Produto</th>
+              <th style={{ textAlign: 'left' }}>Categoria</th>
+              <th style={{ textAlign: 'center' }}>Estoque</th>
+              <th style={{ textAlign: 'right' }}>Preço Unit.</th>
+              <th style={{ textAlign: 'right' }}>Total em Estoque</th>
             </tr>
           </thead>
           <tbody>
             {produtosFiltrados.map((p, i) => (
-              <tr key={p.id} style={{background: i % 2 === 0 ? '#fff' : '#f9f9f9'}}>
-                <td style={{textAlign:'left', color:'#666'}}>{p.codigo}</td>
-                <td style={{textAlign:'left'}}><strong>{p.nome}</strong></td>
-                <td style={{textAlign:'left'}}>{p.categoria}</td>
-                <td style={{textAlign:'center'}}>
+              <tr key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9f9f9' }}>
+                <td style={{ textAlign: 'left', color: '#666' }}>{p.codigo}</td>
+                <td style={{ textAlign: 'left' }}><strong>{p.nome}</strong></td>
+                <td style={{ textAlign: 'left' }}>{p.categoria}</td>
+                <td style={{ textAlign: 'center' }}>
                   <span style={{
-                    background: p.estoque > 5 ? '#e8f5e9' : p.estoque > 0 ? '#fff8e1' : '#ffebee',
-                    color: p.estoque > 5 ? 'green' : p.estoque > 0 ? '#f57f17' : 'red',
-                    padding:'4px 12px', borderRadius:'20px', fontWeight:'bold', fontSize:'13px'
+                    ...getEstoqueStyle(p),
+                    padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', fontSize: '13px'
                   }}>
                     {p.estoque}
                   </span>
                 </td>
-                <td style={{textAlign:'right'}}>R$ {parseFloat(p.preco_venda).toFixed(2)}</td>
-                <td style={{textAlign:'right'}}><strong>R$ {(p.estoque * parseFloat(p.preco_venda)).toFixed(2)}</strong></td>
+                <td style={{ textAlign: 'right' }}>R$ {parseFloat(p.preco_venda).toFixed(2)}</td>
+                <td style={{ textAlign: 'right' }}><strong>R$ {(p.estoque * parseFloat(p.preco_venda)).toFixed(2)}</strong></td>
               </tr>
             ))}
           </tbody>
         </table>
         {produtosFiltrados.length === 0 && (
-          <p style={{textAlign:'center', padding:'32px', color:'#aaa', background:'white'}}>Nenhum produto encontrado</p>
+          <p style={{ textAlign: 'center', padding: '32px', color: '#aaa', background: 'white' }}>Nenhum produto encontrado</p>
         )}
       </div>
     </div>
