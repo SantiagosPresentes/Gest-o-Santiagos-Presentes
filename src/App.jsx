@@ -12,6 +12,7 @@ import Historico from './pages/Historico'
 import Login from './pages/Login'
 import BI from './pages/BI'
 import Relatorios from './pages/Relatorios'
+import PainelVendedor from './pages/PainelVendedor'
 import { supabase } from './supabase'
 import './App.css'
 
@@ -41,6 +42,7 @@ function NavTabs({ fazerLogout, usuario }) {
         <NavLink to="/historico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Histórico</NavLink>
         <NavLink to="/bi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>BI</NavLink>
         <NavLink to="/relatorios"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Relatórios</NavLink>
+        <NavLink to="/meu-painel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Meu Painel</NavLink>
       </nav>
     </header>
   )
@@ -91,6 +93,7 @@ function App() {
             <Route path="/historico" element={<Historico />} />
             <Route path="/bi" element={<BI />} />
             <Route path="/relatorios" element={<Relatorios />} />
+            <Route path="/meu-painel" element={<PainelVendedor />} />
           </Routes>
         </main>
         <nav className="bottom-nav">
