@@ -215,9 +215,10 @@ function Capital() {
               <label style={{fontSize:'13px', fontWeight:'bold'}}>Tipo</label><br/>
               <select value={tipoRetirada} onChange={e => setTipoRetirada(e.target.value)} style={campo}>
                 <option value="">Selecione...</option>
-                <option value="Produtos">Produtos</option>
-                <option value="Pagamento Funcionários">Pagamento Funcionários</option>
-                <option value="Dívida">Dívida</option>
+                <option value="Reposição de Produtos">Reposição de Produtos</option>
+                <option value="Pagamento de Funcionários">Pagamento de Funcionários</option>
+                <option value="Pagamento de Dívida">Pagamento de Dívida</option>
+                <option value="Outros">Outros</option>
               </select>
             </div>
             <div style={{marginBottom:'12px'}}>
