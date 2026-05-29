@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import {
   User, TrendingUp, ShoppingBag, AlertCircle, Clock,
   CheckCircle2, XCircle, ChevronDown, ChevronUp,
-  RefreshCw, Eye, Trophy, Target, Banknote, Package, Filter
+  RefreshCw, Eye, Trophy, Target, Banknote, Package, Filter, FilterX
 } from 'lucide-react'
 
 const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -201,9 +201,28 @@ export default function PainelVendedor() {
             </div>
           ))}
           <div style={{display:'flex',gap:'8px',alignItems:'flex-end'}}>
-            <button onClick={()=>{setFiltroMes(String(new Date().getMonth()+1));setFiltroAno(String(new Date().getFullYear()));setFiltroSit('')}}
-              style={{flex:1,padding:'9px 12px',borderRadius:'10px',border:'1.5px solid #e5e7eb',background:'#fff',color:'#666',fontSize:'13px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
-              🧹 Limpar
+            <button
+              onClick={()=>{setFiltroMes(String(new Date().getMonth()+1));setFiltroAno(String(new Date().getFullYear()));setFiltroSit('')}}
+              disabled={!(filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '')}
+              style={{
+                flex:1,
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                gap:'6px',
+                padding:'8px 16px',
+                borderRadius:'8px',
+                border: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? '1px solid #e94560' : '1px solid #c0392b',
+                background: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? '#e94560' : '#fff',
+                color: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? 'white' : '#c0392b',
+                fontSize:'13px',
+                fontWeight:'500',
+                cursor: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? 'pointer' : 'default',
+                transition:'all 0.2s ease',
+                opacity: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? 1 : 0.6,
+              }}
+            >
+              <FilterX size={15}/> Limpar filtros
             </button>
             <button onClick={init}
               style={{flex:1,background:'#1a6b5a',color:'white',border:'none',padding:'9px 12px',borderRadius:'10px',cursor:'pointer',fontSize:'13px',fontWeight:'600',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
