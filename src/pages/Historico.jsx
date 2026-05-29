@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import html2canvas from 'html2canvas'
 import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { FilterX } from 'lucide-react'
 
 function Historico() {
   const [vendas, setVendas] = useState([])
@@ -145,6 +146,7 @@ console.log('ERRO:', error)
   }
 
   const campo = { padding:'8px 12px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'13px' }
+  const temFiltroAtivo = filtroAno !== '' || filtroMes !== '' || filtroCategoria !== ''
 
   return (
     <div style={{background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0'}}>
@@ -327,10 +329,32 @@ console.log('ERRO:', error)
           </select>
         </div>
         <button
-          onClick={() => { setFiltroSituacao(''); setFiltroDataInicio(''); setFiltroDataFim(''); setFiltroCliente('') }}
-          style={{background:'#e94560', border:'none', padding:'8px 14px', borderRadius:'6px', cursor:'pointer', fontSize:'13px'}}
+          onClick={() => {
+            setFiltroAno('')
+            setFiltroMes('')
+            setFiltroCategoria('')
+          }}
+          disabled={!temFiltroAtivo}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            padding: '10px 14px',
+            borderRadius: '10px',
+            border: temFiltroAtivo ? '1px solid #e94560' : '1px solid #c0392b',
+            background: temFiltroAtivo ? '#e94560' : '#fff',
+            color: temFiltroAtivo ? 'white' : '#c0392b',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: temFiltroAtivo ? 'pointer' : 'default',
+            transition: 'all 0.2s ease',
+            opacity: temFiltroAtivo ? 1 : 0.6,
+          }}
         >
-          🧹 Limpar
+          <FilterX size={14} />
+          Limpar filtros
         </button>
         <div style={{marginLeft:'auto', color:'#666', fontSize:'13px', whiteSpace:'nowrap'}}>
           {vendasFiltradas.length} venda(s)
