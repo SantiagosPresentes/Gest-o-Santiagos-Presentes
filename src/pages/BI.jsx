@@ -437,100 +437,93 @@ function BI() {
       {/* ── GRÁFICO 1 — Vendas por mês ── */}
       <div style={card}>
         <div style={titulo}>📈 Total Vendido por Mês</div>
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={dadosLinha} margin={{top:10,right:20,left:10,bottom:10}}>
-            <defs>
-              <linearGradient id="gradVendido" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#1a6b5a" stopOpacity={0.25}/>
-                <stop offset="95%" stopColor="#1a6b5a" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="gradRecebido" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#e91e8c" stopOpacity={0.15}/>
-                <stop offset="95%" stopColor="#e91e8c" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
-            <XAxis dataKey="mes" tick={{fontSize:11,fill:'#666'}} axisLine={false} tickLine={false} interval={0} padding={{left:20,right:20}}/>
-            <YAxis hide/>
-            <Tooltip content={<TooltipCustom/>}/>
-            <Legend iconType="circle" iconSize={10}/>
-            <Area type="monotone" dataKey="vendido" name="Valor Vendido" stroke="#1a6b5a" strokeWidth={3} fill="url(#gradVendido)" dot={{r:5,fill:'#1a6b5a',strokeWidth:2,stroke:'white'}} activeDot={{r:8}}>
-              <LabelList dataKey="vendido" position="top" formatter={v => v>0?`R$${parseFloat(v).toFixed(0)}`:''} style={{fontSize:'11px',fill:'#1a6b5a',fontWeight:'bold'}}/>
-            </Area>
-            <Area type="monotone" dataKey="recebido" name="Valor Recebido" stroke="#e91e8c" strokeWidth={2.5} fill="url(#gradRecebido)" dot={{r:5,fill:'#e91e8c',strokeWidth:2,stroke:'white'}} activeDot={{r:8}}>
-              <LabelList dataKey="recebido" position="bottom" formatter={v => v>0?`R$${parseFloat(v).toFixed(0)}`:''} style={{fontSize:'11px',fill:'#e91e8c',fontWeight:'bold'}}/>
-            </Area>
-            <Line type="monotone" dataKey="meta" name="Meta R$3.000" stroke="#f5821f" strokeWidth={2} strokeDasharray="8 4" dot={false}/>
-          </ComposedChart>
-        </ResponsiveContainer>
+        <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+          <div style={{minWidth: Math.max(400, dadosLinha.length * 90)}}>
+            <ComposedChart width={Math.max(400, dadosLinha.length * 90)} height={300} data={dadosLinha} margin={{top:10,right:20,left:10,bottom:10}}>
+              <defs>
+                <linearGradient id="gradVendido" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#1a6b5a" stopOpacity={0.25}/>
+                  <stop offset="95%" stopColor="#1a6b5a" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="gradRecebido" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#e91e8c" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#e91e8c" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
+              <XAxis dataKey="mes" tick={{fontSize:11,fill:'#666'}} axisLine={false} tickLine={false} interval={0} padding={{left:20,right:20}}/>
+              <YAxis hide/>
+              <Tooltip content={<TooltipCustom/>}/>
+              <Legend iconType="circle" iconSize={10}/>
+              <Area type="monotone" dataKey="vendido" name="Valor Vendido" stroke="#1a6b5a" strokeWidth={3} fill="url(#gradVendido)" dot={{r:5,fill:'#1a6b5a',strokeWidth:2,stroke:'white'}} activeDot={{r:8}}>
+                <LabelList dataKey="vendido" position="top" formatter={v => v>0?`R$${parseFloat(v).toFixed(0)}`:''} style={{fontSize:'11px',fill:'#1a6b5a',fontWeight:'bold'}}/>
+              </Area>
+              <Area type="monotone" dataKey="recebido" name="Valor Recebido" stroke="#e91e8c" strokeWidth={2.5} fill="url(#gradRecebido)" dot={{r:5,fill:'#e91e8c',strokeWidth:2,stroke:'white'}} activeDot={{r:8}}>
+                <LabelList dataKey="recebido" position="bottom" formatter={v => v>0?`R$${parseFloat(v).toFixed(0)}`:''} style={{fontSize:'11px',fill:'#e91e8c',fontWeight:'bold'}}/>
+              </Area>
+              <Line type="monotone" dataKey="meta" name="Meta R$3.000" stroke="#f5821f" strokeWidth={2} strokeDasharray="8 4" dot={false}/>
+            </ComposedChart>
+          </div>
+        </div>
+        {dadosLinha.length > 5 && (
+          <p style={{fontSize:'11px',color:'#bbb',textAlign:'center',marginTop:'8px'}}>← deslize para ver mais →</p>
+        )}
       </div>
 
       {/* ── GRÁFICO 2 — Top 10 mais vendidos ── */}
       <div style={card}>
         <div style={titulo}>🏆 Top 10 Produtos Mais Vendidos</div>
-        <div style={{overflowX:'auto'}}>
-          <div style={{minWidth:'320px'}}>
-            {dadosMaisVendidos.map((p, i) => (
-              <div key={i} style={{marginBottom:'10px'}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
-                  <span style={{fontSize:'13px',fontWeight:'bold',color:'#333'}} title={p.nome}>{p.nome}</span>
-                  <span style={{fontSize:'13px',fontWeight:'bold',color:'#1a6b5a'}}>{p.quantidade} un.</span>
-                </div>
-                <div style={{background:'#f0f0f0',borderRadius:'999px',height:'10px',overflow:'hidden'}}>
-                  <div style={{width:`${Math.min(100,(p.quantidade/(dadosMaisVendidos[0]?.quantidade||1))*100)}%`,background:'linear-gradient(90deg, #1a6b5a, #4ade80)',height:'100%',borderRadius:'999px',transition:'width 0.5s ease'}}/>
-                </div>
-                <div style={{fontSize:'11px',color:'#888',marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
-              </div>
-            ))}
+        {dadosMaisVendidos.map((p, i) => (
+          <div key={i} style={{marginBottom:'12px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'8px',marginBottom:'4px'}}>
+              <span style={{fontSize:'13px',fontWeight:'bold',color:'#333',lineHeight:'1.3',wordBreak:'break-word',flex:1}}>{p.nome}</span>
+              <span style={{fontSize:'13px',fontWeight:'bold',color:'#1a6b5a',whiteSpace:'nowrap',flexShrink:0}}>{p.quantidade} un.</span>
+            </div>
+            <div style={{background:'#f0f0f0',borderRadius:'999px',height:'10px',overflow:'hidden'}}>
+              <div style={{width:`${Math.min(100,(p.quantidade/(dadosMaisVendidos[0]?.quantidade||1))*100)}%`,background:'linear-gradient(90deg, #1a6b5a, #4ade80)',height:'100%',borderRadius:'999px',transition:'width 0.5s ease'}}/>
+            </div>
+            <div style={{fontSize:'11px',color:'#888',marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* ── GRÁFICO 2b — Top 10 menos vendidos ── */}
       <div style={card}>
         <div style={titulo}>📉 Top 10 Produtos Menos Vendidos</div>
-        <div style={{overflowX:'auto'}}>
-          <div style={{minWidth:'320px'}}>
-            {dadosMenosVendidos.map((p, i) => {
-              const max = dadosMaisVendidos[0]?.quantidade || 1
-              return (
-                <div key={i} style={{marginBottom:'10px'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
-                    <span style={{fontSize:'13px',fontWeight:'bold',color:'#333'}} title={p.nome}>{p.nome}</span>
-                    <span style={{fontSize:'13px',fontWeight:'bold',color:'#ef4444'}}>{p.quantidade} un.</span>
-                  </div>
-                  <div style={{background:'#f0f0f0',borderRadius:'999px',height:'10px',overflow:'hidden'}}>
-                    <div style={{width:`${Math.max(2,(p.quantidade/max)*100)}%`,background:'linear-gradient(90deg, #ef4444, #f97316)',height:'100%',borderRadius:'999px'}}/>
-                  </div>
-                  <div style={{fontSize:'11px',color:'#888',marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        {dadosMenosVendidos.map((p, i) => {
+          const max = dadosMaisVendidos[0]?.quantidade || 1
+          return (
+            <div key={i} style={{marginBottom:'12px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'8px',marginBottom:'4px'}}>
+                <span style={{fontSize:'13px',fontWeight:'bold',color:'#333',lineHeight:'1.3',wordBreak:'break-word',flex:1}}>{p.nome}</span>
+                <span style={{fontSize:'13px',fontWeight:'bold',color:'#ef4444',whiteSpace:'nowrap',flexShrink:0}}>{p.quantidade} un.</span>
+              </div>
+              <div style={{background:'#f0f0f0',borderRadius:'999px',height:'10px',overflow:'hidden'}}>
+                <div style={{width:`${Math.max(2,(p.quantidade/max)*100)}%`,background:'linear-gradient(90deg, #ef4444, #f97316)',height:'100%',borderRadius:'999px'}}/>
+              </div>
+              <div style={{fontSize:'11px',color:'#888',marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
+            </div>
+          )
+        })}
       </div>
 
       {/* ── GRÁFICO 2c — Top 10 mais devolvidos ── */}
       <div style={card}>
         <div style={titulo}>↩️ Top 10 Produtos Mais Devolvidos</div>
-        <div style={{overflowX:'auto'}}>
-          <div style={{minWidth:'320px'}}>
-            {dadosMaisDevolvidos.length === 0 ? (
-              <p style={{color:'#10b981',fontWeight:'bold',textAlign:'center',padding:'20px'}}>✅ Nenhuma devolução registrada!</p>
-            ) : dadosMaisDevolvidos.map((p, i) => (
-              <div key={i} style={{marginBottom:'10px'}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}>
-                  <span style={{fontSize:'13px',fontWeight:'bold',color:'#333'}} title={p.nome}>{p.nome}</span>
-                  <span style={{fontSize:'13px',fontWeight:'bold',color:'#ef4444'}}>{p.quantidade} un.</span>
-                </div>
-                <div style={{background:'#f0f0f0',borderRadius:'999px',height:'10px',overflow:'hidden'}}>
-                  <div style={{width:`${Math.min(100,(p.quantidade/(dadosMaisDevolvidos[0]?.quantidade||1))*100)}%`,background:'linear-gradient(90deg, #ef4444, #f97316)',height:'100%',borderRadius:'999px',transition:'width 0.5s ease'}}/>
-                </div>
-                <div style={{fontSize:'11px',color:'#888',marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
-              </div>
-            ))}
+        {dadosMaisDevolvidos.length === 0 ? (
+          <p style={{color:'#10b981',fontWeight:'bold',textAlign:'center',padding:'20px'}}>✅ Nenhuma devolução registrada!</p>
+        ) : dadosMaisDevolvidos.map((p, i) => (
+          <div key={i} style={{marginBottom:'12px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'8px',marginBottom:'4px'}}>
+              <span style={{fontSize:'13px',fontWeight:'bold',color:'#333',lineHeight:'1.3',wordBreak:'break-word',flex:1}}>{p.nome}</span>
+              <span style={{fontSize:'13px',fontWeight:'bold',color:'#ef4444',whiteSpace:'nowrap',flexShrink:0}}>{p.quantidade} un.</span>
+            </div>
+            <div style={{background:'#f0f0f0',borderRadius:'999px',height:'10px',overflow:'hidden'}}>
+              <div style={{width:`${Math.min(100,(p.quantidade/(dadosMaisDevolvidos[0]?.quantidade||1))*100)}%`,background:'linear-gradient(90deg, #ef4444, #f97316)',height:'100%',borderRadius:'999px',transition:'width 0.5s ease'}}/>
+            </div>
+            <div style={{fontSize:'11px',color:'#888',marginTop:'2px'}}>R$ {p.valor.toFixed(2)}</div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* ── GRÁFICO 3 — Fornecedores ── */}
@@ -602,27 +595,42 @@ function BI() {
       {/* ── GRÁFICO 5 — Vendas vs Devoluções ── */}
       <div style={card}>
         <div style={titulo}>🔄 Vendas vs Devoluções por Mês</div>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={dadosVendasDev} margin={{top:20,right:20,left:10,bottom:10}} barCategoryGap="20%" barGap={3}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
-            <XAxis dataKey="mes" tick={{fontSize:11,fill:'#666'}} axisLine={false} tickLine={false} interval={0} padding={{left:20,right:20}}/>
-            <YAxis hide/>
-            <Tooltip content={<TooltipCustom/>}/>
-            <Legend iconType="circle" iconSize={10}/>
-            <Bar dataKey="valorVendido"  name="Valor Vendido"  fill="#1a6b5a" radius={[6,6,0,0]} maxBarSize={32}>
-              <LabelList dataKey="valorVendido"  position="top" formatter={v=>v>0?`R$${parseFloat(v).toFixed(0)}`:''} style={{fontSize:'10px',fill:'#1a6b5a',fontWeight:'bold'}}/>
-            </Bar>
-            <Bar dataKey="valorDevolvido" name="Valor Devolvido" fill="#ef4444" radius={[6,6,0,0]} maxBarSize={32}>
-              <LabelList dataKey="valorDevolvido" position="top" formatter={v=>v>0?`R$${parseFloat(v).toFixed(0)}`:''} style={{fontSize:'10px',fill:'#ef4444',fontWeight:'bold'}}/>
-            </Bar>
-            <Bar dataKey="qtdVendida"   name="Qtd Vendida"   fill="#29abe2" radius={[6,6,0,0]} maxBarSize={32}>
-              <LabelList dataKey="qtdVendida"   position="top" formatter={v=>v>0?v:''} style={{fontSize:'10px',fill:'#29abe2',fontWeight:'bold'}}/>
-            </Bar>
-            <Bar dataKey="qtdDevolvida" name="Qtd Devolvida" fill="#f5821f" radius={[6,6,0,0]} maxBarSize={32}>
-              <LabelList dataKey="qtdDevolvida" position="top" formatter={v=>v>0?v:''} style={{fontSize:'10px',fill:'#f5821f',fontWeight:'bold'}}/>
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+          <div style={{minWidth: Math.max(400, dadosVendasDev.length * 110)}}>
+            <ComposedChart
+              width={Math.max(400, dadosVendasDev.length * 110)}
+              height={340}
+              data={dadosVendasDev}
+              margin={{top:24,right:24,left:10,bottom:10}}
+              barCategoryGap="22%"
+              barGap={2}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false}/>
+              <XAxis dataKey="mes" tick={{fontSize:11,fill:'#666'}} axisLine={false} tickLine={false} interval={0} padding={{left:20,right:20}}/>
+              {/* eixo esquerdo: valores R$ */}
+              <YAxis yAxisId="valor" hide domain={[0, dataMax => dataMax * 1.35]}/>
+              {/* eixo direito: quantidades — escala menor para barras ficarem proporcionalmente mais altas */}
+              <YAxis yAxisId="qtd"   hide domain={[0, dataMax => dataMax * 2.2]} orientation="right"/>
+              <Tooltip content={<TooltipCustom/>}/>
+              <Legend iconType="circle" iconSize={10}/>
+              <Bar yAxisId="valor" dataKey="valorVendido"  name="Valor Vendido"  fill="#1a6b5a" radius={[6,6,0,0]} maxBarSize={28}>
+                <LabelList dataKey="valorVendido"  position="top" formatter={v=>v>0?`R$${parseFloat(v).toFixed(0)}`:''} style={{fontSize:'10px',fill:'#1a6b5a',fontWeight:'bold'}}/>
+              </Bar>
+              <Bar yAxisId="valor" dataKey="valorDevolvido" name="Valor Devolvido" fill="#ef4444" radius={[6,6,0,0]} maxBarSize={28}>
+                <LabelList dataKey="valorDevolvido" position="top" formatter={v=>v>0?`R$${parseFloat(v).toFixed(0)}`:''} style={{fontSize:'10px',fill:'#ef4444',fontWeight:'bold'}}/>
+              </Bar>
+              <Bar yAxisId="qtd"   dataKey="qtdVendida"   name="Qtd Vendida"   fill="#29abe2" radius={[6,6,0,0]} maxBarSize={28}>
+                <LabelList dataKey="qtdVendida"   position="top" formatter={v=>v>0?v:''} style={{fontSize:'10px',fill:'#29abe2',fontWeight:'bold'}}/>
+              </Bar>
+              <Bar yAxisId="qtd"   dataKey="qtdDevolvida" name="Qtd Devolvida" fill="#f5821f" radius={[6,6,0,0]} maxBarSize={28}>
+                <LabelList dataKey="qtdDevolvida" position="top" formatter={v=>v>0?v:''} style={{fontSize:'10px',fill:'#f5821f',fontWeight:'bold'}}/>
+              </Bar>
+            </ComposedChart>
+          </div>
+        </div>
+        {dadosVendasDev.length > 5 && (
+          <p style={{fontSize:'11px',color:'#bbb',textAlign:'center',marginTop:'8px'}}>← deslize para ver mais →</p>
+        )}
       </div>
 
       {/* ── GRÁFICO 6 — Desempenho por Vendedor ── */}
