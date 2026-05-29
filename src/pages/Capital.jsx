@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
-import { DollarSign } from 'lucide-react'
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Target, PlusCircle, Trash2, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react'
 
 function Capital() {
   const [mes, setMes] = useState('')
@@ -51,7 +51,6 @@ function Capital() {
   }, [mes])
 
   async function buscarSaldoGeral() {
-    // Soma coluna "recebido" (valor numérico) de todas as vendas com situacao = 'Pago'
     const { data: vendasData } = await supabase
       .from('vendas')
       .select('recebido')
@@ -145,7 +144,7 @@ function Capital() {
   const totalRetiradas = retiradas.reduce((acc, r) => acc + parseFloat(r.valor || 0), 0)
   const saldo = totalVendido - totalRetiradas
   const saldoExibido = mes ? saldo : saldoGeral
-  const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'6px', border:'1px solid #ddd' }
+  const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'14px', boxSizing:'border-box' }
 
   return (
     <div>
@@ -155,20 +154,23 @@ function Capital() {
         icon={<DollarSign size={22} color="white" />}
       />
 
-      {/* CAIXA — sempre visível */}
-      <div style={{background: mostrarCaixa ? 'linear-gradient(135deg, #1a6b5a, #145a4a)' : 'white', borderRadius:'12px', padding:'20px', border:'2px solid #1a6b5a', transition:'all 0.3s', marginTop:'16px', marginBottom:'16px'}}>
+      {/* CAIXA */}
+      <div style={{background: mostrarCaixa ? 'linear-gradient(135deg, #1a6b5a, #145a4a)' : 'white', borderRadius:'14px', padding:'20px', border:'2px solid #1a6b5a', transition:'all 0.3s', marginTop:'16px', marginBottom:'16px'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-          <div>
-            <strong style={{color: mostrarCaixa ? 'white' : '#1a6b5a', fontSize:'16px'}}>💰 Saldo em Caixa</strong>
-            <p style={{margin:'2px 0 0', fontSize:'12px', color: mostrarCaixa ? 'rgba(255,255,255,0.6)' : '#999'}}>
-              {mes ? `Recebidos em ${mes} − retiradas do mês` : 'Total recebido − todas as retiradas'}
-            </p>
+          <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+            <Wallet size={22} color={mostrarCaixa ? 'white' : '#1a6b5a'}/>
+            <div>
+              <strong style={{color: mostrarCaixa ? 'white' : '#1a6b5a', fontSize:'16px'}}>Saldo em Caixa</strong>
+              <p style={{margin:'2px 0 0', fontSize:'12px', color: mostrarCaixa ? 'rgba(255,255,255,0.6)' : '#999'}}>
+                {mes ? `Recebidos em ${mes} − retiradas do mês` : 'Total recebido − todas as retiradas'}
+              </p>
+            </div>
           </div>
           <button
             onClick={() => setMostrarCaixa(!mostrarCaixa)}
-            style={{background: mostrarCaixa ? 'rgba(255,255,255,0.2)' : '#f0f9f0', border: mostrarCaixa ? '1px solid rgba(255,255,255,0.4)' : '1px solid #1a6b5a', color: mostrarCaixa ? 'white' : '#1a6b5a', padding:'6px 16px', borderRadius:'6px', cursor:'pointer', fontSize:'13px', fontWeight:'bold'}}
+            style={{background: mostrarCaixa ? 'rgba(255,255,255,0.2)' : '#f0f9f0', border: mostrarCaixa ? '1px solid rgba(255,255,255,0.4)' : '1px solid #1a6b5a', color: mostrarCaixa ? 'white' : '#1a6b5a', padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontSize:'13px', fontWeight:'bold', display:'flex', alignItems:'center', gap:'6px'}}
           >
-            {mostrarCaixa ? '🙈 Ocultar' : '👁️ Visualizar'}
+            {mostrarCaixa ? <><EyeOff size={15}/> Ocultar</> : <><Eye size={15}/> Visualizar</>}
           </button>
         </div>
         {mostrarCaixa && (
@@ -179,40 +181,65 @@ function Capital() {
       </div>
 
       {/* Seletor de mês */}
-      <div style={{background:'white', padding:'20px', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
-        <label style={{fontWeight:'bold', color:'#1a6b5a'}}>Filtrar por Mês</label><br/>
-        <select value={mes} onChange={e => setMes(e.target.value)} style={{...campo, maxWidth:'300px'}}>
+      <div style={{background:'white', padding:'20px', borderRadius:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
+        <label style={{fontWeight:'bold', color:'#1a6b5a', fontSize:'14px'}}>Filtrar por Mês</label>
+        <select value={mes} onChange={e => setMes(e.target.value)} style={{...campo, maxWidth:'300px', marginTop:'8px'}}>
           <option value="">Todos os meses</option>
           {meses.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
       </div>
 
       {mes && (
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'24px'}}>
-          <div style={{background:'#e8f5e9', borderRadius:'12px', padding:'20px', borderLeft:'4px solid #2e7d32'}}>
-            <p style={{color:'#666', fontSize:'13px', marginBottom:'4px'}}>Total Recebido</p>
-            <strong style={{fontSize:'24px', color:'#2e7d32'}}>R$ {totalVendido.toFixed(2)}</strong>
-          </div>
-          <div style={{background:'#ffebee', borderRadius:'12px', padding:'20px', borderLeft:'4px solid #c62828'}}>
-            <p style={{color:'#666', fontSize:'13px', marginBottom:'4px'}}>Total Retiradas</p>
-            <strong style={{fontSize:'24px', color:'#c62828'}}>R$ {totalRetiradas.toFixed(2)}</strong>
-          </div>
-          <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#fff8e1', borderRadius:'12px', padding:'20px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#f57f17'}`}}>
-            <p style={{color:'#666', fontSize:'13px', marginBottom:'4px'}}>Saldo do Mês</p>
-            <strong style={{fontSize:'24px', color: saldo >= 3000 ? '#2e7d32' : '#f57f17'}}>R$ {saldo.toFixed(2)}</strong>
-          </div>
-          <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#ffebee', borderRadius:'12px', padding:'20px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#c62828'}`}}>
-            <p style={{color:'#666', fontSize:'13px', marginBottom:'4px'}}>Meta R$ 3.000 — Diferença</p>
-            <strong style={{fontSize:'24px', color: saldo >= 3000 ? '#2e7d32' : '#c62828'}}>
-              {saldo >= 3000 ? '+' : ''}R$ {(saldo - 3000).toFixed(2)}
-            </strong>
+        <>
+          {/* KPIs do mês — empilhados */}
+          <div style={{display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px'}}>
+
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
+              <div style={{background:'#e8f5e9', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #2e7d32', display:'flex', alignItems:'center', gap:'12px'}}>
+                <TrendingUp size={24} color="#2e7d32"/>
+                <div>
+                  <p style={{color:'#666', fontSize:'12px', margin:0}}>Total Recebido</p>
+                  <strong style={{fontSize:'20px', color:'#2e7d32'}}>R$ {totalVendido.toFixed(2)}</strong>
+                </div>
+              </div>
+              <div style={{background:'#ffebee', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #c62828', display:'flex', alignItems:'center', gap:'12px'}}>
+                <TrendingDown size={24} color="#c62828"/>
+                <div>
+                  <p style={{color:'#666', fontSize:'12px', margin:0}}>Total Retiradas</p>
+                  <strong style={{fontSize:'20px', color:'#c62828'}}>R$ {totalRetiradas.toFixed(2)}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
+              <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#fff8e1', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#f57f17'}`, display:'flex', alignItems:'center', gap:'12px'}}>
+                <Wallet size={24} color={saldo >= 3000 ? '#2e7d32' : '#f57f17'}/>
+                <div>
+                  <p style={{color:'#666', fontSize:'12px', margin:0}}>Saldo do Mês</p>
+                  <strong style={{fontSize:'20px', color: saldo >= 3000 ? '#2e7d32' : '#f57f17'}}>R$ {saldo.toFixed(2)}</strong>
+                </div>
+              </div>
+              <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#ffebee', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#c62828'}`, display:'flex', alignItems:'center', gap:'12px'}}>
+                <Target size={24} color={saldo >= 3000 ? '#2e7d32' : '#c62828'}/>
+                <div>
+                  <p style={{color:'#666', fontSize:'12px', margin:0}}>Meta R$ 3.000</p>
+                  <strong style={{fontSize:'20px', color: saldo >= 3000 ? '#2e7d32' : '#c62828'}}>
+                    {saldo >= 3000 ? '+' : ''}R$ {(saldo - 3000).toFixed(2)}
+                  </strong>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* FORMULÁRIO DE RETIRADA */}
-          <div style={{background:'white', padding:'24px', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)'}}>
-            <h3 style={{color:'#1a6b5a', marginBottom:'16px'}}>Nova Retirada</h3>
-            <div style={{marginBottom:'12px'}}>
-              <label style={{fontSize:'13px', fontWeight:'bold'}}>Tipo</label><br/>
+          <div style={{background:'white', padding:'24px', borderRadius:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
+            <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'20px'}}>
+              <PlusCircle size={20} color="#1a6b5a"/>
+              <h3 style={{color:'#1a6b5a', margin:0}}>Nova Retirada</h3>
+            </div>
+
+            <div style={{marginBottom:'14px'}}>
+              <label style={{fontSize:'13px', fontWeight:'bold', color:'#444'}}>Tipo</label>
               <select value={tipoRetirada} onChange={e => setTipoRetirada(e.target.value)} style={campo}>
                 <option value="">Selecione...</option>
                 <option value="Reposição de Produtos">Reposição de Produtos</option>
@@ -221,38 +248,58 @@ function Capital() {
                 <option value="Outros">Outros</option>
               </select>
             </div>
-            <div style={{marginBottom:'12px'}}>
-              <label style={{fontSize:'13px', fontWeight:'bold'}}>Descrição (opcional)</label><br/>
+
+            <div style={{marginBottom:'14px'}}>
+              <label style={{fontSize:'13px', fontWeight:'bold', color:'#444'}}>Descrição (opcional)</label>
               <input value={descricaoRetirada} onChange={e => setDescricaoRetirada(e.target.value)} placeholder="Ex: Conta de luz" style={campo}/>
             </div>
-            <div style={{marginBottom:'16px'}}>
-              <label style={{fontSize:'13px', fontWeight:'bold'}}>Valor (R$)</label><br/>
+
+            <div style={{marginBottom:'20px'}}>
+              <label style={{fontSize:'13px', fontWeight:'bold', color:'#444'}}>Valor (R$)</label>
               <input type="number" value={valorRetirada} onChange={e => setValorRetirada(e.target.value)} placeholder="Ex: 150.00" style={campo}/>
             </div>
-            <button onClick={adicionarRetirada} style={{background:'linear-gradient(135deg, #f5821f, #e06010)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold', width:'100%'}}>
-              Registrar Retirada
+
+            <button onClick={adicionarRetirada} style={{background:'linear-gradient(135deg, #f5821f, #e06010)', color:'white', border:'none', padding:'13px', borderRadius:'10px', cursor:'pointer', fontSize:'15px', fontWeight:'bold', width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
+              <PlusCircle size={18}/> Registrar Retirada
             </button>
-            {mensagem && <p style={{marginTop:'12px', color: mensagem.includes('Erro') ? 'red' : 'green', fontSize:'14px'}}>{mensagem}</p>}
+
+            {mensagem && (
+              <div style={{marginTop:'12px', display:'flex', alignItems:'center', gap:'8px', padding:'10px 14px', borderRadius:'8px', background: mensagem.includes('Erro') ? '#ffebee' : '#e8f5e9'}}>
+                {mensagem.includes('Erro')
+                  ? <XCircle size={16} color="#c62828"/>
+                  : <CheckCircle size={16} color="#2e7d32"/>
+                }
+                <p style={{margin:0, color: mensagem.includes('Erro') ? '#c62828' : '#2e7d32', fontSize:'14px'}}>{mensagem}</p>
+              </div>
+            )}
           </div>
 
           {/* LISTA DE RETIRADAS */}
-          <div style={{background:'white', padding:'24px', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)'}}>
-            <h3 style={{color:'#1a6b5a', marginBottom:'16px'}}>Retiradas de {mes}</h3>
-            {retiradas.length === 0 && <p style={{color:'#aaa', textAlign:'center', padding:'20px'}}>Nenhuma retirada registrada</p>}
-            {retiradas.map(r => (
-              <div key={r.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px', background:'#f9f9f9', borderRadius:'8px', marginBottom:'8px', borderLeft:'3px solid #e94560'}}>
-                <div>
-                  <strong style={{fontSize:'14px'}}>{r.tipo}</strong>
-                  {r.descricao && <span style={{color:'#666', fontSize:'13px'}}> — {r.descricao}</span>}<br/>
-                  <strong style={{color:'#e94560'}}>R$ {parseFloat(r.valor).toFixed(2)}</strong>
+          <div style={{background:'white', padding:'24px', borderRadius:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'24px'}}>
+            <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px'}}>
+              <TrendingDown size={20} color="#c62828"/>
+              <h3 style={{color:'#1a6b5a', margin:0}}>Retiradas de {mes}</h3>
+            </div>
+
+            {retiradas.length === 0
+              ? <p style={{color:'#aaa', textAlign:'center', padding:'24px', fontSize:'14px'}}>Nenhuma retirada registrada</p>
+              : retiradas.map(r => (
+                <div key={r.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px', background:'#f9f9f9', borderRadius:'10px', marginBottom:'8px', borderLeft:'3px solid #e94560'}}>
+                  <div>
+                    <strong style={{fontSize:'14px', color:'#333'}}>{r.tipo}</strong>
+                    {r.descricao && <span style={{color:'#666', fontSize:'13px'}}> — {r.descricao}</span>}
+                    <br/>
+                    <strong style={{color:'#e94560', fontSize:'15px'}}>R$ {parseFloat(r.valor).toFixed(2)}</strong>
+                  </div>
+                  <button onClick={() => removerRetirada(r.id)}
+                    style={{background:'#ffebee', color:'#c62828', border:'none', padding:'8px 12px', borderRadius:'8px', cursor:'pointer', fontSize:'12px', display:'flex', alignItems:'center', gap:'5px', fontWeight:'600'}}>
+                    <Trash2 size={14}/> Remover
+                  </button>
                 </div>
-                <button onClick={() => removerRetirada(r.id)} style={{background:'#ffebee', color:'#c62828', border:'none', padding:'6px 10px', borderRadius:'6px', cursor:'pointer', fontSize:'12px'}}>
-                  Remover
-                </button>
-              </div>
-            ))}
+              ))
+            }
           </div>
-        </div>
+        </>
       )}
 
       {/* TABELA RESUMO POR MÊS */}
@@ -283,8 +330,11 @@ function Capital() {
                   <td style={{textAlign:'right', color:'#c62828'}}>R$ {r.retiradas.toFixed(2)}</td>
                   <td style={{textAlign:'right', fontWeight:'bold'}}>R$ {saldoMes.toFixed(2)}</td>
                   <td style={{textAlign:'center'}}>
-                    <span style={{background: bateuMeta ? '#e8f5e9' : '#ffebee', color: bateuMeta ? '#2e7d32' : '#c62828', padding:'4px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'bold'}}>
-                      {bateuMeta ? '✅ Meta atingida' : '❌ Abaixo da meta'}
+                    <span style={{display:'inline-flex', alignItems:'center', gap:'4px', background: bateuMeta ? '#e8f5e9' : '#ffebee', color: bateuMeta ? '#2e7d32' : '#c62828', padding:'4px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'bold'}}>
+                      {bateuMeta
+                        ? <><CheckCircle size={12}/> Meta atingida</>
+                        : <><XCircle size={12}/> Abaixo da meta</>
+                      }
                     </span>
                   </td>
                 </tr>
