@@ -182,7 +182,8 @@ export default function PainelVendedor() {
 
       {/* Filtros */}
       <div style={{background:'#fff',borderRadius:'16px',padding:'16px 20px',boxShadow:'0 2px 12px rgba(15,23,42,0.07)',border:'1px solid #eef2f7',margin:'16px 0'}}>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:'12px',alignItems:'end'}}>
+        {/* Filtros — 3 lado a lado */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'10px',marginBottom:'12px'}}>
           {[
             { label:'Ano',      value:filtroAno, set:setFiltroAno, opts:anosDisponiveis.map(a=>({v:String(a),l:String(a)})), ph:'Todos anos'  },
             { label:'Mês',      value:filtroMes, set:setFiltroMes, opts:MESES_NOMES.map((m,i)=>({v:String(i+1),l:m})),       ph:'Todos meses' },
@@ -192,43 +193,37 @@ export default function PainelVendedor() {
               <label style={{display:'block',fontSize:'11px',fontWeight:'600',color:'#888',marginBottom:'5px'}}>{f.label}</label>
               <div style={{position:'relative'}}>
                 <select value={f.value} onChange={e=>f.set(e.target.value)}
-                  style={{width:'100%',padding:'9px 32px 9px 12px',borderRadius:'10px',border:'1.5px solid #e5e7eb',fontSize:'13px',color:'#555',background:'#fff',appearance:'none',cursor:'pointer',outline:'none'}}>
+                  style={{width:'100%',padding:'9px 28px 9px 10px',borderRadius:'10px',border:'1.5px solid #e5e7eb',fontSize:'12px',color:'#555',background:'#fff',appearance:'none',cursor:'pointer',outline:'none',boxSizing:'border-box'}}>
                   <option value="">{f.ph}</option>
                   {f.opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
                 </select>
-                <Filter size={13} color="#aaa" style={{position:'absolute',right:'10px',top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}}/>
+                <Filter size={12} color="#aaa" style={{position:'absolute',right:'8px',top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}}/>
               </div>
             </div>
           ))}
-          <div style={{display:'flex',gap:'8px',alignItems:'flex-end'}}>
-            <button
-              onClick={()=>{setFiltroMes(String(new Date().getMonth()+1));setFiltroAno(String(new Date().getFullYear()));setFiltroSit('')}}
-              disabled={!(filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '')}
-              style={{
-                flex:1,
-                display:'flex',
-                alignItems:'center',
-                justifyContent:'center',
-                gap:'6px',
-                padding:'8px 16px',
-                borderRadius:'8px',
-                border: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? '1px solid #e94560' : '1px solid #c0392b',
-                background: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? '#e94560' : '#fff',
-                color: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? 'white' : '#c0392b',
-                fontSize:'13px',
-                fontWeight:'500',
-                cursor: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? 'pointer' : 'default',
-                transition:'all 0.2s ease',
-                opacity: (filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '') ? 1 : 0.6,
-              }}
-            >
-              <FilterX size={15}/> Limpar filtros
-            </button>
-            <button onClick={init}
-              style={{flex:1,background:'#1a6b5a',color:'white',border:'none',padding:'9px 12px',borderRadius:'10px',cursor:'pointer',fontSize:'13px',fontWeight:'600',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
-              <RefreshCw size={13}/> Atualizar
-            </button>
-          </div>
+        </div>
+        {/* Botões — abaixo dos filtros */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+          <button
+            onClick={()=>{setFiltroMes(String(new Date().getMonth()+1));setFiltroAno(String(new Date().getFullYear()));setFiltroSit('')}}
+            disabled={!(filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '')}
+            style={{
+              display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',
+              padding:'9px 12px',borderRadius:'8px',
+              border:(filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '')?'1px solid #e94560':'1px solid #c0392b',
+              background:(filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '')?'#e94560':'#fff',
+              color:(filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '')?'white':'#c0392b',
+              fontSize:'13px',fontWeight:'500',
+              cursor:(filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '')?'pointer':'default',
+              transition:'all 0.2s ease',
+              opacity:(filtroMes !== String(new Date().getMonth()+1) || filtroAno !== String(new Date().getFullYear()) || filtroSit !== '')?1:0.6,
+            }}>
+            <FilterX size={14}/> Limpar filtros
+          </button>
+          <button onClick={init}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',padding:'9px 12px',borderRadius:'8px',border:'none',background:'#1a6b5a',color:'white',fontSize:'13px',fontWeight:'600',cursor:'pointer'}}>
+            <RefreshCw size={14}/> Atualizar
+          </button>
         </div>
       </div>
 
