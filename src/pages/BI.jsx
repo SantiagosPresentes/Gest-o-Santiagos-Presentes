@@ -129,7 +129,7 @@ function KpiCard({ label, valor, cor, icon: Icon, selecionado, onClick }) {
       </div>
       <div style={{ minWidth:0 }}>
         <div style={{ fontSize:'11px', color:'#a0aec0', fontWeight:'600', textTransform:'uppercase', letterSpacing:'0.6px', marginBottom:'3px' }}>{label}</div>
-        <div style={{ fontSize:'17px', fontWeight:'bold', color:cor, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{valor}</div>
+        <div style={{ fontSize:'15px', fontWeight:'bold', color:cor, wordBreak:'break-word', lineHeight:'1.2' }}>{valor}</div>
       </div>
     </motion.div>
   )
@@ -150,46 +150,51 @@ function Card({ titulo, icon: Icon, cor='#1a6b5a', children, style={} }) {
   )
 }
 
-// ── Categoria: linha de barra sem scroll ─────────────────────────────────────
-// Renderiza cada categoria como: [nome] [barra] [qtd]  e abaixo: R$ | % valor | % vendas
+// ── Categoria: barra maior, tudo em linha abaixo ─────────────────────────────
 function BarraCategoria({ item, max, totalValor, totalQtd, cor }) {
-  const pct = max > 0 ? Math.min(100, (item.quantidade / max) * 100) : 2
-  const pctValor  = totalValor > 0 ? ((item.valor / totalValor) * 100).toFixed(1) : '0.0'
-  const pctVendas = totalQtd   > 0 ? ((item.quantidade / totalQtd) * 100).toFixed(1) : '0.0'
+  const pct      = max > 0 ? Math.min(100, (item.quantidade / max) * 100) : 2
+  const pctValor = totalValor > 0 ? ((item.valor / totalValor) * 100).toFixed(1) : '0.0'
+  const pctQtd   = totalQtd   > 0 ? ((item.quantidade / totalQtd) * 100).toFixed(1) : '0.0'
+  const valorFmt = new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(item.valor || 0)
 
   return (
-    <div style={{ marginBottom:'18px' }}>
-      {/* linha: nome + barra + qtd */}
-      <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px' }}>
-        {/* dot cor */}
-        <div style={{ width:'9px', height:'9px', borderRadius:'3px', background:cor, flexShrink:0 }}/>
-        {/* nome — largura fixa para alinhar */}
-        <span style={{ fontSize:'12px', fontWeight:'700', color:'#2d3748', width:'130px', flexShrink:0, lineHeight:'1.3', wordBreak:'break-word' }}>
-          {item.categoria}
-        </span>
-        {/* barra */}
-        <div style={{ flex:1, background:'#f0f4f8', borderRadius:'999px', height:'10px', overflow:'hidden', minWidth:0 }}>
-          <div style={{ width:`${pct}%`, background:cor, height:'100%', borderRadius:'999px', transition:'width 0.6s ease' }}/>
+    <div style={{ marginBottom:'20px' }}>
+      {/* Cabeçalho: dot + nome + quantidade */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'6px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'7px' }}>
+          <div style={{ width:'9px', height:'9px', borderRadius:'3px', background:cor, flexShrink:0 }}/>
+          <span style={{ fontSize:'13px', fontWeight:'700', color:'#2d3748' }}>{item.categoria}</span>
         </div>
-        {/* quantidade */}
-        <span style={{ fontSize:'13px', fontWeight:'bold', color:cor, width:'36px', textAlign:'right', flexShrink:0 }}>
-          {item.quantidade}
-        </span>
+        <span style={{ fontSize:'14px', fontWeight:'800', color:cor }}>{item.quantidade} un.</span>
       </div>
-      {/* linha de detalhes */}
-      <div style={{ display:'flex', gap:'0', marginLeft:'149px' }}>
-        <span style={{ fontSize:'11px', color:'#718096', background:'#f7fafc', padding:'2px 8px', borderRadius:'6px 0 0 6px', borderRight:'1px solid #edf2f7' }}>
-          R$ {item.valor.toFixed(2)}
+      {/* Barra — alta e com gradiente */}
+      <div style={{ background:'#f0f4f8', borderRadius:'8px', height:'18px', overflow:'hidden', marginBottom:'7px' }}>
+        <div style={{
+          width:`${pct}%`, height:'100%', borderRadius:'8px',
+          background:`linear-gradient(90deg, ${cor}dd, ${cor}88)`,
+          transition:'width 0.6s ease',
+          display:'flex', alignItems:'center', justifyContent:'flex-end', paddingRight:'6px'
+        }}/>
+      </div>
+      {/* Info em linha única */}
+      <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+        <span style={{ fontSize:'11px', fontWeight:'600', color:cor, background:`${cor}12`, padding:'3px 8px', borderRadius:'6px' }}>
+          {valorFmt}
         </span>
-        <span style={{ fontSize:'11px', color:'#718096', background:'#f7fafc', padding:'2px 8px', borderRight:'1px solid #edf2f7' }}>
+        <span style={{ fontSize:'11px', fontWeight:'600', color:'#718096', background:'#f7fafc', padding:'3px 8px', borderRadius:'6px', border:'1px solid #edf2f7' }}>
           {pctValor}% do valor
         </span>
-        <span style={{ fontSize:'11px', color:'#718096', background:'#f7fafc', padding:'2px 8px', borderRadius:'0 6px 6px 0' }}>
-          {pctVendas}% das vendas
+        <span style={{ fontSize:'11px', fontWeight:'600', color:'#718096', background:'#f7fafc', padding:'3px 8px', borderRadius:'6px', border:'1px solid #edf2f7' }}>
+          {pctQtd}% das vendas
         </span>
       </div>
     </div>
   )
+}
+
+// ── Formatador R$ brasileiro ─────────────────────────────────────────────────
+function fmtBRL(valor) {
+  return new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(valor || 0)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -565,16 +570,16 @@ function BI() {
 
       {/* ── KPIs ── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(155px, 1fr))', gap:'12px', marginBottom:'16px' }}>
-        <KpiCard label="Total Vendido"      valor={`R$ ${totalVendido.toFixed(2)}`}   cor="#1a6b5a" icon={DollarSign}     selecionado={kpiSelecionado==='tv'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tv'?null:'tv')}/>
-        <KpiCard label="Total Recebido"     valor={`R$ ${totalRecebido.toFixed(2)}`}  cor="#29abe2" icon={CheckCircle}    selecionado={kpiSelecionado==='tr'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tr'?null:'tr')}/>
-        <KpiCard label="Valor Retirado"     valor={`R$ ${totalRetirado.toFixed(2)}`}  cor="#8b5cf6" icon={ArrowUpRight}   selecionado={kpiSelecionado==='vr'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='vr'?null:'vr')}/>
-        <KpiCard label="Ticket Médio"       valor={`R$ ${ticketMedio.toFixed(2)}`}    cor="#f5821f" icon={Target}         selecionado={kpiSelecionado==='tm'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tm'?null:'tm')}/>
-        <KpiCard label="Inadimplência"      valor={`${taxaInad}%`}                    cor={parseFloat(taxaInad)>20?'#ef4444':'#10b981'} icon={AlertTriangle} selecionado={kpiSelecionado==='in'} onClick={()=>setKpiSelecionado(kpiSelecionado==='in'?null:'in')}/>
-        <KpiCard label="Total Vendas"       valor={vendasFiltradas.length}            cor="#e91e8c" icon={ShoppingCart}   selecionado={kpiSelecionado==='tv2'} onClick={()=>setKpiSelecionado(kpiSelecionado==='tv2'?null:'tv2')}/>
-        <KpiCard label="Clientes Ativos"    valor={clientes.length}                   cor="#06b6d4" icon={Users}          selecionado={kpiSelecionado==='ca'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='ca'?null:'ca')}/>
-        <KpiCard label="Valor Devolvido"    valor={`R$ ${totalDevolvido.toFixed(2)}`} cor="#ef4444" icon={RotateCcw}      selecionado={kpiSelecionado==='vd'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='vd'?null:'vd')}/>
-        <KpiCard label="Qtd Devoluções"     valor={qtdDevolucoes}                     cor="#f97316" icon={ArrowDownRight} selecionado={kpiSelecionado==='qd'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='qd'?null:'qd')}/>
-        <KpiCard label="Encomendas Pend."   valor={qtdEncomendas}                     cor="#f7c948" icon={ClipboardList}  selecionado={kpiSelecionado==='ep'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='ep'?null:'ep')}/>
+        <KpiCard label="Total Vendido"      valor={fmtBRL(totalVendido)}    cor="#1a6b5a" icon={DollarSign}     selecionado={kpiSelecionado==='tv'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tv'?null:'tv')}/>
+        <KpiCard label="Total Recebido"     valor={fmtBRL(totalRecebido)}   cor="#29abe2" icon={CheckCircle}    selecionado={kpiSelecionado==='tr'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tr'?null:'tr')}/>
+        <KpiCard label="Valor Retirado"     valor={fmtBRL(totalRetirado)}   cor="#8b5cf6" icon={ArrowUpRight}   selecionado={kpiSelecionado==='vr'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='vr'?null:'vr')}/>
+        <KpiCard label="Ticket Médio"       valor={fmtBRL(ticketMedio)}     cor="#f5821f" icon={Target}         selecionado={kpiSelecionado==='tm'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tm'?null:'tm')}/>
+        <KpiCard label="Inadimplência"      valor={`${taxaInad}%`}          cor={parseFloat(taxaInad)>20?'#ef4444':'#10b981'} icon={AlertTriangle} selecionado={kpiSelecionado==='in'} onClick={()=>setKpiSelecionado(kpiSelecionado==='in'?null:'in')}/>
+        <KpiCard label="Total Vendas"       valor={vendasFiltradas.length}  cor="#e91e8c" icon={ShoppingCart}   selecionado={kpiSelecionado==='tv2'} onClick={()=>setKpiSelecionado(kpiSelecionado==='tv2'?null:'tv2')}/>
+        <KpiCard label="Clientes Ativos"    valor={clientes.length}         cor="#06b6d4" icon={Users}          selecionado={kpiSelecionado==='ca'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='ca'?null:'ca')}/>
+        <KpiCard label="Valor Devolvido"    valor={fmtBRL(totalDevolvido)}  cor="#ef4444" icon={RotateCcw}      selecionado={kpiSelecionado==='vd'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='vd'?null:'vd')}/>
+        <KpiCard label="Qtd Devoluções"     valor={qtdDevolucoes}           cor="#f97316" icon={ArrowDownRight} selecionado={kpiSelecionado==='qd'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='qd'?null:'qd')}/>
+        <KpiCard label="Encomendas Pend."   valor={qtdEncomendas}           cor="#f7c948" icon={ClipboardList}  selecionado={kpiSelecionado==='ep'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='ep'?null:'ep')}/>
       </div>
 
       {/* ── 1. Total Vendido por Mês ── */}
@@ -770,51 +775,30 @@ function BI() {
         ))}
       </Card>
 
-      {/* ── 7. Vendas por Categoria — sem scroll horizontal nas barras ── */}
+      {/* ── 7. Vendas por Categoria ── */}
       <Card titulo="Vendas por Categoria" icon={Layers} cor="#29abe2">
         {dadosCategoria.length === 0 ? (
           <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhuma categoria encontrada.</p>
         ) : (
           <>
-            {/* Pizza + legenda lateral */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'24px', alignItems:'center', marginBottom:'24px' }}>
-              <div>
-                <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Distribuição por Valor (R$)</p>
-                <ResponsiveContainer width="100%" height={210}>
-                  <PieChart>
-                    <Pie data={dadosCategoria} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" outerRadius={90} innerRadius={44} paddingAngle={3} labelLine={false} label={LabelPizza}>
-                      {dadosCategoria.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <p style={{textAlign:'center',fontSize:'12px',color:'#718096',marginTop:'4px'}}>
-                  Total: <strong style={{color:'#1a6b5a'}}>R$ {totalCategValor.toFixed(2)}</strong>
-                </p>
-              </div>
-              {/* Legenda lateral detalhada */}
-              <div>
-                <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Detalhamento</p>
-                <div style={{ display:'flex', flexDirection:'column', gap:'7px' }}>
-                  {dadosCategoria.map((d,i) => (
-                    <div key={i} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'7px 10px', borderRadius:'9px', background:'#f9fafb' }}>
-                      <div style={{ width:'9px', height:'9px', borderRadius:'3px', background:CORES[i%CORES.length], flexShrink:0 }}/>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:'12px', fontWeight:'600', color:'#2d3748', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{d.categoria}</div>
-                        <div style={{ fontSize:'10px', color:'#a0aec0' }}>{d.quantidade} un.</div>
-                      </div>
-                      <div style={{ textAlign:'right', flexShrink:0 }}>
-                        <div style={{ fontSize:'12px', fontWeight:'bold', color:CORES[i%CORES.length] }}>R$ {d.valor.toFixed(0)}</div>
-                        <div style={{ fontSize:'10px', color:'#a0aec0' }}>{totalCategValor>0?((d.valor/totalCategValor)*100).toFixed(1):0}%</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {/* Pizza centralizada */}
+            <div style={{ marginBottom:'24px' }}>
+              <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Distribuição por Valor (R$)</p>
+              <ResponsiveContainer width="100%" height={210}>
+                <PieChart>
+                  <Pie data={dadosCategoria} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" outerRadius={90} innerRadius={44} paddingAngle={3} labelLine={false} label={LabelPizza}>
+                    {dadosCategoria.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <p style={{textAlign:'center',fontSize:'12px',color:'#718096',marginTop:'4px'}}>
+                Total: <strong style={{color:'#1a6b5a'}}>{fmtBRL(totalCategValor)}</strong>
+              </p>
             </div>
 
-            {/* Barras por quantidade — SEM scroll, nome + barra + qtd + detalhes em linha */}
+            {/* Barras por quantidade */}
             <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px' }}>
-              <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'16px'}}>Por Quantidade Vendida</p>
+              <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'18px'}}>Por Quantidade Vendida</p>
               {dadosCategoria.map((item, i) => (
                 <BarraCategoria
                   key={i}
