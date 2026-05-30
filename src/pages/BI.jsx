@@ -8,11 +8,11 @@ import {
 import PageHeader from '../components/PageHeader'
 import { motion } from 'framer-motion'
 import {
-  BarChart3, TrendingUp, TrendingDown, ShoppingBag, Users,
+  BarChart3, TrendingUp, TrendingDown, Users,
   RotateCcw, Package, DollarSign, CheckCircle, Target,
-  AlertTriangle, Award, RefreshCw, Filter, X, Calendar,
-  Tag, ChevronRight, Star, Minus, ArrowUpRight, ArrowDownRight,
-  Gift, ShoppingCart, Layers, Truck, Eye, Clock
+  AlertTriangle, Award, RefreshCw, Filter, X,
+  Star, Minus, ArrowUpRight, ArrowDownRight,
+  Gift, ShoppingCart, Layers, Truck, Eye, ClipboardList
 } from 'lucide-react'
 
 // ── Paleta ──────────────────────────────────────────────────────────────────
@@ -20,17 +20,17 @@ const CORES = ['#1a6b5a','#f5821f','#29abe2','#e91e8c','#8b5cf6','#f7c948','#10b
 
 // ── Datas Comemorativas ──────────────────────────────────────────────────────
 const TODAS_DATAS_COMEMORATIVAS = [
-  { mes:1,  dia:1,  nome:'Ano Novo',               icone:'🎆', categorias:['Decoração','Perfumaria'] },
+  { mes:1,  dia:1,  nome:'Ano Novo',                  icone:'🎆', categorias:['Decoração','Perfumaria'] },
   { mes:2,  dia:12, nome:'Dia dos Namorados (Prévia)', icone:'💝', categorias:['Perfumaria','Decoração'] },
-  { mes:3,  dia:1,  nome:'Volta às Aulas',          icone:'📚', categorias:['Escolar','Utilidade'] },
-  { mes:4,  dia:20, nome:'Páscoa',                  icone:'🐣', categorias:['Decoração','Infantil'] },
-  { mes:5,  dia:11, nome:'Dia das Mães',            icone:'💐', categorias:['Perfumaria','Cama / Mesa / Banho','Decoração'] },
-  { mes:6,  dia:12, nome:'Dia dos Namorados',       icone:'❤️', categorias:['Perfumaria','Decoração'] },
-  { mes:7,  dia:1,  nome:'Férias Escolares',        icone:'🏖️', categorias:['Infantil','Escolar'] },
-  { mes:8,  dia:10, nome:'Dia dos Pais',            icone:'👔', categorias:['Utilidade','Cozinha'] },
-  { mes:10, dia:12, nome:'Dia das Crianças',        icone:'🧸', categorias:['Infantil','Escolar'] },
-  { mes:11, dia:25, nome:'Black Friday',            icone:'🛍️', categorias:['Cama / Mesa / Banho','Cozinha','Decoração'] },
-  { mes:12, dia:25, nome:'Natal',                   icone:'🎄', categorias:['Decoração','Perfumaria','Infantil','Cozinha'] },
+  { mes:3,  dia:1,  nome:'Volta às Aulas',             icone:'📚', categorias:['Escolar','Utilidade'] },
+  { mes:4,  dia:20, nome:'Páscoa',                     icone:'🐣', categorias:['Decoração','Infantil'] },
+  { mes:5,  dia:11, nome:'Dia das Mães',               icone:'💐', categorias:['Perfumaria','Cama / Mesa / Banho','Decoração'] },
+  { mes:6,  dia:12, nome:'Dia dos Namorados',          icone:'❤️', categorias:['Perfumaria','Decoração'] },
+  { mes:7,  dia:1,  nome:'Férias Escolares',           icone:'🏖️', categorias:['Infantil','Escolar'] },
+  { mes:8,  dia:10, nome:'Dia dos Pais',               icone:'👔', categorias:['Utilidade','Cozinha'] },
+  { mes:10, dia:12, nome:'Dia das Crianças',           icone:'🧸', categorias:['Infantil','Escolar'] },
+  { mes:11, dia:25, nome:'Black Friday',               icone:'🛍️', categorias:['Cama / Mesa / Banho','Cozinha','Decoração'] },
+  { mes:12, dia:25, nome:'Natal',                      icone:'🎄', categorias:['Decoração','Perfumaria','Infantil','Cozinha'] },
 ]
 
 function proximaDataComemorativa() {
@@ -41,8 +41,7 @@ function proximaDataComemorativa() {
     for (const d of ordenadas) {
       const dataEvento = new Date(ano, d.mes-1, d.dia)
       if (dataEvento > hoje) {
-        const diffMs = dataEvento - hoje
-        const diasRestantes = Math.ceil(diffMs/(1000*60*60*24))
+        const diasRestantes = Math.ceil((dataEvento - hoje)/(1000*60*60*24))
         return { ...d, diasRestantes, dataEvento }
       }
     }
@@ -50,8 +49,7 @@ function proximaDataComemorativa() {
   return { ...TODAS_DATAS_COMEMORATIVAS[0], diasRestantes:365, dataEvento:null }
 }
 
-// Próximas 3 datas comemorativas
-function proximasDatas(n=3) {
+function proximasDatas(n=4) {
   const hoje = new Date(); hoje.setHours(0,0,0,0)
   const resultados = []
   for (let anoOffset = 0; anoOffset <= 1 && resultados.length < n; anoOffset++) {
@@ -80,11 +78,8 @@ function ordenarMeses(arr) {
   })
 }
 
-// ── Tooltip sem popup (vazio) ────────────────────────────────────────────────
-const TooltipVazio = () => null
-
-// ── Sub-componentes ──────────────────────────────────────────────────────────
-const LabelPizza = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value, name }) => {
+// ── Label pizza ──────────────────────────────────────────────────────────────
+const LabelPizza = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
   if (percent < 0.04) return null
   const RADIAN = Math.PI / 180
   const radius = innerRadius + (outerRadius - innerRadius) * 0.55
@@ -97,24 +92,24 @@ const LabelPizza = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value
   )
 }
 
-// ── Barra de progresso horizontal ───────────────────────────────────────────
-function BarraHorizontal({ nome, valor, max, cor, sub, subDir }) {
+// ── Barra de progresso para Top 10 — estilo original com gradiente ───────────
+function BarraTop({ nome, valor, max, corInicio, corFim, sub, subDir }) {
   const pct = max > 0 ? Math.min(100, (valor/max)*100) : 2
   return (
-    <div style={{ marginBottom:'14px' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'8px', marginBottom:'5px' }}>
-        <span style={{ fontSize:'13px', fontWeight:'600', color:'#2d3748', lineHeight:'1.3', wordBreak:'break-word', flex:1 }}>{nome}</span>
-        <span style={{ fontSize:'13px', fontWeight:'bold', color:cor, whiteSpace:'nowrap', flexShrink:0 }}>{subDir}</span>
+    <div style={{ marginBottom:'12px' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'8px', marginBottom:'4px' }}>
+        <span style={{ fontSize:'13px', fontWeight:'bold', color:'#333', lineHeight:'1.3', wordBreak:'break-word', flex:1 }}>{nome}</span>
+        <span style={{ fontSize:'13px', fontWeight:'bold', color:corInicio, whiteSpace:'nowrap', flexShrink:0 }}>{subDir}</span>
       </div>
-      <div style={{ background:'#f0f4f8', borderRadius:'999px', height:'8px', overflow:'hidden' }}>
-        <div style={{ width:`${pct}%`, background:`linear-gradient(90deg, ${cor}, ${cor}cc)`, height:'100%', borderRadius:'999px', transition:'width 0.6s ease' }}/>
+      <div style={{ background:'#f0f0f0', borderRadius:'999px', height:'10px', overflow:'hidden' }}>
+        <div style={{ width:`${pct}%`, background:`linear-gradient(90deg, ${corInicio}, ${corFim})`, height:'100%', borderRadius:'999px', transition:'width 0.5s ease' }}/>
       </div>
-      {sub && <div style={{ fontSize:'11px', color:'#a0aec0', marginTop:'3px' }}>{sub}</div>}
+      {sub && <div style={{ fontSize:'11px', color:'#888', marginTop:'2px' }}>{sub}</div>}
     </div>
   )
 }
 
-// ── Card KPI ──────────────────────────────────────────────────────────────────
+// ── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiCard({ label, valor, cor, icon: Icon, selecionado, onClick }) {
   return (
     <motion.div
@@ -155,23 +150,44 @@ function Card({ titulo, icon: Icon, cor='#1a6b5a', children, style={} }) {
   )
 }
 
-// ── Legenda customizada para pizza ────────────────────────────────────────────
-function LegendaPizza({ dados, totalValor, totalQtd }) {
+// ── Categoria: linha de barra sem scroll ─────────────────────────────────────
+// Renderiza cada categoria como: [nome] [barra] [qtd]  e abaixo: R$ | % valor | % vendas
+function BarraCategoria({ item, max, totalValor, totalQtd, cor }) {
+  const pct = max > 0 ? Math.min(100, (item.quantidade / max) * 100) : 2
+  const pctValor  = totalValor > 0 ? ((item.valor / totalValor) * 100).toFixed(1) : '0.0'
+  const pctVendas = totalQtd   > 0 ? ((item.quantidade / totalQtd) * 100).toFixed(1) : '0.0'
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-      {dados.map((d, i) => (
-        <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 10px', borderRadius:'10px', background:'#f9fafb' }}>
-          <div style={{ width:'10px', height:'10px', borderRadius:'3px', background:CORES[i%CORES.length], flexShrink:0 }}/>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:'12px', fontWeight:'600', color:'#2d3748', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{d.categoria}</div>
-            <div style={{ fontSize:'11px', color:'#a0aec0' }}>{d.quantidade} unidades</div>
-          </div>
-          <div style={{ textAlign:'right', flexShrink:0 }}>
-            <div style={{ fontSize:'12px', fontWeight:'bold', color:CORES[i%CORES.length] }}>R$ {d.valor.toFixed(0)}</div>
-            <div style={{ fontSize:'10px', color:'#a0aec0' }}>{totalValor>0?((d.valor/totalValor)*100).toFixed(1):0}%</div>
-          </div>
+    <div style={{ marginBottom:'18px' }}>
+      {/* linha: nome + barra + qtd */}
+      <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px' }}>
+        {/* dot cor */}
+        <div style={{ width:'9px', height:'9px', borderRadius:'3px', background:cor, flexShrink:0 }}/>
+        {/* nome — largura fixa para alinhar */}
+        <span style={{ fontSize:'12px', fontWeight:'700', color:'#2d3748', width:'130px', flexShrink:0, lineHeight:'1.3', wordBreak:'break-word' }}>
+          {item.categoria}
+        </span>
+        {/* barra */}
+        <div style={{ flex:1, background:'#f0f4f8', borderRadius:'999px', height:'10px', overflow:'hidden', minWidth:0 }}>
+          <div style={{ width:`${pct}%`, background:cor, height:'100%', borderRadius:'999px', transition:'width 0.6s ease' }}/>
         </div>
-      ))}
+        {/* quantidade */}
+        <span style={{ fontSize:'13px', fontWeight:'bold', color:cor, width:'36px', textAlign:'right', flexShrink:0 }}>
+          {item.quantidade}
+        </span>
+      </div>
+      {/* linha de detalhes */}
+      <div style={{ display:'flex', gap:'0', marginLeft:'149px' }}>
+        <span style={{ fontSize:'11px', color:'#718096', background:'#f7fafc', padding:'2px 8px', borderRadius:'6px 0 0 6px', borderRight:'1px solid #edf2f7' }}>
+          R$ {item.valor.toFixed(2)}
+        </span>
+        <span style={{ fontSize:'11px', color:'#718096', background:'#f7fafc', padding:'2px 8px', borderRight:'1px solid #edf2f7' }}>
+          {pctValor}% do valor
+        </span>
+        <span style={{ fontSize:'11px', color:'#718096', background:'#f7fafc', padding:'2px 8px', borderRadius:'0 6px 6px 0' }}>
+          {pctVendas}% das vendas
+        </span>
+      </div>
     </div>
   )
 }
@@ -184,6 +200,8 @@ function BI() {
   const [investimentos, setInvestimentos] = useState([])
   const [clientes,      setClientes]      = useState([])
   const [prods,         setProds]         = useState([])
+  const [retiradas,     setRetiradas]     = useState([])   // ← tabela de retiradas
+  const [encomendas,    setEncomendas]    = useState([])   // ← tabela de encomendas
   const [carregando,    setCarregando]    = useState(true)
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroMes,       setFiltroMes]       = useState('')
@@ -195,13 +213,15 @@ function BI() {
 
   async function carregarDados() {
     setCarregando(true)
-    const [v, iv, d, inv, c, p] = await Promise.all([
+    const [v, iv, d, inv, c, p, r, enc] = await Promise.all([
       supabase.from('vendas').select('*, clientes(nome)').order('data_venda'),
       supabase.from('itens_venda').select('*, produtos(nome, categoria, preco_venda)'),
       supabase.from('devolucoes').select('*, produtos(nome, categoria)'),
       supabase.from('investimentos').select('*, produtos(nome, categoria)'),
       supabase.from('clientes').select('*, vendas(valor_total, situacao, recebido, data_para_pagar)'),
       supabase.from('produtos').select('*'),
+      supabase.from('retiradas').select('valor, mes, tipo, descricao'),
+      supabase.from('encomendas').select('situacao, criado_em'),
     ])
     if (v.data)   setVendas(v.data)
     if (iv.data)  setItensVenda(iv.data)
@@ -209,6 +229,8 @@ function BI() {
     if (inv.data) setInvestimentos(inv.data)
     if (c.data)   setClientes(c.data)
     if (p.data)   setProds(p.data)
+    if (r.data)   setRetiradas(r.data)
+    if (enc.data) setEncomendas(enc.data)
     setCarregando(false)
   }
 
@@ -217,7 +239,7 @@ function BI() {
     [vendas]
   )
 
-  // ── Dados filtrados ──────────────────────────────────────────────────────
+  // ── Filtros ──────────────────────────────────────────────────────────────
   const vendasFiltradas = useMemo(() => vendas.filter(v => {
     const d = new Date(v.data_para_pagar + 'T12:00:00')
     if (filtroMes && d.getMonth()+1 !== parseInt(filtroMes)) return false
@@ -244,6 +266,19 @@ function BI() {
     return true
   }), [devolucoes, filtroMes, filtroAno])
 
+  // Retiradas filtradas — campo 'mes' é texto "Maio/2026"
+  const MESES_PT = { janeiro:1, fevereiro:2, março:3, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 }
+  const retiradasFiltradas = useMemo(() => retiradas.filter(r => {
+    if (!r.mes) return true
+    const partes = r.mes.split('/')          // ["Maio", "2026"]
+    const nomeMes = (partes[0] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const numMes  = MESES_PT[nomeMes] || 0
+    const anoRet  = parseInt(partes[1]) || 0
+    if (filtroMes && numMes !== parseInt(filtroMes)) return false
+    if (filtroAno && anoRet !== parseInt(filtroAno)) return false
+    return true
+  }), [retiradas, filtroMes, filtroAno])
+
   const anosDisponiveis = useMemo(
     () => [...new Set(vendas.map(v => new Date(v.data_para_pagar+'T12:00:00').getFullYear()))].sort(),
     [vendas]
@@ -259,8 +294,22 @@ function BI() {
   const totalVendidoBruto = useMemo(() => vendasFiltradas.reduce((acc,v) => acc + parseFloat(v.valor_total||0), 0), [vendasFiltradas])
   const totalVendido      = Math.max(0, totalVendidoBruto - totalDevolvido)
   const totalRecebido     = useMemo(() => vendasFiltradas.reduce((acc,v) => acc + parseFloat(v.recebido||0), 0), [vendasFiltradas])
-  const totalRetirado     = useMemo(() => vendasFiltradas.reduce((acc,v) => acc + parseFloat(v.valor_retirado||0), 0), [vendasFiltradas])
   const ticketMedio       = vendasFiltradas.length > 0 ? totalVendidoBruto / vendasFiltradas.length : 0
+
+  // Retiradas — campo 'valor' conforme tabela confirmada
+  const totalRetirado = useMemo(
+    () => retiradasFiltradas.reduce((acc, r) => acc + parseFloat(r.valor || 0), 0),
+    [retiradasFiltradas]
+  )
+
+  // Encomendas pendentes — AJUSTE o campo/valor de status se necessário
+  const qtdEncomendas = useMemo(
+    () => encomendas.filter(e => {
+      const s = (e.situacao || e.status || '').toLowerCase()
+      return s === 'pendente' || s === 'aguardando' || s === 'em andamento'
+    }).length,
+    [encomendas]
+  )
 
   const atrasados = useMemo(() => vendasFiltradas.filter(v => {
     if (parseFloat(v.recebido||0) >= parseFloat(v.valor_total||0)) return false
@@ -270,7 +319,7 @@ function BI() {
 
   const taxaInad = vendasFiltradas.length > 0 ? ((atrasados/vendasFiltradas.length)*100).toFixed(1) : 0
 
-  // ── Dados dos gráficos ───────────────────────────────────────────────────
+  // ── Dados gráficos ───────────────────────────────────────────────────────
   const dadosLinha = useMemo(() => {
     const meses = {}
     vendas.forEach(v => {
@@ -291,55 +340,55 @@ function BI() {
   }, [vendas, devolucoes, filtroAno])
 
   const dadosMaisVendidos = useMemo(() => {
-    const contagem = {}
+    const c = {}
     itensFiltrados.forEach(i => {
       const nome = i.produtos?.nome || 'Desconhecido'
       const key  = nome.length > 22 ? nome.substring(0,22)+'…' : nome
-      if (!contagem[key]) contagem[key] = { nome:key, quantidade:0, valor:0 }
-      contagem[key].quantidade += i.quantidade
-      contagem[key].valor      += i.quantidade * parseFloat(i.valor_unitario||0)
+      if (!c[key]) c[key] = { nome:key, quantidade:0, valor:0 }
+      c[key].quantidade += i.quantidade
+      c[key].valor      += i.quantidade * parseFloat(i.valor_unitario||0)
     })
     devolucoesFiltradas.forEach(dev => {
       const nome = dev.produtos?.nome || 'Desconhecido'
       const key  = nome.length > 22 ? nome.substring(0,22)+'…' : nome
-      if (contagem[key]) contagem[key].quantidade = Math.max(0, contagem[key].quantidade - dev.quantidade)
+      if (c[key]) c[key].quantidade = Math.max(0, c[key].quantidade - dev.quantidade)
     })
-    return Object.values(contagem).sort((a,b) => b.quantidade - a.quantidade).slice(0,10)
+    return Object.values(c).sort((a,b) => b.quantidade - a.quantidade).slice(0,10)
   }, [itensFiltrados, devolucoesFiltradas])
 
   const dadosMenosVendidos = useMemo(() => {
-    const contagem = {}
+    const c = {}
     itensFiltrados.forEach(i => {
       const nome = i.produtos?.nome || 'Desconhecido'
       const key  = nome.length > 22 ? nome.substring(0,22)+'…' : nome
-      if (!contagem[key]) contagem[key] = { nome:key, quantidade:0, valor:0 }
-      contagem[key].quantidade += i.quantidade
-      contagem[key].valor      += i.quantidade * parseFloat(i.valor_unitario||0)
+      if (!c[key]) c[key] = { nome:key, quantidade:0, valor:0 }
+      c[key].quantidade += i.quantidade
+      c[key].valor      += i.quantidade * parseFloat(i.valor_unitario||0)
     })
-    return Object.values(contagem).sort((a,b) => a.quantidade - b.quantidade).slice(0,10)
+    return Object.values(c).sort((a,b) => a.quantidade - b.quantidade).slice(0,10)
   }, [itensFiltrados])
 
   const dadosMaisDevolvidos = useMemo(() => {
-    const contagem = {}
+    const c = {}
     devolucoesFiltradas.forEach(dev => {
       const nome = dev.produtos?.nome || 'Desconhecido'
       const key  = nome.length > 22 ? nome.substring(0,22)+'…' : nome
-      if (!contagem[key]) contagem[key] = { nome:key, quantidade:0, valor:0 }
-      contagem[key].quantidade += dev.quantidade
-      contagem[key].valor      += parseFloat(dev.valor_total||0)
+      if (!c[key]) c[key] = { nome:key, quantidade:0, valor:0 }
+      c[key].quantidade += dev.quantidade
+      c[key].valor      += parseFloat(dev.valor_total||0)
     })
-    return Object.values(contagem).sort((a,b) => b.quantidade - a.quantidade).slice(0,10)
+    return Object.values(c).sort((a,b) => b.quantidade - a.quantidade).slice(0,10)
   }, [devolucoesFiltradas])
 
   const dadosFornecedor = useMemo(() => {
-    const forns = {}
+    const f = {}
     investimentos.forEach(inv => {
       const forn = inv.fornecedor || 'Desconhecido'
-      if (!forns[forn]) forns[forn] = { fornecedor:forn, investido:0, qtdCompras:0 }
-      forns[forn].investido  += parseFloat(inv.valor_total_pago||0)
-      forns[forn].qtdCompras += 1
+      if (!f[forn]) f[forn] = { fornecedor:forn, investido:0, qtdCompras:0 }
+      f[forn].investido  += parseFloat(inv.valor_total_pago||0)
+      f[forn].qtdCompras += 1
     })
-    return Object.values(forns).sort((a,b) => b.investido - a.investido)
+    return Object.values(f).sort((a,b) => b.investido - a.investido)
   }, [investimentos])
 
   const dadosCategoria = useMemo(() => {
@@ -347,7 +396,7 @@ function BI() {
     itensFiltrados.forEach(i => {
       const cat = i.produtos?.categoria || 'Outros'
       if (!cats[cat]) cats[cat] = { categoria:cat, valor:0, quantidade:0 }
-      cats[cat].valor     += i.quantidade * parseFloat(i.valor_unitario||0)
+      cats[cat].valor      += i.quantidade * parseFloat(i.valor_unitario||0)
       cats[cat].quantidade += i.quantidade
     })
     devolucoesFiltradas.forEach(dev => {
@@ -378,37 +427,35 @@ function BI() {
       const d = new Date(dev.criado_em)
       const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes:chave, qtdVendida:0, valorVendido:0, qtdDevolvida:0, valorDevolvido:0 }
-      meses[chave].qtdDevolvida  += dev.quantidade
+      meses[chave].qtdDevolvida   += dev.quantidade
       meses[chave].valorDevolvido += parseFloat(dev.valor_total||0)
     })
     return ordenarMeses(Object.values(meses))
   }, [itensVenda, vendasMap, devolucoesFiltradas, filtroMes, filtroAno, filtroCategoria])
 
   const dadosVendedor = useMemo(() => {
-    const vendedores = {}
-    vendasFiltradas.forEach(v => {
-      const nome = v.vendedor_nome || 'Sem vendedor'
-      if (!vendedores[nome]) vendedores[nome] = { vendedor:nome, quantidade:0, valor:0 }
-      vendedores[nome].quantidade += 1
-      vendedores[nome].valor      += parseFloat(v.valor_total||0)
+    const v = {}
+    vendasFiltradas.forEach(venda => {
+      const nome = venda.vendedor_nome || 'Sem vendedor'
+      if (!v[nome]) v[nome] = { vendedor:nome, quantidade:0, valor:0 }
+      v[nome].quantidade += 1
+      v[nome].valor      += parseFloat(venda.valor_total||0)
     })
-    return Object.values(vendedores).sort((a,b) => b.valor - a.valor)
+    return Object.values(v).sort((a,b) => b.valor - a.valor)
   }, [vendasFiltradas])
 
-  // ── Ranking clientes ────────────────────────────────────────────────────
   const dadosClientesRanking = useMemo(() => {
-    const ranking = {}
+    const r = {}
     vendasFiltradas.forEach(v => {
       const nome = v.clientes?.nome || 'Cliente Desconhecido'
-      if (!ranking[nome]) ranking[nome] = { nome, totalComprado:0, qtdPedidos:0, totalRecebido:0 }
-      ranking[nome].totalComprado += parseFloat(v.valor_total||0)
-      ranking[nome].qtdPedidos    += 1
-      ranking[nome].totalRecebido += parseFloat(v.recebido||0)
+      if (!r[nome]) r[nome] = { nome, totalComprado:0, qtdPedidos:0, totalRecebido:0 }
+      r[nome].totalComprado += parseFloat(v.valor_total||0)
+      r[nome].qtdPedidos    += 1
+      r[nome].totalRecebido += parseFloat(v.recebido||0)
     })
-    return Object.values(ranking).sort((a,b) => b.totalComprado - a.totalComprado).slice(0,10)
+    return Object.values(r).sort((a,b) => b.totalComprado - a.totalComprado).slice(0,10)
   }, [vendasFiltradas])
 
-  // ── Previsão ─────────────────────────────────────────────────────────────
   const previsaoVendas = useMemo(() => {
     if (dadosLinha.length < 2) return null
     const n = dadosLinha.length
@@ -431,21 +478,21 @@ function BI() {
   )
 
   const proximasDatasFestejas = useMemo(() => proximasDatas(4), [])
-
-  // ── Produtos previstos para próxima data ───────────────────────────────
   const proxData = useMemo(() => proximaDataComemorativa(), [])
   const prodsPrevistas = useMemo(() => {
-    const contagem = {}
+    const c = {}
     itensVenda.filter(i => proxData.categorias.includes(i.produtos?.categoria)).forEach(i => {
       const nome = i.produtos?.nome || 'Desconhecido'
-      if (!contagem[nome]) contagem[nome] = { nome, quantidade:0, categoria:i.produtos?.categoria }
-      contagem[nome].quantidade += i.quantidade
+      if (!c[nome]) c[nome] = { nome, quantidade:0, categoria:i.produtos?.categoria }
+      c[nome].quantidade += i.quantidade
     })
-    return Object.values(contagem).sort((a,b) => b.quantidade - a.quantidade).slice(0,5)
+    return Object.values(c).sort((a,b) => b.quantidade - a.quantidade).slice(0,5)
   }, [itensVenda, proxData])
 
-  const totalInvestido = dadosFornecedor.reduce((acc,f) => acc+f.investido, 0)
+  const totalInvestido  = dadosFornecedor.reduce((acc,f) => acc+f.investido, 0)
   const totalCategValor = dadosCategoria.reduce((acc,c) => acc+c.valor, 0)
+  const totalCategQtd   = dadosCategoria.reduce((acc,c) => acc+c.quantidade, 0)
+  const maxCategQtd     = dadosCategoria.length > 0 ? Math.max(...dadosCategoria.map(c => c.quantidade)) : 1
   const temFiltroAtivo  = filtroAno !== '' || filtroMes !== '' || filtroCategoria !== ''
 
   function limparFiltros() { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }
@@ -461,7 +508,6 @@ function BI() {
     )
   }
 
-  // ── Rótulos inline nos gráficos (sem tooltip) ────────────────────────────
   const fmtR = v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''
   const fmtN = v => v > 0 ? v : ''
 
@@ -480,9 +526,7 @@ function BI() {
             <Filter size={16} color="#1a6b5a"/>
             <span style={{ fontSize:'13px', fontWeight:'600', color:'#2d3748' }}>Filtros</span>
             {temFiltroAtivo && (
-              <span style={{ background:'#1a6b5a', color:'white', fontSize:'10px', fontWeight:'bold', padding:'2px 8px', borderRadius:'20px' }}>
-                Ativo
-              </span>
+              <span style={{ background:'#1a6b5a', color:'white', fontSize:'10px', fontWeight:'bold', padding:'2px 8px', borderRadius:'20px' }}>Ativo</span>
             )}
           </div>
           <div style={{ display:'flex', gap:'8px' }}>
@@ -499,15 +543,14 @@ function BI() {
             </button>
           </div>
         </div>
-
         {mostrarFiltros && (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:'12px' }}>
             {[
               { label:'Ano',       value:filtroAno,       set:setFiltroAno,       placeholder:'Todos os anos',    options:anosDisponiveis.map(a=>({v:String(a),l:String(a)})) },
               { label:'Mês',       value:filtroMes,       set:setFiltroMes,       placeholder:'Todos os meses',   options:MESES_NOMES.map((m,i)=>({v:String(i+1),l:m})) },
               { label:'Categoria', value:filtroCategoria, set:setFiltroCategoria, placeholder:'Todas categorias', options:categorias.map(c=>({v:c,l:c})) },
-            ].map((f,i) => (
-              <div key={i}>
+            ].map((f,idx) => (
+              <div key={idx}>
                 <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#718096', marginBottom:'5px', textTransform:'uppercase', letterSpacing:'0.5px' }}>{f.label}</label>
                 <select value={f.value} onChange={e => f.set(e.target.value)}
                   style={{ width:'100%', padding:'9px 12px', borderRadius:'9px', border:`1.5px solid ${f.value?'#1a6b5a':'#e2e8f0'}`, fontSize:'13px', color:'#2d3748', background:'#fff', cursor:'pointer', outline:'none' }}>
@@ -522,15 +565,16 @@ function BI() {
 
       {/* ── KPIs ── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(155px, 1fr))', gap:'12px', marginBottom:'16px' }}>
-        <KpiCard label="Total Vendido"   valor={`R$ ${totalVendido.toFixed(2)}`}      cor="#1a6b5a" icon={DollarSign}    selecionado={kpiSelecionado==='Total Vendido'}   onClick={()=>setKpiSelecionado(kpiSelecionado==='Total Vendido'?null:'Total Vendido')}/>
-        <KpiCard label="Total Recebido"  valor={`R$ ${totalRecebido.toFixed(2)}`}     cor="#29abe2" icon={CheckCircle}   selecionado={kpiSelecionado==='Total Recebido'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='Total Recebido'?null:'Total Recebido')}/>
-        <KpiCard label="Valor Retirado"  valor={`R$ ${totalRetirado.toFixed(2)}`}     cor="#8b5cf6" icon={ArrowUpRight}  selecionado={kpiSelecionado==='Valor Retirado'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='Valor Retirado'?null:'Valor Retirado')}/>
-        <KpiCard label="Ticket Médio"    valor={`R$ ${ticketMedio.toFixed(2)}`}       cor="#f5821f" icon={Target}        selecionado={kpiSelecionado==='Ticket Médio'}    onClick={()=>setKpiSelecionado(kpiSelecionado==='Ticket Médio'?null:'Ticket Médio')}/>
-        <KpiCard label="Inadimplência"   valor={`${taxaInad}%`}                       cor={parseFloat(taxaInad)>20?'#ef4444':'#10b981'} icon={AlertTriangle} selecionado={kpiSelecionado==='Inadimplência'} onClick={()=>setKpiSelecionado(kpiSelecionado==='Inadimplência'?null:'Inadimplência')}/>
-        <KpiCard label="Total Vendas"    valor={vendasFiltradas.length}               cor="#e91e8c" icon={ShoppingCart}  selecionado={kpiSelecionado==='Total Vendas'}    onClick={()=>setKpiSelecionado(kpiSelecionado==='Total Vendas'?null:'Total Vendas')}/>
-        <KpiCard label="Clientes Ativos" valor={clientes.length}                      cor="#06b6d4" icon={Users}         selecionado={kpiSelecionado==='Clientes Ativos'} onClick={()=>setKpiSelecionado(kpiSelecionado==='Clientes Ativos'?null:'Clientes Ativos')}/>
-        <KpiCard label="Valor Devolvido" valor={`R$ ${totalDevolvido.toFixed(2)}`}    cor="#ef4444" icon={RotateCcw}     selecionado={kpiSelecionado==='Valor Devolvido'} onClick={()=>setKpiSelecionado(kpiSelecionado==='Valor Devolvido'?null:'Valor Devolvido')}/>
-        <KpiCard label="Qtd Devoluções"  valor={qtdDevolucoes}                        cor="#f97316" icon={ArrowDownRight} selecionado={kpiSelecionado==='Qtd Devoluções'} onClick={()=>setKpiSelecionado(kpiSelecionado==='Qtd Devoluções'?null:'Qtd Devoluções')}/>
+        <KpiCard label="Total Vendido"      valor={`R$ ${totalVendido.toFixed(2)}`}   cor="#1a6b5a" icon={DollarSign}     selecionado={kpiSelecionado==='tv'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tv'?null:'tv')}/>
+        <KpiCard label="Total Recebido"     valor={`R$ ${totalRecebido.toFixed(2)}`}  cor="#29abe2" icon={CheckCircle}    selecionado={kpiSelecionado==='tr'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tr'?null:'tr')}/>
+        <KpiCard label="Valor Retirado"     valor={`R$ ${totalRetirado.toFixed(2)}`}  cor="#8b5cf6" icon={ArrowUpRight}   selecionado={kpiSelecionado==='vr'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='vr'?null:'vr')}/>
+        <KpiCard label="Ticket Médio"       valor={`R$ ${ticketMedio.toFixed(2)}`}    cor="#f5821f" icon={Target}         selecionado={kpiSelecionado==='tm'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tm'?null:'tm')}/>
+        <KpiCard label="Inadimplência"      valor={`${taxaInad}%`}                    cor={parseFloat(taxaInad)>20?'#ef4444':'#10b981'} icon={AlertTriangle} selecionado={kpiSelecionado==='in'} onClick={()=>setKpiSelecionado(kpiSelecionado==='in'?null:'in')}/>
+        <KpiCard label="Total Vendas"       valor={vendasFiltradas.length}            cor="#e91e8c" icon={ShoppingCart}   selecionado={kpiSelecionado==='tv2'} onClick={()=>setKpiSelecionado(kpiSelecionado==='tv2'?null:'tv2')}/>
+        <KpiCard label="Clientes Ativos"    valor={clientes.length}                   cor="#06b6d4" icon={Users}          selecionado={kpiSelecionado==='ca'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='ca'?null:'ca')}/>
+        <KpiCard label="Valor Devolvido"    valor={`R$ ${totalDevolvido.toFixed(2)}`} cor="#ef4444" icon={RotateCcw}      selecionado={kpiSelecionado==='vd'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='vd'?null:'vd')}/>
+        <KpiCard label="Qtd Devoluções"     valor={qtdDevolucoes}                     cor="#f97316" icon={ArrowDownRight} selecionado={kpiSelecionado==='qd'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='qd'?null:'qd')}/>
+        <KpiCard label="Encomendas Pend."   valor={qtdEncomendas}                     cor="#f7c948" icon={ClipboardList}  selecionado={kpiSelecionado==='ep'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='ep'?null:'ep')}/>
       </div>
 
       {/* ── 1. Total Vendido por Mês ── */}
@@ -540,7 +584,7 @@ function BI() {
             <ComposedChart width={Math.max(360, dadosLinha.length*90)} height={280} data={dadosLinha} margin={{top:28,right:16,left:8,bottom:10}}>
               <defs>
                 <linearGradient id="gV" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#1a6b5a" stopOpacity={0.22}/>
+                  <stop offset="5%"  stopColor="#1a6b5a" stopOpacity={0.25}/>
                   <stop offset="95%" stopColor="#1a6b5a" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1">
@@ -603,7 +647,7 @@ function BI() {
       {/* ── 3. Desempenho por Vendedor ── */}
       <Card titulo="Desempenho por Vendedor" icon={Award} cor="#8b5cf6">
         {dadosVendedor.length === 0 ? (
-          <p style={{color:'#a0aec0',textAlign:'center',padding:'28px',fontSize:'13px'}}>Nenhuma venda encontrada para o período selecionado.</p>
+          <p style={{color:'#a0aec0',textAlign:'center',padding:'28px',fontSize:'13px'}}>Nenhuma venda encontrada para o período.</p>
         ) : (
           <>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'20px', marginBottom:'20px' }}>
@@ -664,17 +708,18 @@ function BI() {
         )}
       </Card>
 
-      {/* ── 4. Top 10 Mais Vendidos ── */}
+      {/* ── 4. Top 10 Mais Vendidos — estilo original com gradiente ── */}
       <Card titulo="Top 10 Produtos Mais Vendidos" icon={TrendingUp} cor="#1a6b5a">
         {dadosMaisVendidos.length === 0
           ? <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum produto encontrado.</p>
           : dadosMaisVendidos.map((p,i) => (
-            <BarraHorizontal
+            <BarraTop
               key={i}
-              nome={`${i+1}. ${p.nome}`}
+              nome={p.nome}
               valor={p.quantidade}
               max={dadosMaisVendidos[0]?.quantidade||1}
-              cor={CORES[i%CORES.length]}
+              corInicio="#1a6b5a"
+              corFim="#4ade80"
               sub={`R$ ${p.valor.toFixed(2)}`}
               subDir={`${p.quantidade} un.`}
             />
@@ -689,12 +734,13 @@ function BI() {
           : dadosMenosVendidos.map((p,i) => {
             const maxRef = dadosMaisVendidos[0]?.quantidade || 1
             return (
-              <BarraHorizontal
+              <BarraTop
                 key={i}
-                nome={`${i+1}. ${p.nome}`}
+                nome={p.nome}
                 valor={p.quantidade}
                 max={maxRef}
-                cor="#ef4444"
+                corInicio="#ef4444"
+                corFim="#f97316"
                 sub={`R$ ${p.valor.toFixed(2)}`}
                 subDir={`${p.quantidade} un.`}
               />
@@ -711,91 +757,74 @@ function BI() {
             <p style={{color:'#10b981',fontWeight:'bold',fontSize:'13px'}}>Nenhuma devolução registrada!</p>
           </div>
         ) : dadosMaisDevolvidos.map((p,i) => (
-          <BarraHorizontal
+          <BarraTop
             key={i}
-            nome={`${i+1}. ${p.nome}`}
+            nome={p.nome}
             valor={p.quantidade}
             max={dadosMaisDevolvidos[0]?.quantidade||1}
-            cor="#f97316"
+            corInicio="#f97316"
+            corFim="#fbbf24"
             sub={`R$ ${p.valor.toFixed(2)}`}
             subDir={`${p.quantidade} un.`}
           />
         ))}
       </Card>
 
-      {/* ── 7. Vendas por Categoria — MELHORADO ── */}
+      {/* ── 7. Vendas por Categoria — sem scroll horizontal nas barras ── */}
       <Card titulo="Vendas por Categoria" icon={Layers} cor="#29abe2">
         {dadosCategoria.length === 0 ? (
           <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhuma categoria encontrada.</p>
         ) : (
           <>
-            {/* Pizza + Legenda */}
+            {/* Pizza + legenda lateral */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'24px', alignItems:'center', marginBottom:'24px' }}>
               <div>
                 <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Distribuição por Valor (R$)</p>
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={210}>
                   <PieChart>
-                    <Pie data={dadosCategoria} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" outerRadius={95} innerRadius={48} paddingAngle={3} labelLine={false} label={LabelPizza}>
+                    <Pie data={dadosCategoria} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" outerRadius={90} innerRadius={44} paddingAngle={3} labelLine={false} label={LabelPizza}>
                       {dadosCategoria.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
-                {/* Total centralizado */}
                 <p style={{textAlign:'center',fontSize:'12px',color:'#718096',marginTop:'4px'}}>
                   Total: <strong style={{color:'#1a6b5a'}}>R$ {totalCategValor.toFixed(2)}</strong>
                 </p>
               </div>
+              {/* Legenda lateral detalhada */}
               <div>
-                <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Legenda detalhada</p>
-                <LegendaPizza dados={dadosCategoria} totalValor={totalCategValor}/>
-              </div>
-            </div>
-
-            {/* Barra horizontal por quantidade — completo, com todos os labels */}
-            <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px' }}>
-              <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'14px'}}>Por Quantidade vendida</p>
-              <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
-                <div style={{ minWidth: Math.max(320, dadosCategoria.length * 80) }}>
-                  <ResponsiveContainer width="100%" height={Math.max(180, dadosCategoria.length*44)}>
-                    <BarChart data={dadosCategoria} layout="vertical" margin={{top:0,right:70,left:4,bottom:0}} barSize={20}>
-                      <XAxis type="number" hide/>
-                      <YAxis dataKey="categoria" type="category" tick={{fontSize:12,fill:'#4a5568'}} width={130} axisLine={false} tickLine={false}/>
-                      <Bar dataKey="quantidade" name="Qtd" radius={[0,6,6,0]}>
-                        {dadosCategoria.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
-                        <LabelList dataKey="quantidade" position="right" style={{fontSize:'12px',fontWeight:'bold',fill:'#2d3748'}}/>
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Detalhamento</p>
+                <div style={{ display:'flex', flexDirection:'column', gap:'7px' }}>
+                  {dadosCategoria.map((d,i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'7px 10px', borderRadius:'9px', background:'#f9fafb' }}>
+                      <div style={{ width:'9px', height:'9px', borderRadius:'3px', background:CORES[i%CORES.length], flexShrink:0 }}/>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:'12px', fontWeight:'600', color:'#2d3748', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{d.categoria}</div>
+                        <div style={{ fontSize:'10px', color:'#a0aec0' }}>{d.quantidade} un.</div>
+                      </div>
+                      <div style={{ textAlign:'right', flexShrink:0 }}>
+                        <div style={{ fontSize:'12px', fontWeight:'bold', color:CORES[i%CORES.length] }}>R$ {d.valor.toFixed(0)}</div>
+                        <div style={{ fontSize:'10px', color:'#a0aec0' }}>{totalCategValor>0?((d.valor/totalCategValor)*100).toFixed(1):0}%</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Tabela resumo */}
-            <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px', marginTop:'4px', overflowX:'auto' }}>
-              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px',minWidth:'320px'}}>
-                <thead>
-                  <tr style={{background:'#f7fafc'}}>
-                    {['Categoria','Valor R$','Qtd','% Valor'].map((h,i)=>(
-                      <th key={i} style={{padding:'8px 10px',textAlign:i===0?'left':'center',color:'#718096',fontWeight:'600',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.5px'}}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {dadosCategoria.map((c,i) => (
-                    <tr key={i} style={{borderBottom:'1px solid #f7fafc'}}>
-                      <td style={{padding:'8px 10px'}}>
-                        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
-                          <div style={{width:'8px',height:'8px',borderRadius:'2px',background:CORES[i%CORES.length],flexShrink:0}}/>
-                          <span style={{fontWeight:'600',color:'#2d3748'}}>{c.categoria}</span>
-                        </div>
-                      </td>
-                      <td style={{padding:'8px 10px',textAlign:'center',fontWeight:'bold',color:CORES[i%CORES.length]}}>R$ {c.valor.toFixed(2)}</td>
-                      <td style={{padding:'8px 10px',textAlign:'center',color:'#4a5568'}}>{c.quantidade}</td>
-                      <td style={{padding:'8px 10px',textAlign:'center',color:'#718096'}}>{totalCategValor>0?((c.valor/totalCategValor)*100).toFixed(1):0}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Barras por quantidade — SEM scroll, nome + barra + qtd + detalhes em linha */}
+            <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px' }}>
+              <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'16px'}}>Por Quantidade Vendida</p>
+              {dadosCategoria.map((item, i) => (
+                <BarraCategoria
+                  key={i}
+                  item={item}
+                  max={maxCategQtd}
+                  totalValor={totalCategValor}
+                  totalQtd={totalCategQtd}
+                  cor={CORES[i%CORES.length]}
+                />
+              ))}
             </div>
           </>
         )}
@@ -839,54 +868,48 @@ function BI() {
       <Card titulo="Clientes que Mais Compraram" icon={Star} cor="#e91e8c">
         {dadosClientesRanking.length === 0 ? (
           <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhuma venda encontrada para o período.</p>
-        ) : (
-          <>
-            {dadosClientesRanking.map((c,i) => {
-              const pago = c.totalRecebido
-              const pendente = Math.max(0, c.totalComprado - pago)
-              return (
-                <div key={i} style={{ marginBottom:'14px', padding:'12px', borderRadius:'12px', background:'#fafafa', border:'1px solid #f0f0f0' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px' }}>
-                    {/* Medalha */}
-                    <div style={{
-                      width:'32px', height:'32px', borderRadius:'50%', flexShrink:0,
-                      background: i===0 ? 'linear-gradient(135deg,#f6d365,#fda085)' : i===1 ? 'linear-gradient(135deg,#d3d3d3,#a9a9a9)' : i===2 ? 'linear-gradient(135deg,#c97b4b,#9c5a2a)' : '#f0f4f8',
-                      display:'flex', alignItems:'center', justifyContent:'center',
-                      fontSize:'13px', fontWeight:'bold', color: i<3 ? 'white' : '#718096'
-                    }}>
-                      {i < 3 ? ['1º','2º','3º'][i] : `${i+1}º`}
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:'13px', fontWeight:'700', color:'#2d3748', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.nome}</div>
-                      <div style={{ fontSize:'11px', color:'#a0aec0' }}>{c.qtdPedidos} pedido(s)</div>
-                    </div>
-                    <div style={{ textAlign:'right', flexShrink:0 }}>
-                      <div style={{ fontSize:'14px', fontWeight:'bold', color:'#e91e8c' }}>R$ {c.totalComprado.toFixed(2)}</div>
-                    </div>
-                  </div>
-                  <div style={{ display:'flex', gap:'8px' }}>
-                    <div style={{ flex:1, background:'#e8f5e9', borderRadius:'8px', padding:'6px 10px', textAlign:'center' }}>
-                      <div style={{ fontSize:'10px', color:'#2e7d32', fontWeight:'600' }}>Pago</div>
-                      <div style={{ fontSize:'12px', color:'#1a6b5a', fontWeight:'bold' }}>R$ {pago.toFixed(2)}</div>
-                    </div>
-                    <div style={{ flex:1, background: pendente > 0 ? '#fff8e1' : '#f7fafc', borderRadius:'8px', padding:'6px 10px', textAlign:'center' }}>
-                      <div style={{ fontSize:'10px', color: pendente > 0 ? '#f57f17' : '#a0aec0', fontWeight:'600' }}>Pendente</div>
-                      <div style={{ fontSize:'12px', color: pendente > 0 ? '#f5821f' : '#a0aec0', fontWeight:'bold' }}>R$ {pendente.toFixed(2)}</div>
-                    </div>
-                    <div style={{ flex:1, background:'#f7fafc', borderRadius:'8px', padding:'6px 10px', textAlign:'center' }}>
-                      <div style={{ fontSize:'10px', color:'#718096', fontWeight:'600' }}>Ticket</div>
-                      <div style={{ fontSize:'12px', color:'#4a5568', fontWeight:'bold' }}>R$ {(c.totalComprado/c.qtdPedidos).toFixed(2)}</div>
-                    </div>
-                  </div>
+        ) : dadosClientesRanking.map((c,i) => {
+          const pendente = Math.max(0, c.totalComprado - c.totalRecebido)
+          return (
+            <div key={i} style={{ marginBottom:'14px', padding:'12px', borderRadius:'12px', background:'#fafafa', border:'1px solid #f0f0f0' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px' }}>
+                <div style={{
+                  width:'32px', height:'32px', borderRadius:'50%', flexShrink:0,
+                  background: i===0 ? 'linear-gradient(135deg,#f6d365,#fda085)' : i===1 ? 'linear-gradient(135deg,#d3d3d3,#a9a9a9)' : i===2 ? 'linear-gradient(135deg,#c97b4b,#9c5a2a)' : '#f0f4f8',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:'12px', fontWeight:'bold', color: i<3 ? 'white' : '#718096'
+                }}>
+                  {i < 3 ? ['1º','2º','3º'][i] : `${i+1}º`}
                 </div>
-              )
-            })}
-          </>
-        )}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:'13px', fontWeight:'700', color:'#2d3748', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.nome}</div>
+                  <div style={{ fontSize:'11px', color:'#a0aec0' }}>{c.qtdPedidos} pedido(s)</div>
+                </div>
+                <div style={{ textAlign:'right', flexShrink:0 }}>
+                  <div style={{ fontSize:'14px', fontWeight:'bold', color:'#e91e8c' }}>R$ {c.totalComprado.toFixed(2)}</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:'6px' }}>
+                <div style={{ flex:1, background:'#e8f5e9', borderRadius:'8px', padding:'6px 8px', textAlign:'center' }}>
+                  <div style={{ fontSize:'10px', color:'#2e7d32', fontWeight:'600' }}>Pago</div>
+                  <div style={{ fontSize:'12px', color:'#1a6b5a', fontWeight:'bold' }}>R$ {c.totalRecebido.toFixed(2)}</div>
+                </div>
+                <div style={{ flex:1, background: pendente > 0 ? '#fff8e1' : '#f7fafc', borderRadius:'8px', padding:'6px 8px', textAlign:'center' }}>
+                  <div style={{ fontSize:'10px', color: pendente > 0 ? '#f57f17' : '#a0aec0', fontWeight:'600' }}>Pendente</div>
+                  <div style={{ fontSize:'12px', color: pendente > 0 ? '#f5821f' : '#a0aec0', fontWeight:'bold' }}>R$ {pendente.toFixed(2)}</div>
+                </div>
+                <div style={{ flex:1, background:'#f7fafc', borderRadius:'8px', padding:'6px 8px', textAlign:'center' }}>
+                  <div style={{ fontSize:'10px', color:'#718096', fontWeight:'600' }}>Ticket</div>
+                  <div style={{ fontSize:'12px', color:'#4a5568', fontWeight:'bold' }}>R$ {(c.totalComprado/c.qtdPedidos).toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </Card>
 
-      {/* ── 10-12. Cards de Previsão, Estoque e Datas ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'16px', marginBottom:'0' }}>
+      {/* ── 10-12. Previsão, Estoque, Datas ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'16px' }}>
 
         {/* Previsão */}
         <div style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', borderTop:'3px solid #8b5cf6' }}>
@@ -909,17 +932,17 @@ function BI() {
                   ? <TrendingDown size={16} color="#ef4444"/>
                   : <Minus size={16} color="#a0aec0"/>
                 }
-                <span style={{ fontSize:'13px', color: previsaoVendas.tendencia === 'Alta' ? '#10b981' : previsaoVendas.tendencia === 'Queda' ? '#ef4444' : '#718096', fontWeight:'600' }}>
+                <span style={{ fontSize:'13px', color: previsaoVendas.tendencia==='Alta'?'#10b981':previsaoVendas.tendencia==='Queda'?'#ef4444':'#718096', fontWeight:'600' }}>
                   Tendência de {previsaoVendas.tendencia}
                 </span>
               </div>
-              <div style={{ background: parseFloat(previsaoVendas.valor)>=3000 ? '#e8f5e9' : '#fff8e1', padding:'10px 14px', borderRadius:'10px', display:'flex', alignItems:'center', gap:'8px' }}>
+              <div style={{ background: parseFloat(previsaoVendas.valor)>=3000?'#e8f5e9':'#fff8e1', padding:'10px 14px', borderRadius:'10px', display:'flex', alignItems:'center', gap:'8px' }}>
                 {parseFloat(previsaoVendas.valor)>=3000
                   ? <CheckCircle size={16} color="#2e7d32"/>
                   : <AlertTriangle size={16} color="#f57f17"/>
                 }
-                <span style={{ fontSize:'12px', fontWeight:'600', color: parseFloat(previsaoVendas.valor)>=3000 ? '#2e7d32' : '#f57f17' }}>
-                  {parseFloat(previsaoVendas.valor)>=3000 ? 'Acima da meta de R$ 3.000' : 'Abaixo da meta de R$ 3.000'}
+                <span style={{ fontSize:'12px', fontWeight:'600', color: parseFloat(previsaoVendas.valor)>=3000?'#2e7d32':'#f57f17' }}>
+                  {parseFloat(previsaoVendas.valor)>=3000?'Acima da meta de R$ 3.000':'Abaixo da meta de R$ 3.000'}
                 </span>
               </div>
             </>
@@ -942,12 +965,12 @@ function BI() {
               <p style={{color:'#10b981',fontWeight:'bold',fontSize:'13px'}}>Nenhum produto crítico!</p>
             </div>
           ) : produtosAcabando.map((p,i) => (
-            <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', background: p.estoque===0 ? '#fff5f5' : '#fffbeb', borderRadius:'10px', marginBottom:'8px', borderLeft:`3px solid ${p.estoque===0?'#ef4444':'#f5821f'}` }}>
+            <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', background: p.estoque===0?'#fff5f5':'#fffbeb', borderRadius:'10px', marginBottom:'8px', borderLeft:`3px solid ${p.estoque===0?'#ef4444':'#f5821f'}` }}>
               <div>
                 <strong style={{fontSize:'13px',color:'#2d3748'}}>{p.nome}</strong>
                 <div style={{fontSize:'11px',color:'#a0aec0'}}>{p.categoria}</div>
               </div>
-              <div style={{ width:'36px', height:'36px', borderRadius:'10px', background: p.estoque===0 ? '#fee2e2' : '#fef3c7', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <div style={{ width:'36px', height:'36px', borderRadius:'10px', background:p.estoque===0?'#fee2e2':'#fef3c7', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <span style={{fontWeight:'bold',color:p.estoque===0?'#ef4444':'#f5821f',fontSize:'16px'}}>{p.estoque}</span>
               </div>
             </div>
@@ -965,21 +988,20 @@ function BI() {
           <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
             {proximasDatasFestejas.map((d, i) => (
               <div key={i} style={{
-                padding:'12px',
-                borderRadius:'12px',
+                padding:'11px', borderRadius:'12px',
                 background: i===0 ? '#fdf0f8' : '#f9fafb',
                 border: i===0 ? '1px solid #f8c8e8' : '1px solid #f0f0f0',
-                display:'flex', alignItems:'center', gap:'12px'
+                display:'flex', alignItems:'center', gap:'10px'
               }}>
-                <div style={{ width:'42px', height:'42px', borderRadius:'10px', background: i===0 ? '#e91e8c' : '#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'18px' }}>
+                <div style={{ width:'38px', height:'38px', borderRadius:'10px', background:i===0?'#e91e8c':'#f0f4f8', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'17px' }}>
                   {d.icone}
                 </div>
                 <div style={{flex:1, minWidth:0}}>
-                  <div style={{fontSize:'13px',fontWeight:'700',color:'#2d3748',marginBottom:'2px'}}>{d.nome}</div>
-                  <div style={{fontSize:'11px',color:'#a0aec0',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{d.categorias.join(', ')}</div>
+                  <div style={{fontSize:'12px',fontWeight:'700',color:'#2d3748',marginBottom:'1px'}}>{d.nome}</div>
+                  <div style={{fontSize:'10px',color:'#a0aec0',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{d.categorias.join(', ')}</div>
                 </div>
                 <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontSize:'13px',fontWeight:'bold',color: i===0 ? '#e91e8c' : '#718096'}}>{d.diasRestantes}d</div>
+                  <div style={{fontSize:'13px',fontWeight:'bold',color:i===0?'#e91e8c':'#718096'}}>{d.diasRestantes}d</div>
                   <div style={{fontSize:'10px',color:'#a0aec0'}}>faltam</div>
                 </div>
               </div>
@@ -1002,6 +1024,7 @@ function BI() {
             </div>
           )}
         </div>
+
       </div>
     </div>
   )
