@@ -490,7 +490,7 @@ export default function PainelVendedor() {
             { label:'Ano',      value:filtroAno, set:setFiltroAno, ph:'Todos os anos',  opts:anosDisponiveis.map(a=>({v:String(a),l:String(a)})) },
             { label:'Mês',      value:filtroMes, set:setFiltroMes, ph:'Todos os meses', opts:MESES_NOMES.map((m,i)=>({v:String(i+1),l:m})) },
             { label:'Situação', value:filtroSit, set:setFiltroSit, ph:'Todas',
-              opts:[{v:'pago',l:'Pago'},{v:'pendente',l:'Pendente'},{v:'atrasado',l:'Atrasado'}] },
+              opts:[{v:'pago',l:'Pago'},{v:'pendente',l:'Pendente'},{v:'atrasado',l:'Atrasado'},{v:'devolvido',l:'Devolvido'}] },
           ].map((f,i) => (
             <div key={i}>
               <label style={{ display:'block', fontSize:'10px', fontWeight:'700', color:'#a0aec0', marginBottom:'5px', textTransform:'uppercase', letterSpacing:'0.5px' }}>{f.label}</label>
@@ -676,7 +676,6 @@ export default function PainelVendedor() {
             <option value="Pendente">Pendente</option>
             <option value="Atrasado">Atrasado</option>
             <option value="Pago">Pago</option>
-            <option value="Devolvido">Devolvido</option>
           </select>
         </div>
         <div>
