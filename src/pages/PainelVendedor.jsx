@@ -224,17 +224,28 @@ export default function PainelVendedor() {
   }), [vendas, hoje])
 
   // ── IDs de vendas com devolução total ─────────────────────────────────────
-  // Uma venda é "totalmente devolvida" quando a soma das devoluções cobre todos os itens
   const vendasTotalmenteDevolvidas = useMemo(() => {
     const set = new Set()
     vendas.forEach(venda => {
       const devs = devolucoes.filter(d => String(d.venda_id) === String(venda.id))
-      if (devs.length === 0) return
-      const totalDevolvido = devs.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
-      const totalVenda = parseFloat(venda.valor_total || 0)
-      // Considera totalmente devolvida se o valor devolvido cobre o total da venda (com margem de R$0,01)
-      if (totalVenda > 0 && totalDevolvido >= totalVenda - 0.01) {
-        set.add(venda.id)
+
+      // Critério 1: tem devolução e valor_total foi zerado pelo sistema
+      if (devs.length > 0 && parseFloat(venda.valor_total || 0) === 0) {
+        set.add(venda.id); return
+      }
+
+      // Critério 2: observação contém "devolução" (marcado ao processar)
+      if (venda.observacao && venda.observacao.toLowerCase().includes('devolução')) {
+        set.add(venda.id); return
+      }
+
+      // Critério 3: valor devolvido cobre o valor_bruto original da venda
+      if (devs.length > 0) {
+        const totalDevolvido = devs.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
+        const referencia = parseFloat(venda.valor_bruto || venda.valor_total || 0)
+        if (referencia > 0 && totalDevolvido >= referencia - 0.01) {
+          set.add(venda.id); return
+        }
       }
     })
     return set
