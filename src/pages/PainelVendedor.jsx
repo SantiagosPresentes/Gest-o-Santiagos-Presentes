@@ -65,7 +65,9 @@ function KpiCard({ label, valor, sub, cor, icon }) {
 
 // ════════════════════════════════════════════════════════════════════════════
 export default function PainelVendedor() {
-  const [vendedor,       setVendedor]       = useState(null)
+  const [vendedor,       setVendedor]       = useState(null)  // email do auth
+  const [nomeVendedor,   setNomeVendedor]   = useState(null)  // nome real (ex: "Levy Santiago")
+  const nomeVendedorRef  = { current: null }                  // ref síncrono para useCallback
   const [vendas,         setVendas]         = useState([])
   const [itensVenda,     setItensVenda]     = useState([])
   const [todasVendas,    setTodasVendas]    = useState([])
@@ -81,16 +83,28 @@ export default function PainelVendedor() {
   const [comprovanteUrl, setComprovanteUrl] = useState(null)
 
   // ── Carregamento inicial ────────────────────────────────────────────────
-  const carregarDados = useCallback(async (emailVendedor) => {
+  const carregarDados = useCallback(async (emailVendedor, nomeVendedor) => {
     const email = emailVendedor || vendedor
-    if (!email) return
+    const nome  = nomeVendedor  || nomeVendedorRef.current
+    if (!email && !nome) return
+
+    // Busca vendas filtrando por nome OU email (cobre ambos os casos de cadastro)
+    let query = supabase
+      .from('vendas')
+      .select('*, clientes(nome, telefone)')
+      .order('data_venda', { ascending: false })
+
+    if (nome && email) {
+      // Usa .or() para cobrir vendas salvas com nome ou com email
+      query = query.or(`vendedor_nome.eq.${nome},vendedor_nome.eq.${email},vendedor_email.eq.${email}`)
+    } else if (nome) {
+      query = query.eq('vendedor_nome', nome)
+    } else {
+      query = query.eq('vendedor_nome', email)
+    }
 
     const [vRes, ivRes, tvRes] = await Promise.all([
-      supabase
-        .from('vendas')
-        .select('*, clientes(nome, telefone)')
-        .eq('vendedor_nome', email)
-        .order('data_venda', { ascending: false }),
+      query,
       supabase
         .from('itens_venda')
         .select('*, produtos(nome, categoria, preco_venda)'),
@@ -113,8 +127,16 @@ export default function PainelVendedor() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setCarregando(false); return }
 
+      // Tenta extrair o nome real do user_metadata do Supabase Auth
+      // (salvo em 'full_name', 'name' ou 'display_name' dependendo do setup)
+      const meta = user.user_metadata || {}
+      const nomeAuth = meta.full_name || meta.name || meta.display_name || null
+
       setVendedor(user.email)
-      await carregarDados(user.email)
+      setNomeVendedor(nomeAuth)
+      nomeVendedorRef.current = nomeAuth
+
+      await carregarDados(user.email, nomeAuth)
       setCarregando(false)
 
       // ── Realtime: escuta qualquer UPDATE/INSERT na tabela vendas ──
@@ -140,7 +162,7 @@ export default function PainelVendedor() {
             }
             if (payload.eventType === 'INSERT') {
               // Nova venda criada: recarrega tudo para ter os dados de clientes
-              carregarDados(user.email)
+              carregarDados(user.email, nomeAuth)
             }
           }
         )
@@ -211,7 +233,8 @@ export default function PainelVendedor() {
     return Object.entries(r).sort((a,b) => b[1] - a[1])
   }, [todasVendas])
 
-  const posicaoRanking = ranking.findIndex(([nome]) => nome === vendedor) + 1
+  // Nome de exibição: preferir nome real, fallback para parte do email
+  const nomeExibido = nomeVendedor || (vendedor ? vendedor.split('@')[0] : '')
 
   // ── Ação: marcar como pago — reflete no Histórico via Realtime ──────────
   async function handlePagar(venda) {
@@ -263,7 +286,13 @@ export default function PainelVendedor() {
     </div>
   )
 
-  const nomeExibido = vendedor.split('@')[0]
+  // Nome de exibição: preferir nome real, fallback para parte do email
+  const nomeExibido = nomeVendedor || (vendedor ? vendedor.split('@')[0] : '')
+
+  // Posição no ranking — compara por nome real OU email
+  const posicaoRanking = ranking.findIndex(([nome]) =>
+    nome === nomeVendedor || nome === vendedor
+  ) + 1
 
   // ── Estilos reutilizáveis ─────────────────────────────────────────────────
   const cardStyle = {
@@ -348,7 +377,7 @@ export default function PainelVendedor() {
             <XCircle size={14}/> Limpar filtros
           </button>
           <button
-            onClick={() => carregarDados()}
+            onClick={() => carregarDados(vendedor, nomeVendedor)}
             style={{
               display:'flex', alignItems:'center', justifyContent:'center', gap:'6px',
               padding:'9px 12px', borderRadius:'9px', border:'none',
@@ -460,7 +489,7 @@ export default function PainelVendedor() {
         {ranking.length === 0
           ? <p style={{ color:'#a0aec0', textAlign:'center', padding:'20px', fontSize:'13px' }}>Sem dados de ranking.</p>
           : ranking.map(([nome, total], i) => {
-            const isMeu  = nome === vendedor
+            const isMeu  = nome === nomeVendedor || nome === vendedor
             const nomeEx = nome.includes('@') ? nome.split('@')[0] : nome
             const medalha = i===0?'#f7c948':i===1?'#b0bec5':i===2?'#cd7f32':'#edf2f7'
             const corTxt  = i < 3 ? '#333' : '#a0aec0'
