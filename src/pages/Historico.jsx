@@ -27,8 +27,20 @@ function Historico() {
     })
   }, [])
 
-  function calcularSituacao(venda) {
-    if (parseFloat(venda.recebido) >= parseFloat(venda.valor_total)) return 'Pago'
+  function calcularSituacao(venda, devolucoesLista = []) {
+    // Verifica se há devolução para essa venda
+    const devs = devolucoesLista.filter(d => String(d.venda_id) === String(venda.id))
+    if (devs.length > 0) {
+      // Totalmente devolvida: valor_total zerado, observação com "devolução", ou valor devolvido cobre o bruto
+      const totalDevolvido = devs.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
+      const referencia = parseFloat(venda.valor_bruto || venda.valor_total || 0)
+      const zerada = parseFloat(venda.valor_total || 0) === 0
+      const obsDevolvida = venda.observacao && venda.observacao.toLowerCase().includes('devolução')
+      const valorCobre = referencia > 0 && totalDevolvido >= referencia - 0.01
+      if (zerada || obsDevolvida || valorCobre) return 'Devolvido'
+    }
+
+    if (parseFloat(venda.recebido) >= parseFloat(venda.valor_total) && parseFloat(venda.valor_total) > 0) return 'Pago'
     if (!venda.data_para_pagar) return 'Pendente'
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
@@ -39,23 +51,20 @@ function Historico() {
 
   async function carregarDados() {
     const { data: vendasData, error } = await supabase
-  .from('vendas')
-  .select(`
-  *,
-  clientes!vendas_cliente_id_fkey (
-    nome,
-    telefone
-  )
-`)
-  .order('data_venda', { ascending: false })
+      .from('vendas')
+      .select(`*, clientes!vendas_cliente_id_fkey (nome, telefone)`)
+      .order('data_venda', { ascending: false })
 
-console.log('VENDAS:', vendasData)
-console.log('ERRO:', error)
+    console.log('VENDAS:', vendasData)
+    console.log('ERRO:', error)
 
     const { data: devolucoesData } = await supabase
       .from('devolucoes')
-      .select('*, clientes(nome), produtos(nome)')
+      .select('id, cliente_id, produto_id, venda_id, quantidade, valor_unitario, valor_total, motivo, criado_em')
       .order('criado_em', { ascending: false })
+
+    const devs = devolucoesData || []
+    if (devolucoesData) setDevolucoes(devolucoesData)
 
     if (vendasData) {
       const vendasComItens = await Promise.all(vendasData.map(async (venda) => {
@@ -63,12 +72,10 @@ console.log('ERRO:', error)
           .from('itens_venda')
           .select('*, produtos(nome)')
           .eq('venda_id', venda.id)
-        return { ...venda, itens: itens || [], situacao_real: calcularSituacao(venda) }
+        return { ...venda, itens: itens || [], situacao_real: calcularSituacao(venda, devs) }
       }))
       setVendas(vendasComItens)
     }
-
-    if (devolucoesData) setDevolucoes(devolucoesData)
   }
 
   async function registrarPagamento() {
@@ -98,16 +105,16 @@ console.log('ERRO:', error)
   })
 
   function corSituacao(situacao) {
-    if (situacao === 'Pago') return { background: '#e8f5e9', color: 'green' }
-    if (situacao === 'Atrasado') return { background: '#ffebee', color: 'red' }
+    if (situacao === 'Pago')      return { background: '#e8f5e9', color: 'green' }
+    if (situacao === 'Atrasado')  return { background: '#ffebee', color: 'red' }
+    if (situacao === 'Devolvido') return { background: '#fff0f3', color: '#e94560' }
     return { background: '#fff8e1', color: '#f57f17' }
   }
 
   function devolucoesVenda(vendaId) {
-    return devolucoes.filter(d => d.venda_id === vendaId)
+    return devolucoes.filter(d => String(d.venda_id) === String(vendaId))
   }
 
-  // Extrai parcelas da observação salva
   function extrairParcelas(venda) {
     if (!venda.observacao) return null
     const match = venda.observacao.match(/(\d+)x:(.+?)(?:\||$)/)
@@ -147,10 +154,10 @@ console.log('ERRO:', error)
 
   const campo = { padding:'8px 12px', borderRadius:'6px', border:'1px solid #ddd', fontSize:'13px' }
   const temFiltroAtivo =
-  filtroSituacao !== '' ||
-  filtroDataInicio !== '' ||
-  filtroDataFim !== '' ||
-  filtroCliente !== ''
+    filtroSituacao !== '' ||
+    filtroDataInicio !== '' ||
+    filtroDataFim !== '' ||
+    filtroCliente !== ''
 
   return (
     <div style={{background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0'}}>
@@ -165,7 +172,6 @@ console.log('ERRO:', error)
         <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'16px'}}>
           <div style={{background:'white', borderRadius:'16px', width:'100%', maxWidth:'440px', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,0.3)'}}>
             <div ref={comprovanteRef} style={{padding:'24px'}}>
-              {/* Cabeçalho */}
               <div style={{textAlign:'center', marginBottom:'12px'}}>
                 <img src="/logo.png" alt="Logo" style={{width:'80px', height:'80px', borderRadius:'50%', objectFit:'cover', border:'2px solid #1a6b5a'}} />
                 <h2 style={{color:'#1a6b5a', fontSize:'18px', marginTop:'8px'}}>Santiagos Presentes</h2>
@@ -176,20 +182,14 @@ console.log('ERRO:', error)
                     : new Date(comprovanteVenda.data_para_pagar + 'T12:00:00').toLocaleDateString('pt-BR')}
                 </p>
               </div>
-
               <div style={{borderTop:'1px dashed #999', margin:'12px 0'}} />
-
-              {/* Cliente */}
               <div style={{marginBottom:'12px', fontSize:'14px'}}>
                 <strong style={{color:'#1a6b5a'}}>Cliente:</strong> {comprovanteVenda.clientes?.nome}<br/>
                 {comprovanteVenda.clientes?.telefone && (
                   <span style={{color:'#666', fontSize:'13px'}}>📞 {comprovanteVenda.clientes.telefone}</span>
                 )}
               </div>
-
               <div style={{borderTop:'1px dashed #999', margin:'12px 0'}} />
-
-              {/* Produtos */}
               <div style={{marginBottom:'8px'}}><strong style={{fontSize:'13px', color:'#555'}}>PRODUTOS</strong></div>
               {comprovanteVenda.itens?.map((item, i) => (
                 <div key={i} style={{display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'6px'}}>
@@ -198,10 +198,7 @@ console.log('ERRO:', error)
                   <strong>R$ {(item.quantidade * parseFloat(item.valor_unitario)).toFixed(2)}</strong>
                 </div>
               ))}
-
               <div style={{borderTop:'2px solid #333', margin:'12px 0'}} />
-
-              {/* Desconto e Total */}
               {parseFloat(comprovanteVenda.desconto || 0) > 0 && (
                 <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', color:'#2e7d32', marginBottom:'4px'}}>
                   <span>Desconto</span>
@@ -212,8 +209,6 @@ console.log('ERRO:', error)
                 <span>TOTAL</span>
                 <span>R$ {parseFloat(comprovanteVenda.valor_total).toFixed(2)}</span>
               </div>
-
-              {/* Parcelas */}
               {(() => {
                 const parcelas = extrairParcelas(comprovanteVenda)
                 if (parcelas) {
@@ -232,8 +227,6 @@ console.log('ERRO:', error)
                   </div>
                 )
               })()}
-
-              {/* Observação (sem a parte de parcelamento que já foi mostrada) */}
               {comprovanteVenda.observacao && (() => {
                 const obsLimpa = comprovanteVenda.observacao
                   .replace(/\d+x:.+?(\||$)/, '')
@@ -245,19 +238,14 @@ console.log('ERRO:', error)
                   <p style={{fontSize:'12px', color:'#777', fontStyle:'italic', marginTop:'8px'}}>Obs: {obsLimpa}</p>
                 ) : null
               })()}
-
-              {/* Vendedor */}
               {comprovanteVenda.vendedor_nome && (
                 <p style={{fontSize:'11px', color:'#bbb', marginTop:'8px', textAlign:'right'}}>
                   Vendedor: {comprovanteVenda.vendedor_nome}
                 </p>
               )}
-
               <div style={{borderTop:'1px dashed #999', margin:'12px 0'}} />
               <p style={{textAlign:'center', fontSize:'12px', color:'#999'}}>Obrigado pela preferência!<br/>Santiagos Presentes 🏪</p>
             </div>
-
-            {/* Botões */}
             <div style={{padding:'16px 24px', borderTop:'1px solid #eee', display:'flex', gap:'8px'}}>
               <button onClick={imprimirComprovante} style={{flex:1, background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold'}}>
                 🖨️ Imprimir
@@ -315,6 +303,7 @@ console.log('ERRO:', error)
             <option value="Pendente">Pendente</option>
             <option value="Atrasado">Atrasado</option>
             <option value="Pago">Pago</option>
+            <option value="Devolvido">Devolvido</option>
           </select>
         </div>
         <div>
@@ -431,8 +420,8 @@ console.log('ERRO:', error)
                       {venda.observacao || '—'}
                     </td>
                     <td style={{textAlign:'center'}}>
-                      {devs.length > 0 ? (
-                        <span style={{color:'#e65100', fontSize:'12px', whiteSpace:'nowrap', fontWeight:'bold'}}>↩ Devolvido</span>
+                      {venda.situacao_real === 'Devolvido' ? (
+                        <span style={{color:'#e94560', fontSize:'12px', whiteSpace:'nowrap', fontWeight:'bold'}}>↩ Devolvido</span>
                       ) : venda.situacao_real === 'Pago' ? (
                         <span style={{color:'green', fontSize:'12px', whiteSpace:'nowrap'}}>✅ Pago</span>
                       ) : (
@@ -480,7 +469,7 @@ console.log('ERRO:', error)
                             <div style={{marginTop:'6px', display:'flex', flexWrap:'wrap', gap:'8px'}}>
                               {devs.map(d => (
                                 <span key={d.id} style={{background:'#fff0f3', border:'1px solid #e94560', padding:'6px 12px', borderRadius:'8px', fontSize:'12px'}}>
-                                  {d.produtos?.nome} — {d.quantidade}x — R$ {parseFloat(d.valor_total).toFixed(2)} — {d.motivo}
+                                  {d.motivo} — {d.quantidade}x — R$ {parseFloat(d.valor_total).toFixed(2)}
                                 </span>
                               ))}
                             </div>
