@@ -6,7 +6,7 @@ import PageHeader from '../components/PageHeader'
 import {
   User, TrendingUp, ShoppingBag, AlertCircle, Clock,
   XCircle, RefreshCw, Trophy, Target, Banknote,
-  ShoppingCart, FilterX, History
+  ShoppingCart, FilterX, History, RotateCcw, PackageX
 } from 'lucide-react'
 
 // ── Constantes ───────────────────────────────────────────────────────────────
@@ -31,7 +31,6 @@ function fmtData(str) {
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
 }
 
-// Idêntico ao Histórico
 function calcularSituacao(venda) {
   if (parseFloat(venda.recebido) >= parseFloat(venda.valor_total) && parseFloat(venda.valor_total) > 0) return 'Pago'
   if (!venda.data_para_pagar) return 'Pendente'
@@ -55,12 +54,20 @@ function extrairParcelas(venda) {
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-function KpiCard({ label, valor, sub, cor, icon }) {
+function KpiCard({ label, valor, sub, cor, icon, destaque }) {
   return (
     <motion.div
       whileHover={{ y:-3, boxShadow:'0 8px 20px rgba(0,0,0,0.10)' }}
       transition={{ duration:0.15 }}
-      style={{ background:'#fff', borderRadius:'16px', padding:'16px', boxShadow:'0 2px 10px rgba(0,0,0,0.06)', borderLeft:`4px solid ${cor}` }}
+      style={{
+        background: destaque ? `linear-gradient(135deg, ${cor}15, ${cor}08)` : '#fff',
+        borderRadius:'16px',
+        padding:'16px',
+        boxShadow:'0 2px 10px rgba(0,0,0,0.06)',
+        borderLeft:`4px solid ${cor}`,
+        border: destaque ? `1.5px solid ${cor}40` : undefined,
+        borderLeft:`4px solid ${cor}`,
+      }}
     >
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px' }}>
         <span style={{ fontSize:'11px', color:'#a0aec0', fontWeight:'600', textTransform:'uppercase', letterSpacing:'0.5px', lineHeight:'1.3', paddingRight:'4px' }}>{label}</span>
@@ -69,6 +76,17 @@ function KpiCard({ label, valor, sub, cor, icon }) {
       <div style={{ fontSize:'18px', fontWeight:'bold', color:cor, marginBottom:'3px', wordBreak:'break-word', lineHeight:'1.2' }}>{valor}</div>
       <div style={{ fontSize:'11px', color:'#a0aec0' }}>{sub}</div>
     </motion.div>
+  )
+}
+
+// ── Divisor de seção ──────────────────────────────────────────────────────────
+function SectionLabel({ label, icon }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:'8px', margin:'20px 0 10px' }}>
+      <span style={{ color:'#a0aec0' }}>{icon}</span>
+      <span style={{ fontSize:'11px', fontWeight:'700', color:'#a0aec0', textTransform:'uppercase', letterSpacing:'1px' }}>{label}</span>
+      <div style={{ flex:1, height:'1px', background:'#edf2f7', marginLeft:'4px' }}/>
+    </div>
   )
 }
 
@@ -85,12 +103,12 @@ export default function PainelVendedor() {
   const [todasVendas, setTodasVendas] = useState([])
   const [carregando,  setCarregando]  = useState(true)
 
-  // ── Filtros KPI (mês/ano/situação) ────────────────────────────────────────
+  // ── Filtros KPI ───────────────────────────────────────────────────────────
   const [filtroMes, setFiltroMes] = useState('')
   const [filtroAno, setFiltroAno] = useState('')
   const [filtroSit, setFiltroSit] = useState('')
 
-  // ── Filtros da tabela — iguais ao Histórico ───────────────────────────────
+  // ── Filtros da tabela ─────────────────────────────────────────────────────
   const [filtroSituacaoTab,  setFiltroSituacaoTab]  = useState('')
   const [filtroDataInicio,   setFiltroDataInicio]   = useState('')
   const [filtroDataFim,      setFiltroDataFim]      = useState('')
@@ -122,7 +140,6 @@ export default function PainelVendedor() {
     ])
 
     if (vRes.data) {
-      // Carrega itens para cada venda — idêntico ao Histórico
       const vendasComItens = await Promise.all(vRes.data.map(async (venda) => {
         const { data: itens } = await supabase
           .from('itens_venda')
@@ -173,12 +190,13 @@ export default function PainelVendedor() {
     return () => { if (channel) supabase.removeChannel(channel) }
   }, [carregarVendas])
 
-  // ── Vendas filtradas para KPIs (filtro mês/ano/sit) ───────────────────────
+  // ── Anos disponíveis ──────────────────────────────────────────────────────
   const anosDisponiveis = useMemo(() =>
     [...new Set(vendas.map(v => new Date((v.data_para_pagar || v.data_venda) + 'T12:00:00').getFullYear()))].sort(),
     [vendas]
   )
 
+  // ── Vendas filtradas para KPIs ────────────────────────────────────────────
   const vendasKpi = useMemo(() => vendas.filter(v => {
     const d = new Date((v.data_para_pagar || v.data_venda) + 'T12:00:00')
     if (filtroMes && d.getMonth()+1 !== parseInt(filtroMes)) return false
@@ -187,7 +205,7 @@ export default function PainelVendedor() {
     return true
   }), [vendas, filtroMes, filtroAno, filtroSit])
 
-  // ── Vendas filtradas para a tabela — iguais ao Histórico ──────────────────
+  // ── Vendas filtradas para a tabela ────────────────────────────────────────
   const vendasTabela = useMemo(() => vendas.filter(v => {
     if (filtroSituacaoTab && v.situacao_real !== filtroSituacaoTab) return false
     if (filtroDataInicio  && v.data_para_pagar < filtroDataInicio)  return false
@@ -195,23 +213,77 @@ export default function PainelVendedor() {
     return true
   }), [vendas, filtroSituacaoTab, filtroDataInicio, filtroDataFim])
 
-  // ── KPIs ──────────────────────────────────────────────────────────────────
-  const totalVendido  = useMemo(() => vendasKpi.reduce((a,v) => a+parseFloat(v.valor_total||0), 0), [vendasKpi])
-  const totalRecebido = useMemo(() => vendasKpi.reduce((a,v) => a+parseFloat(v.recebido   ||0), 0), [vendasKpi])
-  const qtdVendas     = vendasKpi.length
-  const progMeta      = Math.min(100, (totalVendido / META_MENSAL) * 100)
-
+  // ── Hoje ──────────────────────────────────────────────────────────────────
   const hoje = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
+
+  // ── Vendas do dia ─────────────────────────────────────────────────────────
   const vendasHoje = useMemo(() => vendas.filter(v => {
     const d = new Date((v.data_venda || v.data_para_pagar) + 'T12:00:00')
     d.setHours(0,0,0,0)
     return d.getTime() === hoje.getTime()
   }), [vendas, hoje])
 
-  const inadimplentes = useMemo(() => vendasKpi.filter(v => v.situacao_real === 'Atrasado'), [vendasKpi])
-  const aPagar        = useMemo(() => vendasKpi.filter(v => v.situacao_real === 'Pendente'), [vendasKpi])
+  // ── IDs de vendas com devolução total ─────────────────────────────────────
+  // Uma venda é "totalmente devolvida" quando a soma das devoluções cobre todos os itens
+  const vendasTotalmenteDevolvidas = useMemo(() => {
+    const set = new Set()
+    vendas.forEach(venda => {
+      const devs = devolucoes.filter(d => d.venda_id === venda.id)
+      if (devs.length === 0) return
+      // Soma valor devolvido
+      const totalDevolvido = devs.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
+      const totalVenda = parseFloat(venda.valor_total || 0)
+      // Considera totalmente devolvida se devolvido >= 95% do total (margem para arredondamentos)
+      if (totalVenda > 0 && totalDevolvido >= totalVenda * 0.95) {
+        set.add(venda.id)
+      }
+    })
+    return set
+  }, [vendas, devolucoes])
+
+  // ── Devoluções do vendedor atual ──────────────────────────────────────────
+  const devolucoesDoVendedor = useMemo(() => {
+    const idsVendas = new Set(vendas.map(v => v.id))
+    return devolucoes.filter(d => idsVendas.has(d.venda_id))
+  }, [devolucoes, vendas])
+
+  // ── KPIs ──────────────────────────────────────────────────────────────────
+  const totalVendido  = useMemo(() => vendasKpi.reduce((a,v) => a+parseFloat(v.valor_total||0), 0), [vendasKpi])
+  const totalRecebido = useMemo(() => vendasKpi.reduce((a,v) => a+parseFloat(v.recebido   ||0), 0), [vendasKpi])
+
+  // Total de vendas excluindo as totalmente devolvidas
+  const qtdVendasEfetivas = useMemo(() =>
+    vendasKpi.filter(v => !vendasTotalmenteDevolvidas.has(v.id)).length,
+    [vendasKpi, vendasTotalmenteDevolvidas]
+  )
+
+  const progMeta = Math.min(100, (totalVendido / META_MENSAL) * 100)
+
+  // Vendas do dia excluindo devolvidas totalmente
+  const vendasHojeEfetivas = useMemo(() =>
+    vendasHoje.filter(v => !vendasTotalmenteDevolvidas.has(v.id)),
+    [vendasHoje, vendasTotalmenteDevolvidas]
+  )
+  const valorVendasHoje = vendasHojeEfetivas.reduce((a,v) => a+parseFloat(v.valor_total||0), 0)
+  const qtdVendasHoje   = vendasHojeEfetivas.length
+
+  // A Receber excluindo devolvidas totalmente
+  const aPagar = useMemo(() =>
+    vendasKpi.filter(v => v.situacao_real === 'Pendente' && !vendasTotalmenteDevolvidas.has(v.id)),
+    [vendasKpi, vendasTotalmenteDevolvidas]
+  )
+  const totalAPagar = aPagar.reduce((a,v) => a+parseFloat(v.valor_total||0)-parseFloat(v.recebido||0), 0)
+
+  const inadimplentes = useMemo(() =>
+    vendasKpi.filter(v => v.situacao_real === 'Atrasado' && !vendasTotalmenteDevolvidas.has(v.id)),
+    [vendasKpi, vendasTotalmenteDevolvidas]
+  )
   const totalInadimplente = inadimplentes.reduce((a,v) => a+parseFloat(v.valor_total||0)-parseFloat(v.recebido||0), 0)
-  const totalAPagar       = aPagar.reduce((a,v) => a+parseFloat(v.valor_total||0)-parseFloat(v.recebido||0), 0)
+
+  // KPIs de devolução
+  const qtdDevolucoes      = devolucoesDoVendedor.length
+  const qtdVendasDevolvidas = vendasTotalmenteDevolvidas.size
+  const valorDevolvido     = devolucoesDoVendedor.reduce((a,d) => a+parseFloat(d.valor_total||0), 0)
 
   // ── Ranking ───────────────────────────────────────────────────────────────
   const ranking = useMemo(() => {
@@ -231,7 +303,7 @@ export default function PainelVendedor() {
     return devolucoes.filter(d => d.venda_id === vendaId)
   }
 
-  // ── Registrar pagamento — idêntico ao Histórico ───────────────────────────
+  // ── Registrar pagamento ───────────────────────────────────────────────────
   async function registrarPagamento() {
     if (!valorPago || parseFloat(valorPago) <= 0) { setMensagem('Digite um valor válido!'); return }
     const novoRecebido = parseFloat(pagamentoVenda.recebido || 0) + parseFloat(valorPago)
@@ -302,7 +374,7 @@ export default function PainelVendedor() {
         icon={<User size={22} color="white"/>}
       />
 
-      {/* ── Modal Comprovante — idêntico ao Histórico ── */}
+      {/* ── Modal Comprovante ── */}
       {comprovanteVenda && (
         <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'16px' }}>
           <div style={{ background:'white', borderRadius:'16px', width:'100%', maxWidth:'440px', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,0.3)' }}>
@@ -367,7 +439,7 @@ export default function PainelVendedor() {
               <p style={{ textAlign:'center', fontSize:'12px', color:'#999' }}>Obrigado pela preferência!<br/>Santiagos Presentes 🏪</p>
             </div>
             <div style={{ padding:'16px 24px', borderTop:'1px solid #eee', display:'flex', gap:'8px' }}>
-              <button onClick={imprimirComprovante}    style={{ flex:1, background:'linear-gradient(135deg,#1a6b5a,#145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold' }}>🖨️ Imprimir</button>
+              <button onClick={imprimirComprovante}     style={{ flex:1, background:'linear-gradient(135deg,#1a6b5a,#145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold' }}>🖨️ Imprimir</button>
               <button onClick={compartilharComprovante} style={{ flex:1, background:'linear-gradient(135deg,#1a6b5a,#145a4a)', color:'white', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px', fontWeight:'bold' }}>📤 Compartilhar</button>
               <button onClick={() => setComprovanteVenda(null)} style={{ flex:1, background:'#eee', color:'#333', border:'none', padding:'12px', borderRadius:'8px', cursor:'pointer', fontSize:'15px' }}>Fechar</button>
             </div>
@@ -375,7 +447,7 @@ export default function PainelVendedor() {
         </div>
       )}
 
-      {/* ── Modal Pagamento — idêntico ao Histórico ── */}
+      {/* ── Modal Pagamento ── */}
       {pagamentoVenda && (
         <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'16px' }}>
           <div style={{ background:'white', padding:'32px', borderRadius:'16px', width:'100%', maxWidth:'400px', boxShadow:'0 8px 32px rgba(0,0,0,0.3)' }}>
@@ -401,12 +473,12 @@ export default function PainelVendedor() {
         </div>
       )}
 
-      {/* ── Filtros KPI (mês/ano/situação) ── */}
+      {/* ── Filtros KPI ── */}
       <div style={{ background:'#fff', borderRadius:'16px', padding:'16px 20px', boxShadow:'0 2px 10px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', margin:'16px 0' }}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px', marginBottom:'10px' }}>
           {[
-            { label:'Ano',      value:filtroAno, set:setFiltroAno, ph:'Todos os anos',   opts:anosDisponiveis.map(a=>({v:String(a),l:String(a)})) },
-            { label:'Mês',      value:filtroMes, set:setFiltroMes, ph:'Todos os meses',  opts:MESES_NOMES.map((m,i)=>({v:String(i+1),l:m})) },
+            { label:'Ano',      value:filtroAno, set:setFiltroAno, ph:'Todos os anos',  opts:anosDisponiveis.map(a=>({v:String(a),l:String(a)})) },
+            { label:'Mês',      value:filtroMes, set:setFiltroMes, ph:'Todos os meses', opts:MESES_NOMES.map((m,i)=>({v:String(i+1),l:m})) },
             { label:'Situação', value:filtroSit, set:setFiltroSit, ph:'Todas',
               opts:[{v:'pago',l:'Pago'},{v:'pendente',l:'Pendente'},{v:'atrasado',l:'Atrasado'}] },
           ].map((f,i) => (
@@ -432,19 +504,107 @@ export default function PainelVendedor() {
         </div>
       </div>
 
-      {/* ── KPIs ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'16px' }}>
-        <KpiCard label="Vendas Hoje"   valor={fmtBRL(vendasHoje.reduce((a,v)=>a+parseFloat(v.valor_total||0),0))} sub={`${vendasHoje.length} venda(s) hoje`}      cor="#1a6b5a" icon={<ShoppingBag size={20}/>}/>
-        <KpiCard label="Total Vendas"  valor={qtdVendas}          sub="no período filtrado"                       cor="#e91e8c" icon={<ShoppingCart size={20}/>}/>
-        <KpiCard label="Valor Vendido" valor={fmtBRL(totalVendido)}  sub={`${qtdVendas} venda(s)`}               cor="#29abe2" icon={<TrendingUp size={20}/>}/>
-        <KpiCard label="Recebido"      valor={fmtBRL(totalRecebido)} sub={`de ${fmtBRL(totalVendido)}`}          cor="#10b981" icon={<Banknote size={20}/>}/>
-        <KpiCard label="Atrasadas"     valor={inadimplentes.length}  sub={`${fmtBRL(totalInadimplente)} em aberto`} cor="#ef4444" icon={<AlertCircle size={20}/>}/>
-        <KpiCard label="A Receber"     valor={aPagar.length}         sub={`${fmtBRL(totalAPagar)} pendente`}      cor="#f5821f" icon={<Clock size={20}/>}/>
-        <KpiCard label="Ranking"       valor={posicaoRanking?`#${posicaoRanking}`:'—'} sub={`de ${ranking.length} vendedor(es)`} cor="#8b5cf6" icon={<Trophy size={20}/>}/>
+      {/* ════════════════════════════════════════════════════
+          SEÇÃO 1 — HOJE
+      ════════════════════════════════════════════════════ */}
+      <SectionLabel label="Hoje" icon={<ShoppingBag size={14}/>} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'4px' }}>
+        <KpiCard
+          label="Vendas Hoje (R$)"
+          valor={fmtBRL(valorVendasHoje)}
+          sub={`${qtdVendasHoje} venda(s) hoje`}
+          cor="#1a6b5a"
+          icon={<Banknote size={20}/>}
+          destaque
+        />
+        <KpiCard
+          label="Nº de Vendas Hoje"
+          valor={qtdVendasHoje}
+          sub="zerado a cada novo dia"
+          cor="#29abe2"
+          icon={<ShoppingCart size={20}/>}
+        />
+      </div>
+
+      {/* ════════════════════════════════════════════════════
+          SEÇÃO 2 — PERÍODO FILTRADO
+      ════════════════════════════════════════════════════ */}
+      <SectionLabel label="Período filtrado" icon={<TrendingUp size={14}/>} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'4px' }}>
+        <KpiCard
+          label="Total Vendas"
+          valor={qtdVendasEfetivas}
+          sub="vendas efetivas no período"
+          cor="#e91e8c"
+          icon={<ShoppingCart size={20}/>}
+        />
+        <KpiCard
+          label="Valor Vendido"
+          valor={fmtBRL(totalVendido)}
+          sub={`${qtdVendasEfetivas} venda(s)`}
+          cor="#29abe2"
+          icon={<TrendingUp size={20}/>}
+        />
+        <KpiCard
+          label="Recebido"
+          valor={fmtBRL(totalRecebido)}
+          sub={`de ${fmtBRL(totalVendido)}`}
+          cor="#10b981"
+          icon={<Banknote size={20}/>}
+        />
+        <KpiCard
+          label="Ranking"
+          valor={posicaoRanking ? `#${posicaoRanking}` : '—'}
+          sub={`de ${ranking.length} vendedor(es)`}
+          cor="#8b5cf6"
+          icon={<Trophy size={20}/>}
+        />
+      </div>
+
+      {/* ════════════════════════════════════════════════════
+          SEÇÃO 3 — PENDÊNCIAS
+      ════════════════════════════════════════════════════ */}
+      <SectionLabel label="Pendências" icon={<AlertCircle size={14}/>} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'4px' }}>
+        <KpiCard
+          label="Atrasadas"
+          valor={inadimplentes.length}
+          sub={`${fmtBRL(totalInadimplente)} em aberto`}
+          cor="#ef4444"
+          icon={<AlertCircle size={20}/>}
+        />
+        <KpiCard
+          label="A Receber"
+          valor={aPagar.length}
+          sub={`${fmtBRL(totalAPagar)} pendente`}
+          cor="#f5821f"
+          icon={<Clock size={20}/>}
+        />
+      </div>
+
+      {/* ════════════════════════════════════════════════════
+          SEÇÃO 4 — DEVOLUÇÕES
+      ════════════════════════════════════════════════════ */}
+      <SectionLabel label="Devoluções" icon={<RotateCcw size={14}/>} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'4px' }}>
+        <KpiCard
+          label="Vendas Devolvidas"
+          valor={qtdVendasDevolvidas}
+          sub="vendas totalmente devolvidas"
+          cor="#e94560"
+          icon={<PackageX size={20}/>}
+        />
+        <KpiCard
+          label="Valor Devolvido"
+          valor={fmtBRL(valorDevolvido)}
+          sub={`em ${qtdDevolucoes} devolução(ões)`}
+          cor="#e94560"
+          icon={<RotateCcw size={20}/>}
+        />
       </div>
 
       {/* ── Meta do Mês ── */}
-      <div style={{ background:'#fff', borderRadius:'18px', padding:'20px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', marginBottom:'16px' }}>
+      <div style={{ background:'#fff', borderRadius:'18px', padding:'20px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', margin:'20px 0 16px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'14px', paddingBottom:'10px', borderBottom:'1px solid #f7f7f7' }}>
           <Target size={16} color="#1a6b5a"/>
           <span style={{ fontSize:'14px', fontWeight:'700', color:'#1a6b5a' }}>Meta do Mês</span>
@@ -463,7 +623,7 @@ export default function PainelVendedor() {
             style={{ height:'100%', borderRadius:'999px', background:progMeta>=100?'linear-gradient(90deg,#10b981,#4ade80)':progMeta>=70?'linear-gradient(90deg,#f5821f,#f7c948)':'linear-gradient(90deg,#ef4444,#f97316)' }}/>
         </div>
         {progMeta>=100
-          ? <p style={{ fontSize:'12px', color:'#10b981', fontWeight:'bold', marginTop:'8px' }}>Meta atingida!</p>
+          ? <p style={{ fontSize:'12px', color:'#10b981', fontWeight:'bold', marginTop:'8px' }}>Meta atingida! 🎉</p>
           : <p style={{ fontSize:'12px', color:'#a0aec0', marginTop:'8px' }}>Falta {fmtBRL(META_MENSAL-totalVendido)} para a meta</p>
         }
       </div>
@@ -495,10 +655,10 @@ export default function PainelVendedor() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          MINHAS VENDAS — layout idêntico ao Histórico
+          MINHAS VENDAS
       ══════════════════════════════════════════════════════════════════════ */}
 
-      {/* Filtros da tabela — idênticos ao Histórico */}
+      {/* Filtros da tabela */}
       <div style={{ background:'white', padding:'16px', borderRadius:'12px', marginBottom:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', display:'flex', gap:'12px', alignItems:'flex-end', flexWrap:'wrap' }}>
         <div>
           <label style={{ fontSize:'12px', color:'#666' }}>Situação</label><br/>
@@ -534,7 +694,7 @@ export default function PainelVendedor() {
         </div>
       )}
 
-      {/* Tabela — idêntica ao Histórico */}
+      {/* Tabela */}
       <div className="tabela-wrapper">
         <table>
           <thead>
@@ -557,9 +717,10 @@ export default function PainelVendedor() {
               const devs    = devolucoesVenda(venda.id)
               const falta   = parseFloat(venda.valor_total) - parseFloat(venda.recebido||0)
               const sit     = venda.situacao_real
+              const totalDevolvida = vendasTotalmenteDevolvidas.has(venda.id)
               return (
                 <>
-                  <tr key={venda.id} style={{ background: i%2===0 ? '#fff' : '#f9f9f9' }}>
+                  <tr key={venda.id} style={{ background: totalDevolvida ? '#fff5f5' : i%2===0 ? '#fff' : '#f9f9f9' }}>
                     <td style={{ textAlign:'left' }}>
                       <strong>{venda.clientes?.nome}</strong><br/>
                       <small style={{ color:'#888' }}>{venda.clientes?.telefone}</small>
@@ -582,9 +743,15 @@ export default function PainelVendedor() {
                       {venda.data_para_pagar ? new Date(venda.data_para_pagar+'T12:00:00').toLocaleDateString('pt-BR') : '—'}
                     </td>
                     <td style={{ textAlign:'center' }}>
-                      <span style={{ ...corSituacao(sit), padding:'4px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'bold', whiteSpace:'nowrap' }}>
-                        {sit}
-                      </span>
+                      {totalDevolvida ? (
+                        <span style={{ background:'#fff0f3', color:'#e94560', padding:'4px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'bold', whiteSpace:'nowrap' }}>
+                          ↩ Devolvida
+                        </span>
+                      ) : (
+                        <span style={{ ...corSituacao(sit), padding:'4px 10px', borderRadius:'20px', fontSize:'11px', fontWeight:'bold', whiteSpace:'nowrap' }}>
+                          {sit}
+                        </span>
+                      )}
                     </td>
                     <td style={{ textAlign:'left', fontSize:'12px', color:'#555', maxWidth:'150px' }}>
                       {venda.observacao || '—'}
@@ -613,7 +780,7 @@ export default function PainelVendedor() {
                     </td>
                   </tr>
 
-                  {/* Linha expandida — produtos e devoluções */}
+                  {/* Linha expandida */}
                   {vendaExpandida === venda.id && (
                     <tr key={venda.id+'_det'}>
                       <td colSpan="11" style={{ background:'#f0f4ff', padding:'12px 16px' }}>
