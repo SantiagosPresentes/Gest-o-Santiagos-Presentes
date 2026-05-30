@@ -132,7 +132,7 @@ export default function PainelVendedor() {
         .order('data_venda', { ascending: false }),
       supabase
         .from('devolucoes')
-        .select('*, clientes(nome), produtos(nome)')
+        .select('id, cliente_id, produto_id, venda_id, quantidade, valor_unitario, valor_total, motivo, criado_em')
         .order('criado_em', { ascending: false }),
       supabase
         .from('vendas')
@@ -228,13 +228,12 @@ export default function PainelVendedor() {
   const vendasTotalmenteDevolvidas = useMemo(() => {
     const set = new Set()
     vendas.forEach(venda => {
-      const devs = devolucoes.filter(d => d.venda_id === venda.id)
+      const devs = devolucoes.filter(d => String(d.venda_id) === String(venda.id))
       if (devs.length === 0) return
-      // Soma valor devolvido
       const totalDevolvido = devs.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
       const totalVenda = parseFloat(venda.valor_total || 0)
-      // Considera totalmente devolvida se devolvido >= 95% do total (margem para arredondamentos)
-      if (totalVenda > 0 && totalDevolvido >= totalVenda * 0.95) {
+      // Considera totalmente devolvida se o valor devolvido cobre o total da venda (com margem de R$0,01)
+      if (totalVenda > 0 && totalDevolvido >= totalVenda - 0.01) {
         set.add(venda.id)
       }
     })
@@ -243,8 +242,8 @@ export default function PainelVendedor() {
 
   // ── Devoluções do vendedor atual ──────────────────────────────────────────
   const devolucoesDoVendedor = useMemo(() => {
-    const idsVendas = new Set(vendas.map(v => v.id))
-    return devolucoes.filter(d => idsVendas.has(d.venda_id))
+    const idsVendas = new Set(vendas.map(v => String(v.id)))
+    return devolucoes.filter(d => idsVendas.has(String(d.venda_id)))
   }, [devolucoes, vendas])
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
@@ -300,7 +299,7 @@ export default function PainelVendedor() {
 
   // ── Devoluções de uma venda ───────────────────────────────────────────────
   function devolucoesVenda(vendaId) {
-    return devolucoes.filter(d => d.venda_id === vendaId)
+    return devolucoes.filter(d => String(d.venda_id) === String(vendaId))
   }
 
   // ── Registrar pagamento ───────────────────────────────────────────────────
@@ -515,7 +514,6 @@ export default function PainelVendedor() {
           sub={`${qtdVendasHoje} venda(s) hoje`}
           cor="#1a6b5a"
           icon={<Banknote size={20}/>}
-          destaque
         />
         <KpiCard
           label="Nº de Vendas Hoje"
