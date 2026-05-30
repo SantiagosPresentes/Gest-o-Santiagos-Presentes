@@ -676,6 +676,7 @@ export default function PainelVendedor() {
             <option value="Pendente">Pendente</option>
             <option value="Atrasado">Atrasado</option>
             <option value="Pago">Pago</option>
+            <option value="Devolvido">Devolvido</option>
           </select>
         </div>
         <div>
