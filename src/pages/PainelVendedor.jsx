@@ -11,7 +11,7 @@ import {
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-const META_MENSAL = 3000
+const META_MENSAL = 1500
 
 const NOMES_POR_EMAIL = {
   'levilaureano@gmail.com':          'Levy Santiago',
