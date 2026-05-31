@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import PageHeader from '../components/PageHeader'
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, LabelList, ReferenceLine
+  ResponsiveContainer, LabelList, ReferenceLine
 } from 'recharts'
 import {
   User, TrendingUp, ShoppingBag, AlertCircle, Clock,
@@ -65,25 +65,6 @@ function ordenarMeses(arr) {
     const [mB,aB] = b.mes.split('/')
     return (parseInt(aA)*12 + MESES_IDX[mA]) - (parseInt(aB)*12 + MESES_IDX[mB])
   })
-}
-
-// ── Tooltip customizado ───────────────────────────────────────────────────────
-function TooltipVendas({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{ background:'#fff', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'12px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.12)', minWidth:'160px' }}>
-      <p style={{ fontSize:'12px', fontWeight:'700', color:'#718096', marginBottom:'8px', textTransform:'uppercase', letterSpacing:'0.5px' }}>{label}</p>
-      {payload.map((p, i) => (
-        <div key={i} style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' }}>
-          <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:p.color, flexShrink:0 }}/>
-          <span style={{ fontSize:'12px', color:'#4a5568' }}>{p.name}:</span>
-          <span style={{ fontSize:'12px', fontWeight:'bold', color:p.color }}>
-            {p.name === 'Qtd' ? p.value : fmtBRL(p.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -620,20 +601,20 @@ export default function PainelVendedor() {
           <p style={{ textAlign:'center', padding:'32px', color:'#a0aec0', fontSize:'13px' }}>Nenhum dado disponível.</p>
         ) : (
           <>
-            {/* Legenda manual */}
-            <div style={{ display:'flex', gap:'16px', flexWrap:'wrap', marginBottom:'14px' }}>
+            {/* Legenda manual — 3 itens lado a lado */}
+            <div style={{ display:'flex', flexDirection:'row', alignItems:'center', gap:'20px', marginBottom:'14px', flexWrap:'nowrap', overflowX:'auto' }}>
               {[
                 { cor:'#1a6b5a', label:'Valor Vendido' },
                 { cor:'#29abe2', label:'Valor Recebido' },
                 { cor:'#f5821f', label:`Meta R$ ${META_MENSAL.toLocaleString('pt-BR')}`, dashed:true },
               ].map((item, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'6px', flexShrink:0 }}>
                   <div style={{
                     width:'24px', height:'3px', borderRadius:'2px',
                     background: item.dashed ? 'transparent' : item.cor,
                     borderTop: item.dashed ? `2px dashed ${item.cor}` : 'none',
                   }}/>
-                  <span style={{ fontSize:'11px', color:'#718096', fontWeight:'600' }}>{item.label}</span>
+                  <span style={{ fontSize:'11px', color:'#718096', fontWeight:'600', whiteSpace:'nowrap' }}>{item.label}</span>
                 </div>
               ))}
             </div>
@@ -670,7 +651,7 @@ export default function PainelVendedor() {
                   />
                   <YAxis hide/>
 
-                  <Tooltip content={<TooltipVendas/>}/>
+
 
                   {/* Linha de meta */}
                   <ReferenceLine
