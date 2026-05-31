@@ -601,8 +601,8 @@ export default function PainelVendedor() {
           <p style={{ textAlign:'center', padding:'32px', color:'#a0aec0', fontSize:'13px' }}>Nenhum dado disponível.</p>
         ) : (
           <>
-            {/* Legenda manual — 3 itens lado a lado */}
-            <div style={{ display:'flex', flexDirection:'row', alignItems:'center', gap:'20px', marginBottom:'14px', flexWrap:'nowrap', overflowX:'auto' }}>
+            {/* Legenda fixa — fora do scroll */}
+            <div style={{ display:'flex', flexDirection:'row', alignItems:'center', gap:'20px', marginBottom:'14px' }}>
               {[
                 { cor:'#1a6b5a', label:'Valor Vendido' },
                 { cor:'#29abe2', label:'Valor Recebido' },
@@ -619,12 +619,12 @@ export default function PainelVendedor() {
               ))}
             </div>
 
-            {/* Gráfico com scroll horizontal em telas pequenas */}
+            {/* Apenas o gráfico tem scroll horizontal */}
             <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
-              <div style={{ minWidth: Math.max(320, dadosGrafico.length * 80) }}>
+              <div style={{ minWidth: Math.max(360, dadosGrafico.length * 90) }}>
                 <ComposedChart
-                  width={Math.max(320, dadosGrafico.length * 80)}
-                  height={260}
+                  width={Math.max(360, dadosGrafico.length * 90)}
+                  height={280}
                   data={dadosGrafico}
                   margin={{ top:28, right:16, left:8, bottom:10 }}
                 >
@@ -705,20 +705,6 @@ export default function PainelVendedor() {
             {dadosGrafico.length > 5 && (
               <p style={{ fontSize:'11px', color:'#cbd5e0', textAlign:'center', marginTop:'6px' }}>← deslize para ver mais →</p>
             )}
-
-            {/* Resumo rápido abaixo do gráfico */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(100px,1fr))', gap:'10px', marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #f7f7f7' }}>
-              {[
-                { label:'Melhor mês',   valor: dadosGrafico.reduce((a,b) => b.vendido>a.vendido?b:a, dadosGrafico[0])?.mes || '—',                              cor:'#1a6b5a' },
-                { label:'Maior venda',  valor: fmtBRL(Math.max(...dadosGrafico.map(d=>d.vendido))),                                                              cor:'#29abe2' },
-                { label:'Média mensal', valor: fmtBRL(dadosGrafico.reduce((a,d)=>a+d.vendido,0) / (dadosGrafico.length||1)),                                   cor:'#8b5cf6' },
-              ].map((item,i) => (
-                <div key={i} style={{ background:'#f9fafb', borderRadius:'10px', padding:'10px 12px', textAlign:'center', border:'1px solid #edf2f7' }}>
-                  <div style={{ fontSize:'10px', color:'#a0aec0', fontWeight:'600', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:'4px' }}>{item.label}</div>
-                  <div style={{ fontSize:'13px', fontWeight:'bold', color:item.cor }}>{item.valor}</div>
-                </div>
-              ))}
-            </div>
           </>
         )}
       </div>
