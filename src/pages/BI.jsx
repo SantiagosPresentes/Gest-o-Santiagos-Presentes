@@ -192,6 +192,43 @@ function BarraCategoria({ item, max, totalValor, totalQtd, cor }) {
   )
 }
 
+// ── Barra Fornecedor — mesmo padrão do BarraCategoria ────────────────────────
+function BarraFornecedor({ item, max, totalInvestido, cor }) {
+  const pct        = max > 0 ? Math.min(100, (item.investido / max) * 100) : 2
+  const pctValor   = totalInvestido > 0 ? ((item.investido / totalInvestido) * 100).toFixed(1) : '0.0'
+  const valorFmt   = new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(item.investido || 0)
+
+  return (
+    <div style={{ marginBottom:'20px' }}>
+      {/* Cabeçalho: dot + nome + compras */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'6px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'7px' }}>
+          <div style={{ width:'9px', height:'9px', borderRadius:'3px', background:cor, flexShrink:0 }}/>
+          <span style={{ fontSize:'13px', fontWeight:'700', color:'#2d3748' }}>{item.fornecedor}</span>
+        </div>
+        <span style={{ fontSize:'14px', fontWeight:'800', color:cor }}>{item.qtdCompras} compra(s)</span>
+      </div>
+      {/* Barra — alta e com gradiente */}
+      <div style={{ background:'#f0f4f8', borderRadius:'8px', height:'18px', overflow:'hidden', marginBottom:'7px' }}>
+        <div style={{
+          width:`${pct}%`, height:'100%', borderRadius:'8px',
+          background:`linear-gradient(90deg, ${cor}dd, ${cor}88)`,
+          transition:'width 0.6s ease',
+        }}/>
+      </div>
+      {/* Info em linha única */}
+      <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+        <span style={{ fontSize:'11px', fontWeight:'600', color:cor, background:`${cor}12`, padding:'3px 8px', borderRadius:'6px' }}>
+          {valorFmt}
+        </span>
+        <span style={{ fontSize:'11px', fontWeight:'600', color:'#718096', background:'#f7fafc', padding:'3px 8px', borderRadius:'6px', border:'1px solid #edf2f7' }}>
+          {pctValor}% do total
+        </span>
+      </div>
+    </div>
+  )
+}
+
 // ── Formatador R$ brasileiro ─────────────────────────────────────────────────
 function fmtBRL(valor) {
   return new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(valor || 0)
@@ -205,8 +242,8 @@ function BI() {
   const [investimentos, setInvestimentos] = useState([])
   const [clientes,      setClientes]      = useState([])
   const [prods,         setProds]         = useState([])
-  const [retiradas,     setRetiradas]     = useState([])   // ← tabela de retiradas
-  const [encomendas,    setEncomendas]    = useState([])   // ← tabela de encomendas
+  const [retiradas,     setRetiradas]     = useState([])
+  const [encomendas,    setEncomendas]    = useState([])
   const [carregando,    setCarregando]    = useState(true)
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroMes,       setFiltroMes]       = useState('')
@@ -271,11 +308,10 @@ function BI() {
     return true
   }), [devolucoes, filtroMes, filtroAno])
 
-  // Retiradas filtradas — campo 'mes' é texto "Maio/2026"
   const MESES_PT = { janeiro:1, fevereiro:2, março:3, marco:3, abril:4, maio:5, junho:6, julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 }
   const retiradasFiltradas = useMemo(() => retiradas.filter(r => {
     if (!r.mes) return true
-    const partes = r.mes.split('/')          // ["Maio", "2026"]
+    const partes = r.mes.split('/')
     const nomeMes = (partes[0] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     const numMes  = MESES_PT[nomeMes] || 0
     const anoRet  = parseInt(partes[1]) || 0
@@ -301,13 +337,11 @@ function BI() {
   const totalRecebido     = useMemo(() => vendasFiltradas.reduce((acc,v) => acc + parseFloat(v.recebido||0), 0), [vendasFiltradas])
   const ticketMedio       = vendasFiltradas.length > 0 ? totalVendidoBruto / vendasFiltradas.length : 0
 
-  // Retiradas — campo 'valor' conforme tabela confirmada
   const totalRetirado = useMemo(
     () => retiradasFiltradas.reduce((acc, r) => acc + parseFloat(r.valor || 0), 0),
     [retiradasFiltradas]
   )
 
-  // Encomendas pendentes — AJUSTE o campo/valor de status se necessário
   const qtdEncomendas = useMemo(
     () => encomendas.filter(e => {
       const s = (e.situacao || e.status || '').toLowerCase()
@@ -495,6 +529,8 @@ function BI() {
   }, [itensVenda, proxData])
 
   const totalInvestido  = dadosFornecedor.reduce((acc,f) => acc+f.investido, 0)
+  const maxFornInvestido = dadosFornecedor.length > 0 ? Math.max(...dadosFornecedor.map(f => f.investido)) : 1
+
   const totalCategValor = dadosCategoria.reduce((acc,c) => acc+c.valor, 0)
   const totalCategQtd   = dadosCategoria.reduce((acc,c) => acc+c.quantidade, 0)
   const maxCategQtd     = dadosCategoria.length > 0 ? Math.max(...dadosCategoria.map(c => c.quantidade)) : 1
@@ -713,7 +749,7 @@ function BI() {
         )}
       </Card>
 
-      {/* ── 4. Top 10 Mais Vendidos — estilo original com gradiente ── */}
+      {/* ── 4. Top 10 Mais Vendidos ── */}
       <Card titulo="Top 10 Produtos Mais Vendidos" icon={TrendingUp} cor="#1a6b5a">
         {dadosMaisVendidos.length === 0
           ? <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum produto encontrado.</p>
@@ -819,32 +855,36 @@ function BI() {
         {dadosFornecedor.length === 0 ? (
           <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum investimento registrado.</p>
         ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))', gap:'24px', alignItems:'center' }}>
-            <div>
-              <ResponsiveContainer width="100%" height={230}>
+          <>
+            {/* Pizza centralizada */}
+            <div style={{ marginBottom:'24px' }}>
+              <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Distribuição por Valor Investido (R$)</p>
+              <ResponsiveContainer width="100%" height={210}>
                 <PieChart>
-                  <Pie data={dadosFornecedor} dataKey="investido" nameKey="fornecedor" cx="50%" cy="50%" outerRadius={100} innerRadius={52} paddingAngle={3} labelLine={false} label={LabelPizza}>
+                  <Pie data={dadosFornecedor} dataKey="investido" nameKey="fornecedor" cx="50%" cy="50%" outerRadius={90} innerRadius={44} paddingAngle={3} labelLine={false} label={LabelPizza}>
                     {dadosFornecedor.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
+              <p style={{textAlign:'center',fontSize:'12px',color:'#718096',marginTop:'4px'}}>
+                Total: <strong style={{color:'#f5821f'}}>{fmtBRL(totalInvestido)}</strong>
+              </p>
             </div>
-            <div>
-              {dadosFornecedor.map((f,i) => (
-                <div key={i} style={{display:'flex',alignItems:'center',gap:'10px',padding:'10px',borderRadius:'10px',marginBottom:'8px',background:'#f9fafb'}}>
-                  <div style={{width:'10px',height:'10px',borderRadius:'3px',background:CORES[i%CORES.length],flexShrink:0}}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:'13px',fontWeight:'600',color:'#2d3748',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}} title={f.fornecedor}>{f.fornecedor}</div>
-                    <div style={{fontSize:'11px',color:'#a0aec0'}}>{f.qtdCompras} compra(s)</div>
-                  </div>
-                  <div style={{textAlign:'right',flexShrink:0}}>
-                    <div style={{fontSize:'13px',fontWeight:'bold',color:CORES[i%CORES.length]}}>R$ {f.investido.toFixed(2)}</div>
-                    <div style={{fontSize:'10px',color:'#a0aec0'}}>{totalInvestido>0?((f.investido/totalInvestido)*100).toFixed(1):0}%</div>
-                  </div>
-                </div>
+
+            {/* Barras por valor investido */}
+            <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px' }}>
+              <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'18px'}}>Por Valor Investido</p>
+              {dadosFornecedor.map((item, i) => (
+                <BarraFornecedor
+                  key={i}
+                  item={item}
+                  max={maxFornInvestido}
+                  totalInvestido={totalInvestido}
+                  cor={CORES[i%CORES.length]}
+                />
               ))}
             </div>
-          </div>
+          </>
         )}
       </Card>
 
