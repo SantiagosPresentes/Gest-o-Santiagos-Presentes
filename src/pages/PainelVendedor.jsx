@@ -601,20 +601,20 @@ export default function PainelVendedor() {
           <p style={{ textAlign:'center', padding:'32px', color:'#a0aec0', fontSize:'13px' }}>Nenhum dado disponível.</p>
         ) : (
           <>
-            {/* Legenda fixa — fora do scroll */}
-            <div style={{ display:'flex', flexDirection:'row', alignItems:'center', gap:'20px', marginBottom:'14px' }}>
+            {/* Legenda fixa — distribuída igualmente no card */}
+            <div style={{ display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', gap:'8px' }}>
               {[
                 { cor:'#1a6b5a', label:'Valor Vendido' },
                 { cor:'#29abe2', label:'Valor Recebido' },
                 { cor:'#f5821f', label:`Meta R$ ${META_MENSAL.toLocaleString('pt-BR')}`, dashed:true },
               ].map((item, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:'6px', flexShrink:0 }}>
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'5px', flex:1, minWidth:0 }}>
                   <div style={{
-                    width:'24px', height:'3px', borderRadius:'2px',
+                    width:'18px', height:'3px', borderRadius:'2px', flexShrink:0,
                     background: item.dashed ? 'transparent' : item.cor,
                     borderTop: item.dashed ? `2px dashed ${item.cor}` : 'none',
                   }}/>
-                  <span style={{ fontSize:'11px', color:'#718096', fontWeight:'600', whiteSpace:'nowrap' }}>{item.label}</span>
+                  <span style={{ fontSize:'10px', color:'#718096', fontWeight:'600', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.label}</span>
                 </div>
               ))}
             </div>
