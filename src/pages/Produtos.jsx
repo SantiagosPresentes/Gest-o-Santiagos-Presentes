@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
-import { Package } from 'lucide-react'
+import { Package, Pencil, AlertTriangle, Search, X } from 'lucide-react'
 
 function Produtos() {
   const [codigo, setCodigo] = useState('')
@@ -94,9 +94,16 @@ function Produtos() {
 
       {/* FORMULÁRIO */}
       <div style={{ background: 'white', padding: '24px', borderRadius: '12px', marginTop: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderTop: editando ? '3px solid #f5821f' : '3px solid #1a6b5a' }}>
-        <h3 style={{ color: editando ? '#f5821f' : '#1a6b5a', marginBottom: '16px' }}>
-          {editando ? `✏️ Editando: ${editando.nome}` : 'Novo Produto'}
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          {editando ? (
+            <Pencil size={16} color="#f5821f" />
+          ) : (
+            <Package size={16} color="#1a6b5a" />
+          )}
+          <h3 style={{ color: editando ? '#f5821f' : '#1a6b5a', margin: 0 }}>
+            {editando ? `Editando: ${editando.nome}` : 'Novo Produto'}
+          </h3>
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
 
@@ -136,7 +143,11 @@ function Produtos() {
           <div>
             <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Preço de Venda (R$)</label><br />
             <input type="number" value={preco} onChange={e => setPreco(e.target.value)} placeholder="Ex: 25.90" style={campo} />
-            {editando && <small style={{ color: '#1a6b5a' }}>⚠️ Não afeta vendas já realizadas</small>}
+            {editando && (
+              <small style={{ color: '#1a6b5a', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                <AlertTriangle size={11} color="#1a6b5a" /> Não afeta vendas já realizadas
+              </small>
+            )}
           </div>
 
           {/* Mínimo e Máximo lado a lado */}
@@ -169,21 +180,29 @@ function Produtos() {
         <div style={{ marginTop: '20px', display: 'flex', gap: '8px' }}>
           {editando ? (
             <>
-              <button onClick={salvarEdicao} style={{ flex: 1, background: 'linear-gradient(135deg, #f5821f, #e06010)', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold' }}>
-                Salvar Alterações
+              <button onClick={salvarEdicao} style={{ flex: 1, background: 'linear-gradient(135deg, #f5821f, #e06010)', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <Pencil size={16} /> Salvar Alterações
               </button>
-              <button onClick={cancelarEdicao} style={{ flex: 1, background: '#eee', color: '#333', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '15px' }}>
-                Cancelar
+              <button onClick={cancelarEdicao} style={{ flex: 1, background: '#eee', color: '#333', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <X size={16} /> Cancelar
               </button>
             </>
           ) : (
-            <button onClick={salvarProduto} style={{ flex: 1, background: 'linear-gradient(135deg, #1a6b5a, #145a4a)', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold' }}>
-              Cadastrar Produto
+            <button onClick={salvarProduto} style={{ flex: 1, background: 'linear-gradient(135deg, #1a6b5a, #145a4a)', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <Package size={16} /> Cadastrar Produto
             </button>
           )}
         </div>
 
-        {mensagem && <p style={{ marginTop: '16px', color: mensagem.includes('Erro') ? 'red' : 'green', fontSize: '14px' }}>{mensagem}</p>}
+        {mensagem && (
+          <p style={{ marginTop: '16px', color: mensagem.includes('Erro') ? 'red' : 'green', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {mensagem.includes('Erro')
+              ? <AlertTriangle size={14} color="red" />
+              : <Package size={14} color="green" />
+            }
+            {mensagem}
+          </p>
+        )}
       </div>
 
       {/* LISTA DE PRODUTOS */}
@@ -192,12 +211,16 @@ function Produtos() {
           <h3 style={{ color: '#1a6b5a', margin: 0 }}>Produtos Cadastrados ({produtos.length})</h3>
         </div>
 
-        <input
-          value={busca}
-          onChange={e => setBusca(e.target.value)}
-          placeholder="🔍 Buscar por nome ou código..."
-          style={{ ...campo, marginBottom: '16px', marginTop: 0 }}
-        />
+        {/* Campo de busca com ícone */}
+        <div style={{ position: 'relative', marginBottom: '16px' }}>
+          <Search size={15} color="#a0aec0" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          <input
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            placeholder="Buscar por nome ou código..."
+            style={{ ...campo, marginTop: 0, paddingLeft: '36px' }}
+          />
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px', maxHeight: '500px', overflowY: 'auto' }}>
           {produtosFiltrados.map(p => (
@@ -216,9 +239,10 @@ function Produtos() {
               </div>
               <button
                 onClick={() => iniciarEdicao(p)}
-                style={{ background: '#fff8e1', color: '#f57f17', border: '1px solid #f5821f', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', whiteSpace: 'nowrap', marginLeft: '8px', flexShrink: 0 }}
+                style={{ background: '#fff8e1', color: '#f57f17', border: '1px solid #f5821f', padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '8px', flexShrink: 0 }}
+                title="Editar produto"
               >
-                ✏️
+                <Pencil size={14} />
               </button>
             </div>
           ))}
