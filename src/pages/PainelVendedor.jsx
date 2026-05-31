@@ -268,8 +268,6 @@ export default function PainelVendedor() {
     [vendasKpi, vendasTotalmenteDevolvidas]
   )
 
-  const progMeta = Math.min(100, (totalVendido / META_MENSAL) * 100)
-
   const vendasHojeEfetivas = useMemo(() =>
     vendasHoje.filter(v => !vendasTotalmenteDevolvidas.has(v.id)),
     [vendasHoje, vendasTotalmenteDevolvidas]
@@ -305,6 +303,24 @@ export default function PainelVendedor() {
   }, [todasVendas])
 
   const posicaoRanking = nomeVendedor ? ranking.findIndex(([n]) => n === nomeVendedor)+1 : 0
+
+  // ── Vendas do mês vigente — para a Meta (ignora filtros) ──────────────────
+  const vendasMesVigente = useMemo(() => {
+    const mesAtual = hoje.getMonth() + 1
+    const anoAtual = hoje.getFullYear()
+    return vendas.filter(v => {
+      if (vendasTotalmenteDevolvidas.has(v.id)) return false
+      const d = new Date((v.data_para_pagar || v.data_venda) + 'T12:00:00')
+      return d.getMonth() + 1 === mesAtual && d.getFullYear() === anoAtual
+    })
+  }, [vendas, vendasTotalmenteDevolvidas, hoje])
+
+  const totalVendidoMeta = useMemo(() =>
+    vendasMesVigente.reduce((a, v) => a + parseFloat(v.valor_total || 0), 0),
+    [vendasMesVigente]
+  )
+
+  const progMeta = Math.min(100, (totalVendidoMeta / META_MENSAL) * 100)
 
   // ── Dados do gráfico — vendas por mês ────────────────────────────────────
   const dadosGrafico = useMemo(() => {
@@ -559,28 +575,35 @@ export default function PainelVendedor() {
         <KpiCard label="Valor Devolvido"   valor={fmtBRL(valorDevolvido)} sub={`em ${qtdDevolucoes} devolução(ões)`} cor="#e94560" icon={<RotateCcw size={20}/>}/>
       </div>
 
-      {/* ── Meta do Mês ── */}
+      {/* ── Meta do Mês — sempre mês vigente, ignora filtros ── */}
       <div style={{ background:'#fff', borderRadius:'18px', padding:'20px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', margin:'20px 0 16px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'14px', paddingBottom:'10px', borderBottom:'1px solid #f7f7f7' }}>
           <Target size={16} color="#1a6b5a"/>
           <span style={{ fontSize:'14px', fontWeight:'700', color:'#1a6b5a' }}>Meta do Mês</span>
-          {(filtroMes||filtroAno) && (
-            <span style={{ fontSize:'12px', color:'#a0aec0', background:'#f7fafc', padding:'2px 10px', borderRadius:'20px' }}>
-              {filtroMes?MESES_NOMES[parseInt(filtroMes)-1]:''}{filtroMes&&filtroAno?'/':''}{filtroAno}
-            </span>
-          )}
+          {/* Badge fixo com mês/ano atual — nunca muda com os filtros */}
+          <span style={{ fontSize:'12px', color:'#a0aec0', background:'#f7fafc', padding:'2px 10px', borderRadius:'20px' }}>
+            {MESES_NOMES[hoje.getMonth()]}/{hoje.getFullYear()}
+          </span>
         </div>
         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'8px' }}>
-          <span style={{ fontSize:'13px', color:'#4a5568' }}><strong style={{ color:'#1a6b5a' }}>{fmtBRL(totalVendido)}</strong> de {fmtBRL(META_MENSAL)}</span>
-          <span style={{ fontSize:'13px', fontWeight:'bold', color:progMeta>=100?'#10b981':progMeta>=70?'#f5821f':'#ef4444' }}>{progMeta.toFixed(0)}%</span>
+          <span style={{ fontSize:'13px', color:'#4a5568' }}>
+            <strong style={{ color:'#1a6b5a' }}>{fmtBRL(totalVendidoMeta)}</strong> de {fmtBRL(META_MENSAL)}
+          </span>
+          <span style={{ fontSize:'13px', fontWeight:'bold', color:progMeta>=100?'#10b981':progMeta>=70?'#f5821f':'#ef4444' }}>
+            {progMeta.toFixed(0)}%
+          </span>
         </div>
         <div style={{ background:'#f0f4f8', borderRadius:'999px', height:'14px', overflow:'hidden' }}>
-          <motion.div initial={{ width:0 }} animate={{ width:`${progMeta}%` }} transition={{ duration:0.8, ease:'easeOut' }}
-            style={{ height:'100%', borderRadius:'999px', background:progMeta>=100?'linear-gradient(90deg,#10b981,#4ade80)':progMeta>=70?'linear-gradient(90deg,#f5821f,#f7c948)':'linear-gradient(90deg,#ef4444,#f97316)' }}/>
+          <motion.div
+            initial={{ width:0 }}
+            animate={{ width:`${progMeta}%` }}
+            transition={{ duration:0.8, ease:'easeOut' }}
+            style={{ height:'100%', borderRadius:'999px', background:progMeta>=100?'linear-gradient(90deg,#10b981,#4ade80)':progMeta>=70?'linear-gradient(90deg,#f5821f,#f7c948)':'linear-gradient(90deg,#ef4444,#f97316)' }}
+          />
         </div>
-        {progMeta>=100
+        {progMeta >= 100
           ? <p style={{ fontSize:'12px', color:'#10b981', fontWeight:'bold', marginTop:'8px' }}>Meta atingida! 🎉</p>
-          : <p style={{ fontSize:'12px', color:'#a0aec0', marginTop:'8px' }}>Falta {fmtBRL(META_MENSAL-totalVendido)} para a meta</p>
+          : <p style={{ fontSize:'12px', color:'#a0aec0', marginTop:'8px' }}>Falta {fmtBRL(META_MENSAL - totalVendidoMeta)} para a meta</p>
         }
       </div>
 
@@ -601,7 +624,7 @@ export default function PainelVendedor() {
           <p style={{ textAlign:'center', padding:'32px', color:'#a0aec0', fontSize:'13px' }}>Nenhum dado disponível.</p>
         ) : (
           <>
-            {/* Legenda fixa — distribuída igualmente no card */}
+            {/* Legenda */}
             <div style={{ display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', gap:'8px' }}>
               {[
                 { cor:'#1a6b5a', label:'Valor Vendido' },
@@ -619,7 +642,7 @@ export default function PainelVendedor() {
               ))}
             </div>
 
-            {/* Apenas o gráfico tem scroll horizontal */}
+            {/* Gráfico com scroll horizontal */}
             <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
               <div style={{ minWidth: Math.max(360, dadosGrafico.length * 90) }}>
                 <ComposedChart
@@ -651,9 +674,6 @@ export default function PainelVendedor() {
                   />
                   <YAxis hide/>
 
-
-
-                  {/* Linha de meta */}
                   <ReferenceLine
                     y={META_MENSAL}
                     stroke="#f5821f"
@@ -661,7 +681,6 @@ export default function PainelVendedor() {
                     strokeDasharray="7 4"
                   />
 
-                  {/* Área + linha — Valor Vendido */}
                   <Area
                     type="monotone"
                     dataKey="vendido"
@@ -680,7 +699,6 @@ export default function PainelVendedor() {
                     />
                   </Area>
 
-                  {/* Área + linha — Valor Recebido */}
                   <Area
                     type="monotone"
                     dataKey="recebido"
