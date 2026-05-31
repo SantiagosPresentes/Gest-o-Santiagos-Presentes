@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
-import { FileText } from 'lucide-react'
+import {
+  FileText, Calendar, User, X, Plus, Search,
+  Loader2, DollarSign, ShoppingCart, BarChart2,
+  Users, TrendingUp, TrendingDown, Package,
+  ClipboardList, CheckSquare
+} from 'lucide-react'
 
 const COR = ['#eeeeee', '#f5821f', '#c2185b', '#7b1fa2', '#0288d1', '#388e3c']
 const COR_TEXTO = ['#333333', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff']
@@ -27,12 +32,7 @@ function PeriodoCard({ index, periodo, onChange, vendedores }) {
   return (
     <div className="periodo-card" style={{ borderTop: `3px solid ${isClaro ? '#aaaaaa' : COR[index]}` }}>
       <div className="periodo-titulo" style={{ color: isClaro ? '#555' : COR[index] }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
+        <Calendar size={14} strokeWidth={2} />
         Período {index + 1}
       </div>
 
@@ -65,7 +65,7 @@ function PeriodoCard({ index, periodo, onChange, vendedores }) {
               color: '#333',
             }}
           >
-            <option value="">+ Adicionar vendedor...</option>
+            <option value="">Adicionar vendedor...</option>
             {disponiveis.map(v => (
               <option key={v} value={v}>{v}</option>
             ))}
@@ -90,11 +90,14 @@ function PeriodoCard({ index, periodo, onChange, vendedores }) {
                 fontWeight: 600,
               }}
             >
-              👤 {v}
+              <User size={11} />
+              {v}
               <span
-                style={{ cursor: 'pointer', opacity: 0.6, fontWeight: 900 }}
+                style={{ cursor: 'pointer', opacity: 0.6, fontWeight: 900, display: 'flex', alignItems: 'center' }}
                 onClick={() => toggleVendedor(v)}
-              >×</span>
+              >
+                <X size={11} />
+              </span>
             </div>
           ))}
           {selecionados.length > 1 && (
@@ -113,7 +116,7 @@ function PeriodoCard({ index, periodo, onChange, vendedores }) {
                 cursor: 'pointer',
               }}
             >
-              ✕ Limpar todos
+              <X size={11} /> Limpar todos
             </div>
           )}
         </div>
@@ -285,13 +288,8 @@ export default function Relatorios() {
       />
 
       <div className="card" style={{ marginTop: 16 }}>
-        <h3>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a6b5a" strokeWidth="2">
-            <rect x="3" y="4" width="18" height="18" rx="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Calendar size={18} color="#1a6b5a" strokeWidth={2} />
           Selecionar Períodos
         </h3>
 
@@ -309,7 +307,9 @@ export default function Relatorios() {
                   onClick={() => removerPeriodo(i)}
                   className="btn-remover-periodo"
                   title="Remover período"
-                >×</button>
+                >
+                  <X size={13} />
+                </button>
               )}
             </div>
           ))}
@@ -317,12 +317,15 @@ export default function Relatorios() {
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
           {periodos.length < 6 && (
-            <button onClick={adicionarPeriodo} className="btn-secundario" style={{ flex: 1, minWidth: 140 }}>
-              + Adicionar período
+            <button onClick={adicionarPeriodo} className="btn-secundario" style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Plus size={15} /> Adicionar período
             </button>
           )}
-          <button onClick={buscarDados} disabled={carregando} className="btn-primario" style={{ flex: 1, minWidth: 180 }}>
-            {carregando ? '⏳ Buscando...' : '🔍 Comparar Períodos'}
+          <button onClick={buscarDados} disabled={carregando} className="btn-primario" style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            {carregando
+              ? <><Loader2 size={15} style={{ animation: 'spin 0.9s linear infinite' }} /> Buscando...</>
+              : <><Search size={15} /> Comparar Períodos</>
+            }
           </button>
         </div>
 
@@ -344,20 +347,28 @@ export default function Relatorios() {
                     {labelPeriodo(r.periodo, i)}
                   </div>
                   <div className="resumo-item">
-                    <span>💰 Receita total</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <DollarSign size={13} color="#718096" /> Receita total
+                    </span>
                     <strong style={{ color: isClaro ? '#333' : COR[i] }}>{fmt(r.totalReceita)}</strong>
                   </div>
                   <div className="resumo-item">
-                    <span>🛒 Qtd. vendas</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <ShoppingCart size={13} color="#718096" /> Qtd. vendas
+                    </span>
                     <strong>{r.qtdVendas}</strong>
                   </div>
                   <div className="resumo-item">
-                    <span>📊 Ticket médio</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <BarChart2 size={13} color="#718096" /> Ticket médio
+                    </span>
                     <strong>{fmt(r.ticketMedio)}</strong>
                   </div>
                   {r.periodo.vendedores?.length > 0 && (
                     <div className="resumo-item" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #eee' }}>
-                      <span>👤 Vendedores</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Users size={13} color="#718096" /> Vendedores
+                      </span>
                       <strong style={{ color: isClaro ? '#333' : COR[i], textAlign: 'right', maxWidth: '60%' }}>
                         {r.periodo.vendedores.length === 1
                           ? r.periodo.vendedores[0]
@@ -389,11 +400,8 @@ export default function Relatorios() {
           </div>
 
           <div className="card" style={{ marginTop: 16 }}>
-            <h3>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a6b5a" strokeWidth="2">
-                <line x1="12" y1="1" x2="12" y2="23"/>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-              </svg>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <DollarSign size={18} color="#1a6b5a" strokeWidth={2} />
               Comparativo de Receita
             </h3>
             <BarraComparativa label="Receita total"  valores={resultados.map(r => r.totalReceita)} max={maxReceita} />
@@ -403,12 +411,8 @@ export default function Relatorios() {
 
           {todosProdutos.length > 0 && (
             <div className="card" style={{ marginTop: 16 }}>
-              <h3>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a6b5a" strokeWidth="2">
-                  <line x1="18" y1="20" x2="18" y2="10"/>
-                  <line x1="12" y1="20" x2="12" y2="4"/>
-                  <line x1="6" y1="20" x2="6" y2="14"/>
-                </svg>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Package size={18} color="#1a6b5a" strokeWidth={2} />
                 Produtos Mais Vendidos
               </h3>
               {todosProdutos.map(nome => (
@@ -423,11 +427,8 @@ export default function Relatorios() {
           )}
 
           <div className="card" style={{ marginTop: 16 }}>
-            <h3>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a6b5a" strokeWidth="2">
-                <path d="M9 11l3 3L22 4"/>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-              </svg>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ClipboardList size={18} color="#1a6b5a" strokeWidth={2} />
               Tabela Comparativa
             </h3>
             <div className="tabela-wrapper">
@@ -460,12 +461,19 @@ export default function Relatorios() {
                         {variacao !== null && (
                           <td>
                             <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
                               color: variacao >= 0 ? '#2e7d32' : '#c62828',
                               fontWeight: 700,
                               background: variacao >= 0 ? '#e8f5e9' : '#ffebee',
                               padding: '3px 10px', borderRadius: 20, fontSize: 13
                             }}>
-                              {variacao >= 0 ? '▲' : '▼'} {Math.abs(variacao)}%
+                              {variacao >= 0
+                                ? <TrendingUp size={13} />
+                                : <TrendingDown size={13} />
+                              }
+                              {Math.abs(variacao)}%
                             </span>
                           </td>
                         )}
@@ -478,6 +486,8 @@ export default function Relatorios() {
           </div>
         </>
       )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }
