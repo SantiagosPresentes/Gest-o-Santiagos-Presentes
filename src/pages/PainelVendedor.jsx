@@ -150,7 +150,7 @@ export default function PainelVendedor() {
         .order('criado_em', { ascending: false }),
       supabase
         .from('vendas')
-        .select('vendedor_nome, valor_total, recebido'),
+        .select('vendedor_nome, valor_total, recebido, data_venda, data_para_pagar, situacao'),
     ])
 
     if (vRes.data) {
@@ -164,7 +164,7 @@ export default function PainelVendedor() {
       setVendas(vendasComItens)
     }
     if (devRes.data)  setDevolucoes(devRes.data)
-    if (tvRes.data)   setTodasVendas(tvRes.data)
+    if (tvRes.data)   setTodasVendas(tvRes.data.map(v => ({ ...v, situacao_real: calcularSituacao(v) })))
   }, [])
 
   // ── Init + Realtime ───────────────────────────────────────────────────────
@@ -192,7 +192,7 @@ export default function PainelVendedor() {
             ))
             setTodasVendas(prev => prev.map(v =>
               v.id === payload.new.id
-                ? { ...v, valor_total:payload.new.valor_total, recebido:payload.new.recebido }
+                ? { ...v, valor_total:payload.new.valor_total, recebido:payload.new.recebido, situacao_real: calcularSituacao(payload.new) }
                 : v
             ))
           }
@@ -210,14 +210,20 @@ export default function PainelVendedor() {
     [vendas]
   )
 
-  // ── Vendas filtradas para KPIs ────────────────────────────────────────────
-  const vendasKpi = useMemo(() => vendas.filter(v => {
+  // ── Helper: vendas dentro dos filtros KPI (mês/ano/situação) ─────────────
+  function passaFiltroKpi(v, fMes, fAno, fSit) {
     const d = new Date((v.data_para_pagar || v.data_venda) + 'T12:00:00')
-    if (filtroMes && d.getMonth()+1 !== parseInt(filtroMes)) return false
-    if (filtroAno && d.getFullYear()  !== parseInt(filtroAno))  return false
-    if (filtroSit && v.situacao_real?.toLowerCase() !== filtroSit) return false
+    if (fMes && d.getMonth()+1 !== parseInt(fMes)) return false
+    if (fAno && d.getFullYear()  !== parseInt(fAno))  return false
+    if (fSit && v.situacao_real?.toLowerCase() !== fSit) return false
     return true
-  }), [vendas, filtroMes, filtroAno, filtroSit])
+  }
+
+  // ── Vendas filtradas para KPIs (do vendedor logado) ───────────────────────
+  const vendasKpi = useMemo(() =>
+    vendas.filter(v => passaFiltroKpi(v, filtroMes, filtroAno, filtroSit)),
+    [vendas, filtroMes, filtroAno, filtroSit]
+  )
 
   // ── Vendas filtradas para a tabela ────────────────────────────────────────
   const vendasTabela = useMemo(() => vendas.filter(v => {
@@ -291,16 +297,19 @@ export default function PainelVendedor() {
   const qtdVendasDevolvidas = vendasTotalmenteDevolvidas.size
   const valorDevolvido      = devolucoesDoVendedor.reduce((a,d) => a+parseFloat(d.valor_total||0), 0)
 
-  // ── Ranking ───────────────────────────────────────────────────────────────
+  // ── Ranking — responde aos filtros KPI ───────────────────────────────────
+  // Filtra todasVendas pelo mesmo critério de mês/ano/situação
   const ranking = useMemo(() => {
     const r = {}
     todasVendas.forEach(v => {
+      if (!passaFiltroKpi(v, filtroMes, filtroAno, filtroSit)) return
       const n = v.vendedor_nome || 'Sem nome'
       if (!r[n]) r[n] = 0
       r[n] += parseFloat(v.valor_total || 0)
     })
-    return Object.entries(r).sort((a,b) => b[1]-a[1])
-  }, [todasVendas])
+    // Apenas vendedores com vendas no período aparecem
+    return Object.entries(r).filter(([,total]) => total > 0).sort((a,b) => b[1]-a[1])
+  }, [todasVendas, filtroMes, filtroAno, filtroSit])
 
   const posicaoRanking = nomeVendedor ? ranking.findIndex(([n]) => n === nomeVendedor)+1 : 0
 
@@ -322,12 +331,12 @@ export default function PainelVendedor() {
 
   const progMeta = Math.min(100, (totalVendidoMeta / META_MENSAL) * 100)
 
-  // ── Dados do gráfico — vendas por mês ────────────────────────────────────
+  // ── Dados do gráfico — responde a todos os filtros KPI ───────────────────
   const dadosGrafico = useMemo(() => {
     const meses = {}
     vendas.forEach(v => {
+      if (!passaFiltroKpi(v, filtroMes, filtroAno, filtroSit)) return
       const d = new Date((v.data_para_pagar || v.data_venda) + 'T12:00:00')
-      if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
       const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
       if (!meses[chave]) meses[chave] = { mes:chave, vendido:0, recebido:0, qtd:0 }
       if (!vendasTotalmenteDevolvidas.has(v.id)) {
@@ -337,7 +346,7 @@ export default function PainelVendedor() {
       }
     })
     return ordenarMeses(Object.values(meses))
-  }, [vendas, vendasTotalmenteDevolvidas, filtroAno])
+  }, [vendas, vendasTotalmenteDevolvidas, filtroMes, filtroAno, filtroSit])
 
   // ── Devoluções de uma venda ───────────────────────────────────────────────
   function devolucoesVenda(vendaId) {
@@ -580,7 +589,6 @@ export default function PainelVendedor() {
         <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'14px', paddingBottom:'10px', borderBottom:'1px solid #f7f7f7' }}>
           <Target size={16} color="#1a6b5a"/>
           <span style={{ fontSize:'14px', fontWeight:'700', color:'#1a6b5a' }}>Meta do Mês</span>
-          {/* Badge fixo com mês/ano atual — nunca muda com os filtros */}
           <span style={{ fontSize:'12px', color:'#a0aec0', background:'#f7fafc', padding:'2px 10px', borderRadius:'20px' }}>
             {MESES_NOMES[hoje.getMonth()]}/{hoje.getFullYear()}
           </span>
@@ -609,22 +617,23 @@ export default function PainelVendedor() {
 
       {/* ── Gráfico — Vendas por Mês ── */}
       <div style={{ background:'#fff', borderRadius:'18px', padding:'20px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', marginBottom:'16px' }}>
-        {/* Cabeçalho */}
         <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'18px', paddingBottom:'12px', borderBottom:'1px solid #f7f7f7' }}>
           <div style={{ width:'32px', height:'32px', borderRadius:'9px', background:'#1a6b5a18', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
             <BarChart3 size={16} color="#1a6b5a" strokeWidth={2.2}/>
           </div>
           <span style={{ fontSize:'14px', fontWeight:'700', color:'#1a202c' }}>Evolução de Vendas por Mês</span>
-          {filtroAno && (
-            <span style={{ fontSize:'12px', color:'#a0aec0', background:'#f7fafc', padding:'2px 10px', borderRadius:'20px', marginLeft:'4px' }}>{filtroAno}</span>
+          {/* Badge mostra filtros ativos */}
+          {temFiltroKpi && (
+            <span style={{ fontSize:'12px', color:'#a0aec0', background:'#f7fafc', padding:'2px 10px', borderRadius:'20px', marginLeft:'4px' }}>
+              {[filtroMes ? MESES_NOMES[parseInt(filtroMes)-1] : '', filtroAno, filtroSit].filter(Boolean).join(' · ')}
+            </span>
           )}
         </div>
 
         {dadosGrafico.length === 0 ? (
-          <p style={{ textAlign:'center', padding:'32px', color:'#a0aec0', fontSize:'13px' }}>Nenhum dado disponível.</p>
+          <p style={{ textAlign:'center', padding:'32px', color:'#a0aec0', fontSize:'13px' }}>Nenhum dado para o período selecionado.</p>
         ) : (
           <>
-            {/* Legenda */}
             <div style={{ display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', gap:'8px' }}>
               {[
                 { cor:'#1a6b5a', label:'Valor Vendido' },
@@ -642,7 +651,6 @@ export default function PainelVendedor() {
               ))}
             </div>
 
-            {/* Gráfico com scroll horizontal */}
             <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
               <div style={{ minWidth: Math.max(360, dadosGrafico.length * 90) }}>
                 <ComposedChart
@@ -661,60 +669,15 @@ export default function PainelVendedor() {
                       <stop offset="95%" stopColor="#29abe2" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f4f8" vertical={false}/>
-
-                  <XAxis
-                    dataKey="mes"
-                    tick={{ fontSize:11, fill:'#a0aec0' }}
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                    padding={{ left:20, right:20 }}
-                  />
+                  <XAxis dataKey="mes" tick={{ fontSize:11, fill:'#a0aec0' }} axisLine={false} tickLine={false} interval={0} padding={{ left:20, right:20 }}/>
                   <YAxis hide/>
-
-                  <ReferenceLine
-                    y={META_MENSAL}
-                    stroke="#f5821f"
-                    strokeWidth={1.5}
-                    strokeDasharray="7 4"
-                  />
-
-                  <Area
-                    type="monotone"
-                    dataKey="vendido"
-                    name="Vendido"
-                    stroke="#1a6b5a"
-                    strokeWidth={2.5}
-                    fill="url(#gradVendido)"
-                    dot={{ r:4, fill:'#1a6b5a', strokeWidth:2, stroke:'white' }}
-                    activeDot={{ r:6 }}
-                  >
-                    <LabelList
-                      dataKey="vendido"
-                      position="top"
-                      formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''}
-                      style={{ fontSize:'10px', fill:'#1a6b5a', fontWeight:'bold' }}
-                    />
+                  <ReferenceLine y={META_MENSAL} stroke="#f5821f" strokeWidth={1.5} strokeDasharray="7 4"/>
+                  <Area type="monotone" dataKey="vendido" name="Vendido" stroke="#1a6b5a" strokeWidth={2.5} fill="url(#gradVendido)" dot={{ r:4, fill:'#1a6b5a', strokeWidth:2, stroke:'white' }} activeDot={{ r:6 }}>
+                    <LabelList dataKey="vendido" position="top" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{ fontSize:'10px', fill:'#1a6b5a', fontWeight:'bold' }}/>
                   </Area>
-
-                  <Area
-                    type="monotone"
-                    dataKey="recebido"
-                    name="Recebido"
-                    stroke="#29abe2"
-                    strokeWidth={2}
-                    fill="url(#gradRecebido)"
-                    dot={{ r:4, fill:'#29abe2', strokeWidth:2, stroke:'white' }}
-                    activeDot={{ r:6 }}
-                  >
-                    <LabelList
-                      dataKey="recebido"
-                      position="bottom"
-                      formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''}
-                      style={{ fontSize:'10px', fill:'#29abe2', fontWeight:'bold' }}
-                    />
+                  <Area type="monotone" dataKey="recebido" name="Recebido" stroke="#29abe2" strokeWidth={2} fill="url(#gradRecebido)" dot={{ r:4, fill:'#29abe2', strokeWidth:2, stroke:'white' }} activeDot={{ r:6 }}>
+                    <LabelList dataKey="recebido" position="bottom" formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''} style={{ fontSize:'10px', fill:'#29abe2', fontWeight:'bold' }}/>
                   </Area>
                 </ComposedChart>
               </div>
@@ -727,13 +690,20 @@ export default function PainelVendedor() {
         )}
       </div>
 
-      {/* ── Ranking ── */}
+      {/* ── Ranking — responde aos filtros KPI ── */}
       <div style={{ background:'#fff', borderRadius:'18px', padding:'20px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', marginBottom:'16px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'14px', paddingBottom:'10px', borderBottom:'1px solid #f7f7f7' }}>
           <Trophy size={16} color="#1a6b5a"/>
           <span style={{ fontSize:'14px', fontWeight:'700', color:'#1a6b5a' }}>Ranking de Vendedores</span>
+          {temFiltroKpi && (
+            <span style={{ fontSize:'12px', color:'#a0aec0', background:'#f7fafc', padding:'2px 10px', borderRadius:'20px' }}>
+              {[filtroMes ? MESES_NOMES[parseInt(filtroMes)-1] : '', filtroAno, filtroSit].filter(Boolean).join(' · ')}
+            </span>
+          )}
         </div>
-        {ranking.map(([nome, total], i) => {
+        {ranking.length === 0 ? (
+          <p style={{ textAlign:'center', padding:'24px', color:'#a0aec0', fontSize:'13px' }}>Nenhum vendedor com vendas no período.</p>
+        ) : ranking.map(([nome, total], i) => {
           const isMeu   = nome === nomeVendedor
           const medalha = i===0?'#f7c948':i===1?'#b0bec5':i===2?'#cd7f32':'#edf2f7'
           return (
@@ -809,9 +779,9 @@ export default function PainelVendedor() {
           </thead>
           <tbody>
             {vendasTabela.map((venda, i) => {
-              const devs         = devolucoesVenda(venda.id)
-              const falta        = parseFloat(venda.valor_total) - parseFloat(venda.recebido||0)
-              const sit          = venda.situacao_real
+              const devs           = devolucoesVenda(venda.id)
+              const falta          = parseFloat(venda.valor_total) - parseFloat(venda.recebido||0)
+              const sit            = venda.situacao_real
               const totalDevolvida = vendasTotalmenteDevolvidas.has(venda.id)
               return (
                 <>
@@ -875,7 +845,6 @@ export default function PainelVendedor() {
                     </td>
                   </tr>
 
-                  {/* Linha expandida */}
                   {vendaExpandida === venda.id && (
                     <tr key={venda.id+'_det'}>
                       <td colSpan="11" style={{ background:'#f0f4ff', padding:'12px 16px' }}>
