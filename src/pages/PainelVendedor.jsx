@@ -4,13 +4,19 @@ import html2canvas from 'html2canvas'
 import { motion } from 'framer-motion'
 import PageHeader from '../components/PageHeader'
 import {
+  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, LabelList, ReferenceLine
+} from 'recharts'
+import {
   User, TrendingUp, ShoppingBag, AlertCircle, Clock,
   XCircle, RefreshCw, Trophy, Target, Banknote,
-  ShoppingCart, FilterX, History, RotateCcw, PackageX
+  ShoppingCart, FilterX, History, RotateCcw, PackageX,
+  BarChart3
 } from 'lucide-react'
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+const MESES_IDX   = { Jan:0,Fev:1,Mar:2,Abr:3,Mai:4,Jun:5,Jul:6,Ago:7,Set:8,Out:9,Nov:10,Dez:11 }
 const META_MENSAL = 1500
 
 const NOMES_POR_EMAIL = {
@@ -51,6 +57,33 @@ function extrairParcelas(venda) {
   const match = venda.observacao.match(/(\d+)x:(.+?)(?:\||$)/)
   if (!match) return null
   return { qtd: match[1], detalhe: match[2].trim() }
+}
+
+function ordenarMeses(arr) {
+  return arr.sort((a,b) => {
+    const [mA,aA] = a.mes.split('/')
+    const [mB,aB] = b.mes.split('/')
+    return (parseInt(aA)*12 + MESES_IDX[mA]) - (parseInt(aB)*12 + MESES_IDX[mB])
+  })
+}
+
+// ── Tooltip customizado ───────────────────────────────────────────────────────
+function TooltipVendas({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background:'#fff', border:'1px solid #e2e8f0', borderRadius:'12px', padding:'12px 16px', boxShadow:'0 4px 20px rgba(0,0,0,0.12)', minWidth:'160px' }}>
+      <p style={{ fontSize:'12px', fontWeight:'700', color:'#718096', marginBottom:'8px', textTransform:'uppercase', letterSpacing:'0.5px' }}>{label}</p>
+      {payload.map((p, i) => (
+        <div key={i} style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' }}>
+          <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:p.color, flexShrink:0 }}/>
+          <span style={{ fontSize:'12px', color:'#4a5568' }}>{p.name}:</span>
+          <span style={{ fontSize:'12px', fontWeight:'bold', color:p.color }}>
+            {p.name === 'Qtd' ? p.value : fmtBRL(p.value)}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -228,24 +261,12 @@ export default function PainelVendedor() {
     const set = new Set()
     vendas.forEach(venda => {
       const devs = devolucoes.filter(d => String(d.venda_id) === String(venda.id))
-
-      // Critério 1: tem devolução e valor_total foi zerado pelo sistema
-      if (devs.length > 0 && parseFloat(venda.valor_total || 0) === 0) {
-        set.add(venda.id); return
-      }
-
-      // Critério 2: observação contém "devolução" (marcado ao processar)
-      if (venda.observacao && venda.observacao.toLowerCase().includes('devolução')) {
-        set.add(venda.id); return
-      }
-
-      // Critério 3: valor devolvido cobre o valor_bruto original da venda
+      if (devs.length > 0 && parseFloat(venda.valor_total || 0) === 0) { set.add(venda.id); return }
+      if (venda.observacao && venda.observacao.toLowerCase().includes('devolução')) { set.add(venda.id); return }
       if (devs.length > 0) {
         const totalDevolvido = devs.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
         const referencia = parseFloat(venda.valor_bruto || venda.valor_total || 0)
-        if (referencia > 0 && totalDevolvido >= referencia - 0.01) {
-          set.add(venda.id); return
-        }
+        if (referencia > 0 && totalDevolvido >= referencia - 0.01) { set.add(venda.id); return }
       }
     })
     return set
@@ -261,7 +282,6 @@ export default function PainelVendedor() {
   const totalVendido  = useMemo(() => vendasKpi.reduce((a,v) => a+parseFloat(v.valor_total||0), 0), [vendasKpi])
   const totalRecebido = useMemo(() => vendasKpi.reduce((a,v) => a+parseFloat(v.recebido   ||0), 0), [vendasKpi])
 
-  // Total de vendas excluindo as totalmente devolvidas
   const qtdVendasEfetivas = useMemo(() =>
     vendasKpi.filter(v => !vendasTotalmenteDevolvidas.has(v.id)).length,
     [vendasKpi, vendasTotalmenteDevolvidas]
@@ -269,7 +289,6 @@ export default function PainelVendedor() {
 
   const progMeta = Math.min(100, (totalVendido / META_MENSAL) * 100)
 
-  // Vendas do dia excluindo devolvidas totalmente
   const vendasHojeEfetivas = useMemo(() =>
     vendasHoje.filter(v => !vendasTotalmenteDevolvidas.has(v.id)),
     [vendasHoje, vendasTotalmenteDevolvidas]
@@ -277,7 +296,6 @@ export default function PainelVendedor() {
   const valorVendasHoje = vendasHojeEfetivas.reduce((a,v) => a+parseFloat(v.valor_total||0), 0)
   const qtdVendasHoje   = vendasHojeEfetivas.length
 
-  // A Receber excluindo devolvidas totalmente
   const aPagar = useMemo(() =>
     vendasKpi.filter(v => v.situacao_real === 'Pendente' && !vendasTotalmenteDevolvidas.has(v.id)),
     [vendasKpi, vendasTotalmenteDevolvidas]
@@ -290,10 +308,9 @@ export default function PainelVendedor() {
   )
   const totalInadimplente = inadimplentes.reduce((a,v) => a+parseFloat(v.valor_total||0)-parseFloat(v.recebido||0), 0)
 
-  // KPIs de devolução
-  const qtdDevolucoes      = devolucoesDoVendedor.length
+  const qtdDevolucoes       = devolucoesDoVendedor.length
   const qtdVendasDevolvidas = vendasTotalmenteDevolvidas.size
-  const valorDevolvido     = devolucoesDoVendedor.reduce((a,d) => a+parseFloat(d.valor_total||0), 0)
+  const valorDevolvido      = devolucoesDoVendedor.reduce((a,d) => a+parseFloat(d.valor_total||0), 0)
 
   // ── Ranking ───────────────────────────────────────────────────────────────
   const ranking = useMemo(() => {
@@ -307,6 +324,23 @@ export default function PainelVendedor() {
   }, [todasVendas])
 
   const posicaoRanking = nomeVendedor ? ranking.findIndex(([n]) => n === nomeVendedor)+1 : 0
+
+  // ── Dados do gráfico — vendas por mês ────────────────────────────────────
+  const dadosGrafico = useMemo(() => {
+    const meses = {}
+    vendas.forEach(v => {
+      const d = new Date((v.data_para_pagar || v.data_venda) + 'T12:00:00')
+      if (filtroAno && d.getFullYear() !== parseInt(filtroAno)) return
+      const chave = `${MESES_NOMES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`
+      if (!meses[chave]) meses[chave] = { mes:chave, vendido:0, recebido:0, qtd:0 }
+      if (!vendasTotalmenteDevolvidas.has(v.id)) {
+        meses[chave].vendido  += parseFloat(v.valor_total||0)
+        meses[chave].recebido += parseFloat(v.recebido||0)
+        meses[chave].qtd      += 1
+      }
+    })
+    return ordenarMeses(Object.values(meses))
+  }, [vendas, vendasTotalmenteDevolvidas, filtroAno])
 
   // ── Devoluções de uma venda ───────────────────────────────────────────────
   function devolucoesVenda(vendaId) {
@@ -514,102 +548,34 @@ export default function PainelVendedor() {
         </div>
       </div>
 
-      {/* ════════════════════════════════════════════════════
-          SEÇÃO 1 — HOJE
-      ════════════════════════════════════════════════════ */}
+      {/* SEÇÃO 1 — HOJE */}
       <SectionLabel label="Hoje" icon={<ShoppingBag size={14}/>} />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'4px' }}>
-        <KpiCard
-          label="Vendas Hoje (R$)"
-          valor={fmtBRL(valorVendasHoje)}
-          sub={`${qtdVendasHoje} venda(s) hoje`}
-          cor="#1a6b5a"
-          icon={<Banknote size={20}/>}
-        />
-        <KpiCard
-          label="Nº de Vendas Hoje"
-          valor={qtdVendasHoje}
-          sub="zerado a cada novo dia"
-          cor="#29abe2"
-          icon={<ShoppingCart size={20}/>}
-        />
+        <KpiCard label="Vendas Hoje (R$)" valor={fmtBRL(valorVendasHoje)} sub={`${qtdVendasHoje} venda(s) hoje`} cor="#1a6b5a" icon={<Banknote size={20}/>}/>
+        <KpiCard label="Nº de Vendas Hoje" valor={qtdVendasHoje} sub="zerado a cada novo dia" cor="#29abe2" icon={<ShoppingCart size={20}/>}/>
       </div>
 
-      {/* ════════════════════════════════════════════════════
-          SEÇÃO 2 — PERÍODO FILTRADO
-      ════════════════════════════════════════════════════ */}
+      {/* SEÇÃO 2 — PERÍODO FILTRADO */}
       <SectionLabel label="Período filtrado" icon={<TrendingUp size={14}/>} />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'4px' }}>
-        <KpiCard
-          label="Total Vendas"
-          valor={qtdVendasEfetivas}
-          sub="vendas efetivas no período"
-          cor="#e91e8c"
-          icon={<ShoppingCart size={20}/>}
-        />
-        <KpiCard
-          label="Valor Vendido"
-          valor={fmtBRL(totalVendido)}
-          sub={`${qtdVendasEfetivas} venda(s)`}
-          cor="#29abe2"
-          icon={<TrendingUp size={20}/>}
-        />
-        <KpiCard
-          label="Recebido"
-          valor={fmtBRL(totalRecebido)}
-          sub={`de ${fmtBRL(totalVendido)}`}
-          cor="#10b981"
-          icon={<Banknote size={20}/>}
-        />
-        <KpiCard
-          label="Ranking"
-          valor={posicaoRanking ? `#${posicaoRanking}` : '—'}
-          sub={`de ${ranking.length} vendedor(es)`}
-          cor="#8b5cf6"
-          icon={<Trophy size={20}/>}
-        />
+        <KpiCard label="Total Vendas"  valor={qtdVendasEfetivas}      sub="vendas efetivas no período"  cor="#e91e8c" icon={<ShoppingCart size={20}/>}/>
+        <KpiCard label="Valor Vendido" valor={fmtBRL(totalVendido)}   sub={`${qtdVendasEfetivas} venda(s)`} cor="#29abe2" icon={<TrendingUp size={20}/>}/>
+        <KpiCard label="Recebido"      valor={fmtBRL(totalRecebido)}  sub={`de ${fmtBRL(totalVendido)}`} cor="#10b981" icon={<Banknote size={20}/>}/>
+        <KpiCard label="Ranking"       valor={posicaoRanking ? `#${posicaoRanking}` : '—'} sub={`de ${ranking.length} vendedor(es)`} cor="#8b5cf6" icon={<Trophy size={20}/>}/>
       </div>
 
-      {/* ════════════════════════════════════════════════════
-          SEÇÃO 3 — PENDÊNCIAS
-      ════════════════════════════════════════════════════ */}
+      {/* SEÇÃO 3 — PENDÊNCIAS */}
       <SectionLabel label="Pendências" icon={<AlertCircle size={14}/>} />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'4px' }}>
-        <KpiCard
-          label="Atrasadas"
-          valor={inadimplentes.length}
-          sub={`${fmtBRL(totalInadimplente)} em aberto`}
-          cor="#ef4444"
-          icon={<AlertCircle size={20}/>}
-        />
-        <KpiCard
-          label="A Receber"
-          valor={aPagar.length}
-          sub={`${fmtBRL(totalAPagar)} pendente`}
-          cor="#f5821f"
-          icon={<Clock size={20}/>}
-        />
+        <KpiCard label="Atrasadas" valor={inadimplentes.length}  sub={`${fmtBRL(totalInadimplente)} em aberto`} cor="#ef4444" icon={<AlertCircle size={20}/>}/>
+        <KpiCard label="A Receber" valor={aPagar.length}         sub={`${fmtBRL(totalAPagar)} pendente`}        cor="#f5821f" icon={<Clock size={20}/>}/>
       </div>
 
-      {/* ════════════════════════════════════════════════════
-          SEÇÃO 4 — DEVOLUÇÕES
-      ════════════════════════════════════════════════════ */}
+      {/* SEÇÃO 4 — DEVOLUÇÕES */}
       <SectionLabel label="Devoluções" icon={<RotateCcw size={14}/>} />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'12px', marginBottom:'4px' }}>
-        <KpiCard
-          label="Vendas Devolvidas"
-          valor={qtdVendasDevolvidas}
-          sub="vendas totalmente devolvidas"
-          cor="#e94560"
-          icon={<PackageX size={20}/>}
-        />
-        <KpiCard
-          label="Valor Devolvido"
-          valor={fmtBRL(valorDevolvido)}
-          sub={`em ${qtdDevolucoes} devolução(ões)`}
-          cor="#e94560"
-          icon={<RotateCcw size={20}/>}
-        />
+        <KpiCard label="Vendas Devolvidas" valor={qtdVendasDevolvidas} sub="vendas totalmente devolvidas"       cor="#e94560" icon={<PackageX size={20}/>}/>
+        <KpiCard label="Valor Devolvido"   valor={fmtBRL(valorDevolvido)} sub={`em ${qtdDevolucoes} devolução(ões)`} cor="#e94560" icon={<RotateCcw size={20}/>}/>
       </div>
 
       {/* ── Meta do Mês ── */}
@@ -635,6 +601,145 @@ export default function PainelVendedor() {
           ? <p style={{ fontSize:'12px', color:'#10b981', fontWeight:'bold', marginTop:'8px' }}>Meta atingida! 🎉</p>
           : <p style={{ fontSize:'12px', color:'#a0aec0', marginTop:'8px' }}>Falta {fmtBRL(META_MENSAL-totalVendido)} para a meta</p>
         }
+      </div>
+
+      {/* ── Gráfico — Vendas por Mês ── */}
+      <div style={{ background:'#fff', borderRadius:'18px', padding:'20px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', marginBottom:'16px' }}>
+        {/* Cabeçalho */}
+        <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'18px', paddingBottom:'12px', borderBottom:'1px solid #f7f7f7' }}>
+          <div style={{ width:'32px', height:'32px', borderRadius:'9px', background:'#1a6b5a18', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <BarChart3 size={16} color="#1a6b5a" strokeWidth={2.2}/>
+          </div>
+          <span style={{ fontSize:'14px', fontWeight:'700', color:'#1a202c' }}>Evolução de Vendas por Mês</span>
+          {filtroAno && (
+            <span style={{ fontSize:'12px', color:'#a0aec0', background:'#f7fafc', padding:'2px 10px', borderRadius:'20px', marginLeft:'4px' }}>{filtroAno}</span>
+          )}
+        </div>
+
+        {dadosGrafico.length === 0 ? (
+          <p style={{ textAlign:'center', padding:'32px', color:'#a0aec0', fontSize:'13px' }}>Nenhum dado disponível.</p>
+        ) : (
+          <>
+            {/* Legenda manual */}
+            <div style={{ display:'flex', gap:'16px', flexWrap:'wrap', marginBottom:'14px' }}>
+              {[
+                { cor:'#1a6b5a', label:'Valor Vendido' },
+                { cor:'#29abe2', label:'Valor Recebido' },
+                { cor:'#f5821f', label:`Meta R$ ${META_MENSAL.toLocaleString('pt-BR')}`, dashed:true },
+              ].map((item, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+                  <div style={{
+                    width:'24px', height:'3px', borderRadius:'2px',
+                    background: item.dashed ? 'transparent' : item.cor,
+                    borderTop: item.dashed ? `2px dashed ${item.cor}` : 'none',
+                  }}/>
+                  <span style={{ fontSize:'11px', color:'#718096', fontWeight:'600' }}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Gráfico com scroll horizontal em telas pequenas */}
+            <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
+              <div style={{ minWidth: Math.max(320, dadosGrafico.length * 80) }}>
+                <ComposedChart
+                  width={Math.max(320, dadosGrafico.length * 80)}
+                  height={260}
+                  data={dadosGrafico}
+                  margin={{ top:28, right:16, left:8, bottom:10 }}
+                >
+                  <defs>
+                    <linearGradient id="gradVendido" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#1a6b5a" stopOpacity={0.22}/>
+                      <stop offset="95%" stopColor="#1a6b5a" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="gradRecebido" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#29abe2" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#29abe2" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f4f8" vertical={false}/>
+
+                  <XAxis
+                    dataKey="mes"
+                    tick={{ fontSize:11, fill:'#a0aec0' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    padding={{ left:20, right:20 }}
+                  />
+                  <YAxis hide/>
+
+                  <Tooltip content={<TooltipVendas/>}/>
+
+                  {/* Linha de meta */}
+                  <ReferenceLine
+                    y={META_MENSAL}
+                    stroke="#f5821f"
+                    strokeWidth={1.5}
+                    strokeDasharray="7 4"
+                  />
+
+                  {/* Área + linha — Valor Vendido */}
+                  <Area
+                    type="monotone"
+                    dataKey="vendido"
+                    name="Vendido"
+                    stroke="#1a6b5a"
+                    strokeWidth={2.5}
+                    fill="url(#gradVendido)"
+                    dot={{ r:4, fill:'#1a6b5a', strokeWidth:2, stroke:'white' }}
+                    activeDot={{ r:6 }}
+                  >
+                    <LabelList
+                      dataKey="vendido"
+                      position="top"
+                      formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''}
+                      style={{ fontSize:'10px', fill:'#1a6b5a', fontWeight:'bold' }}
+                    />
+                  </Area>
+
+                  {/* Área + linha — Valor Recebido */}
+                  <Area
+                    type="monotone"
+                    dataKey="recebido"
+                    name="Recebido"
+                    stroke="#29abe2"
+                    strokeWidth={2}
+                    fill="url(#gradRecebido)"
+                    dot={{ r:4, fill:'#29abe2', strokeWidth:2, stroke:'white' }}
+                    activeDot={{ r:6 }}
+                  >
+                    <LabelList
+                      dataKey="recebido"
+                      position="bottom"
+                      formatter={v => v > 0 ? `R$${parseFloat(v).toFixed(0)}` : ''}
+                      style={{ fontSize:'10px', fill:'#29abe2', fontWeight:'bold' }}
+                    />
+                  </Area>
+                </ComposedChart>
+              </div>
+            </div>
+
+            {dadosGrafico.length > 5 && (
+              <p style={{ fontSize:'11px', color:'#cbd5e0', textAlign:'center', marginTop:'6px' }}>← deslize para ver mais →</p>
+            )}
+
+            {/* Resumo rápido abaixo do gráfico */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(100px,1fr))', gap:'10px', marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #f7f7f7' }}>
+              {[
+                { label:'Melhor mês',   valor: dadosGrafico.reduce((a,b) => b.vendido>a.vendido?b:a, dadosGrafico[0])?.mes || '—',                              cor:'#1a6b5a' },
+                { label:'Maior venda',  valor: fmtBRL(Math.max(...dadosGrafico.map(d=>d.vendido))),                                                              cor:'#29abe2' },
+                { label:'Média mensal', valor: fmtBRL(dadosGrafico.reduce((a,d)=>a+d.vendido,0) / (dadosGrafico.length||1)),                                   cor:'#8b5cf6' },
+              ].map((item,i) => (
+                <div key={i} style={{ background:'#f9fafb', borderRadius:'10px', padding:'10px 12px', textAlign:'center', border:'1px solid #edf2f7' }}>
+                  <div style={{ fontSize:'10px', color:'#a0aec0', fontWeight:'600', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:'4px' }}>{item.label}</div>
+                  <div style={{ fontSize:'13px', fontWeight:'bold', color:item.cor }}>{item.valor}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Ranking ── */}
@@ -663,11 +768,7 @@ export default function PainelVendedor() {
         })}
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          MINHAS VENDAS
-      ══════════════════════════════════════════════════════════════════════ */}
-
-      {/* Filtros da tabela */}
+      {/* ── Filtros da tabela ── */}
       <div style={{ background:'white', padding:'16px', borderRadius:'12px', marginBottom:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', display:'flex', gap:'12px', alignItems:'flex-end', flexWrap:'wrap' }}>
         <div>
           <label style={{ fontSize:'12px', color:'#666' }}>Situação</label><br/>
@@ -703,7 +804,7 @@ export default function PainelVendedor() {
         </div>
       )}
 
-      {/* Tabela */}
+      {/* ── Tabela ── */}
       <div className="tabela-wrapper">
         <table>
           <thead>
@@ -723,9 +824,9 @@ export default function PainelVendedor() {
           </thead>
           <tbody>
             {vendasTabela.map((venda, i) => {
-              const devs    = devolucoesVenda(venda.id)
-              const falta   = parseFloat(venda.valor_total) - parseFloat(venda.recebido||0)
-              const sit     = venda.situacao_real
+              const devs         = devolucoesVenda(venda.id)
+              const falta        = parseFloat(venda.valor_total) - parseFloat(venda.recebido||0)
+              const sit          = venda.situacao_real
               const totalDevolvida = vendasTotalmenteDevolvidas.has(venda.id)
               return (
                 <>
