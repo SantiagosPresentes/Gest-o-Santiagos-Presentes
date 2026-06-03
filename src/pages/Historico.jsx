@@ -81,6 +81,119 @@ function Historico() {
   const carregarDados = useCallback(async () => {
     setLoading(true)
     try {
+      // Query base — filtros de cliente e data sempre no banco
+      let query = supabase
+        .from('vendas')
+        .select(
+          `id, data_venda, data_para_pagar, valor_total, valor_bruto,
+           recebido, desconto, observacao, vendedor_nome, situacao, cliente_id,
+           clientes!vendas_cliente_id_fkey(nome, telefone)`,
+          { count: 'exact' }
+        )
+        .order('data_para_pagar', { ascending: false, nullsFirst: false })
+        .order('data_venda',      { ascending: false })
+
+      if (filtroCliente)    query = query.eq('cliente_id', filtroCliente)
+      if (filtroDataInicio) query = query.gte('data_para_pagar', filtroDataInicio)
+      if (filtroDataFim)    query = query.lte('data_para_pagar', filtroDataFim)
+
+      // Quando há filtro de situação, buscamos TUDO sem paginação e filtramos
+      // client-side — garante páginas completas sem fragmentação.
+      // Sem filtro de situação, paginamos no banco normalmente.
+      let vendasData = []
+      let totalCount = 0
+
+      if (filtroSituacao) {
+        const { data, count } = await query
+        vendasData = data || []
+        totalCount = count || 0
+      } else {
+        const { data, count } = await query.range(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE - 1)
+        vendasData = data || []
+        totalCount = count || 0
+      }
+
+      if (vendasData.length === 0) {
+        setVendas([])
+        setDevolucoes([])
+        setTotalVendas(0)
+        setLoading(false)
+        return
+      }
+
+      const ids = vendasData.map(v => v.id)
+
+      // Itens e devoluções em paralelo, só dos IDs relevantes
+      const [{ data: todosItens }, { data: todasDevs }] = await Promise.all([
+        supabase
+          .from('itens_venda')
+          .select('id, venda_id, quantidade, valor_unitario, produtos(nome)')
+          .in('venda_id', ids),
+        supabase
+          .from('devolucoes')
+          .select('id, cliente_id, produto_id, venda_id, quantidade, valor_unitario, valor_total, motivo, criado_em')
+          .in('venda_id', ids)
+          .order('criado_em', { ascending: false }),
+      ])
+
+      const devs = todasDevs || []
+      setDevolucoes(devs)
+
+      // Agrupa itens por venda
+      const itensPorVenda = {}
+      for (const item of todosItens || []) {
+        if (!itensPorVenda[item.venda_id]) itensPorVenda[item.venda_id] = []
+        itensPorVenda[item.venda_id].push(item)
+      }
+
+      // Monta vendas com situacao_real calculada localmente
+      const vendasComItens = vendasData.map(venda => ({
+        ...venda,
+        itens: itensPorVenda[venda.id] || [],
+        situacao_real: calcularSituacao(venda, devs),
+      }))
+
+      // Filtra por situação e aplica paginação manual quando necessário
+      const vendasFiltradas = filtroSituacao
+        ? vendasComItens.filter(v => v.situacao_real === filtroSituacao)
+        : vendasComItens
+
+      const vendasPagina = filtroSituacao
+        ? vendasFiltradas.slice(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE)
+        : vendasFiltradas
+
+      setVendas(vendasPagina)
+      setTotalVendas(filtroSituacao ? vendasFiltradas.length : totalCount)
+
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente])
+
+  function calcularSituacao(venda, devolucoesLista = []) {
+    const devs = devolucoesLista.filter(d => String(d.venda_id) === String(venda.id))
+    if (devs.length > 0) {
+      const totalDevolvido = devs.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
+      const referencia = parseFloat(venda.valor_bruto || venda.valor_total || 0)
+      const zerada = parseFloat(venda.valor_total || 0) === 0
+      const obsDevolvida = venda.observacao && venda.observacao.toLowerCase().includes('devolução')
+      const valorCobre = referencia > 0 && totalDevolvido >= referencia - 0.01
+      if (zerada || obsDevolvida || valorCobre) return 'Devolvido'
+    }
+    if (parseFloat(venda.recebido) >= parseFloat(venda.valor_total) && parseFloat(venda.valor_total) > 0) return 'Pago'
+    if (!venda.data_para_pagar) return 'Pendente'
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+    const vencimento = new Date(venda.data_para_pagar + 'T12:00:00')
+    if (hoje > vencimento) return 'Atrasado'
+    return 'Pendente'
+  }
+
+  const carregarDados = useCallback(async () => {
+    setLoading(true)
+    try {
       // Monta query base com filtros aplicados no servidor
       let query = supabase
         .from('vendas')
