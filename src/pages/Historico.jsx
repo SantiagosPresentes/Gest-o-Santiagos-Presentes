@@ -81,19 +81,45 @@ function Historico() {
   const carregarDados = useCallback(async () => {
     setLoading(true)
     try {
+      // Monta query base com filtros aplicados no servidor
+      let query = supabase
+        .from('vendas')
+        .select(
+          `id, data_venda, data_para_pagar, valor_total, valor_bruto,
+           recebido, desconto, observacao, vendedor_nome, situacao, cliente_id,
+           clientes!vendas_cliente_id_fkey(nome, telefone)`,
+          { count: 'exact' }
+        )
+        .order('data_para_pagar', { ascending: false })  // ← vencimento decrescente
+
+      // Filtros aplicados no banco (não fragmentam a paginação)
+      if (filtroCliente)    query = query.eq('cliente_id', filtroCliente)
+      if (filtroDataInicio) query = query.gte('data_para_pagar', filtroDataInicio)
+      if (filtroDataFim)    query = query.lte('data_para_pagar', filtroDataFim)
+
+      // Situação: pré-filtro no banco para Pago/Atrasado/Pendente quando não há
+      // lógica de devolução envolvida — reduz registros desnecessários.
+      // "Devolvido" e casos mistos são resolvidos client-side após calcularSituacao.
+      if (filtroSituacao && filtroSituacao !== 'Devolvido') {
+        if (filtroSituacao === 'Pago') {
+          // recebido >= valor_total  →  situacao = 'Pago' no banco
+          query = query.eq('situacao', 'Pago')
+        } else if (filtroSituacao === 'Atrasado') {
+          const hoje = new Date().toISOString().split('T')[0]
+          query = query
+            .neq('situacao', 'Pago')
+            .lt('data_para_pagar', hoje)
+        } else if (filtroSituacao === 'Pendente') {
+          const hoje = new Date().toISOString().split('T')[0]
+          query = query
+            .neq('situacao', 'Pago')
+            .gte('data_para_pagar', hoje)
+        }
+      }
+
       // Busca vendas e devoluções em paralelo
       const [vendasRes, devolucoesRes] = await Promise.all([
-        supabase
-          .from('vendas')
-          .select(
-            `id, data_venda, data_para_pagar, valor_total, valor_bruto,
-             recebido, desconto, observacao, vendedor_nome, situacao, cliente_id,
-             clientes!vendas_cliente_id_fkey(nome, telefone)`,
-            { count: 'exact' }
-          )
-          .order('data_venda', { ascending: false })
-          .range(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE - 1),
-
+        query.range(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE - 1),
         supabase
           .from('devolucoes')
           .select('id, cliente_id, produto_id, venda_id, quantidade, valor_unitario, valor_total, motivo, criado_em')
@@ -103,11 +129,12 @@ function Historico() {
       const vendasData = vendasRes.data || []
       const devs = devolucoesRes.data || []
 
-      setTotalVendas(vendasRes.count || 0)
       setDevolucoes(devs)
 
       if (vendasData.length === 0) {
         setVendas([])
+        setTotalVendas(vendasRes.count || 0)
+        setLoading(false)
         return
       }
 
@@ -131,7 +158,19 @@ function Historico() {
         situacao_real: calcularSituacao(venda, devs),
       }))
 
-      setVendas(vendasComItens)
+      // Filtro de situação client-side (para "Devolvido" e refinamento dos demais)
+      const vendasFinais = filtroSituacao
+        ? vendasComItens.filter(v => v.situacao_real === filtroSituacao)
+        : vendasComItens
+
+      setVendas(vendasFinais)
+      // Para "Devolvido" o count do banco não reflete o filtro real,
+      // então usamos o total da página filtrada como referência conservadora
+      setTotalVendas(
+        filtroSituacao === 'Devolvido'
+          ? vendasFinais.length   // sem paginação confiável para este caso
+          : vendasRes.count || 0
+      )
     } catch (err) {
       console.error('Erro ao carregar dados:', err)
     } finally {
@@ -156,15 +195,6 @@ function Historico() {
     setValorPago('')
     carregarDados()
   }
-
-  // Filtro de situação e data aplicado client-side na página atual
-  const vendasFiltradas = vendas.filter(v => {
-    if (filtroCliente && v.cliente_id !== filtroCliente) return false
-    if (filtroSituacao && v.situacao_real !== filtroSituacao) return false
-    if (filtroDataInicio && v.data_para_pagar < filtroDataInicio) return false
-    if (filtroDataFim && v.data_para_pagar > filtroDataFim) return false
-    return true
-  })
 
   function limparFiltros() {
     setFiltroSituacao('')
@@ -447,7 +477,7 @@ function Historico() {
           <tbody>
             {loading
               ? [...Array(8)].map((_, i) => <SkeletonRow key={i} />)
-              : vendasFiltradas.map((venda, i) => {
+              : vendas.map((venda, i) => {
                   const devs = devolucoesVenda(venda.id)
                   return (
                     <>
@@ -549,7 +579,7 @@ function Historico() {
           </tbody>
         </table>
 
-        {!loading && vendasFiltradas.length === 0 && (
+        {!loading && vendas.length === 0 && (
           <p style={{ textAlign: 'center', padding: '32px', color: '#aaa', background: 'white' }}>
             Nenhuma venda encontrada
           </p>
