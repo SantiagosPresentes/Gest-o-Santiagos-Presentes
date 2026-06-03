@@ -90,7 +90,8 @@ function Historico() {
            clientes!vendas_cliente_id_fkey(nome, telefone)`,
           { count: 'exact' }
         )
-        .order('data_para_pagar', { ascending: false })  // ← vencimento decrescente
+        .order('data_para_pagar', { ascending: false, nullsFirst: false })
+        .order('data_venda', { ascending: false })
 
       // Filtros aplicados no banco (não fragmentam a paginação)
       if (filtroCliente)    query = query.eq('cliente_id', filtroCliente)
@@ -117,33 +118,36 @@ function Historico() {
         }
       }
 
-      // Busca vendas e devoluções em paralelo
-      const [vendasRes, devolucoesRes] = await Promise.all([
-        query.range(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE - 1),
-        supabase
-          .from('devolucoes')
-          .select('id, cliente_id, produto_id, venda_id, quantidade, valor_unitario, valor_total, motivo, criado_em')
-          .order('criado_em', { ascending: false }),
-      ])
+      // 1ª etapa: busca só as vendas da página
+      const vendasRes = await query.range(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE - 1)
 
       const vendasData = vendasRes.data || []
-      const devs = devolucoesRes.data || []
-
-      setDevolucoes(devs)
 
       if (vendasData.length === 0) {
         setVendas([])
+        setDevolucoes([])
         setTotalVendas(vendasRes.count || 0)
         setLoading(false)
         return
       }
 
-      // UMA query para todos os itens da página — elimina N+1
       const ids = vendasData.map(v => v.id)
-      const { data: todosItens } = await supabase
-        .from('itens_venda')
-        .select('id, venda_id, quantidade, valor_unitario, produtos(nome)')
-        .in('venda_id', ids)
+
+      // 2ª etapa: itens e devoluções filtrados só pelos IDs da página — elimina N+1 e evita buscar tudo
+      const [{ data: todosItens }, devolucoesRes] = await Promise.all([
+        supabase
+          .from('itens_venda')
+          .select('id, venda_id, quantidade, valor_unitario, produtos(nome)')
+          .in('venda_id', ids),
+        supabase
+          .from('devolucoes')
+          .select('id, cliente_id, produto_id, venda_id, quantidade, valor_unitario, valor_total, motivo, criado_em')
+          .in('venda_id', ids)
+          .order('criado_em', { ascending: false }),
+      ])
+
+      const devs = devolucoesRes.data || []
+      setDevolucoes(devs)
 
       // Agrupa itens por venda localmente
       const itensPorVenda = {}
