@@ -79,8 +79,7 @@ function Historico() {
   const carregarDados = useCallback(async () => {
     setLoading(true)
     try {
-      const temFiltro = !!(filtroSituacao || filtroCliente || filtroDataInicio || filtroDataFim)
-
+      // Base query — sempre ordenada decrescente por data de vencimento, depois por data da venda
       let query = supabase
         .from('vendas')
         .select(
@@ -89,8 +88,10 @@ function Historico() {
            clientes!vendas_cliente_id_fkey(nome, telefone)`,
           { count: 'exact' }
         )
+        .order('data_para_pagar', { ascending: false })
         .order('data_venda', { ascending: false })
 
+      // Filtros que o banco resolve nativamente
       if (filtroCliente)    query = query.eq('cliente_id', filtroCliente)
       if (filtroDataInicio) query = query.gte('data_para_pagar', filtroDataInicio)
       if (filtroDataFim)    query = query.lte('data_para_pagar', filtroDataFim)
@@ -98,13 +99,14 @@ function Historico() {
       let vendasData = []
       let totalCount = 0
 
-      if (temFiltro) {
-        // Com filtro: busca tudo sem paginação e filtra/pagina client-side
-        const { data, count } = await query
+      if (filtroSituacao) {
+        // Situação é calculada no cliente — busca com limite seguro de 500 registros
+        // (suficiente para qualquer loja pequena/média, evita travar)
+        const { data, count } = await query.limit(500)
         vendasData = data || []
         totalCount = count || 0
       } else {
-        // Sem filtro: pagina no banco normalmente
+        // Sem filtro de situação: paginação 100% no banco — rápido e eficiente
         const { data, count } = await query.range(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE - 1)
         vendasData = data || []
         totalCount = count || 0
@@ -147,16 +149,17 @@ function Historico() {
         situacao_real: calcularSituacao(venda, devs),
       }))
 
-      const vendasFiltradas = filtroSituacao
-        ? vendasComItens.filter(v => v.situacao_real === filtroSituacao)
-        : vendasComItens
-
-      const vendasPagina = temFiltro
-        ? vendasFiltradas.slice(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE)
-        : vendasFiltradas
-
-      setVendas(vendasPagina)
-      setTotalVendas(temFiltro ? vendasFiltradas.length : totalCount)
+      if (filtroSituacao) {
+        // Filtra e pagina no cliente apenas quando necessário (filtro de situação)
+        const vendasFiltradas = vendasComItens.filter(v => v.situacao_real === filtroSituacao)
+        const vendasPagina = vendasFiltradas.slice(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE)
+        setVendas(vendasPagina)
+        setTotalVendas(vendasFiltradas.length)
+      } else {
+        // Sem filtro de situação: dados já chegam paginados e ordenados do banco
+        setVendas(vendasComItens)
+        setTotalVendas(totalCount)
+      }
 
     } catch (err) {
       console.error('Erro ao carregar dados:', err)
