@@ -64,36 +64,28 @@ function Capital() {
   }
 
   async function buscarTotalVendido() {
-    // Vendas pagas (recebido)
-    const { data: pagas } = await supabase
-      .from('vendas')
-      .select('recebido, total, data_para_pagar, situacao')
+  const { data } = await supabase
+    .from('vendas')
+    .select('valor_total, recebido, falta, data_para_pagar')
 
-    if (pagas) {
-      const [nomeMes, ano] = mes.split('/')
-      const indice = mesParaIndice(nomeMes)
+  if (data) {
+    const [nomeMes, ano] = mes.split('/')
+    const indice = mesParaIndice(nomeMes)
 
-      const doMes = pagas.filter(v => {
-        const d = new Date(v.data_para_pagar + 'T12:00:00')
-        return d.getMonth() === indice && d.getFullYear() === parseInt(ano)
-      })
+    const doMes = data.filter(v => {
+      const d = new Date(v.data_para_pagar + 'T12:00:00')
+      return d.getMonth() === indice && d.getFullYear() === parseInt(ano)
+    })
 
-      const totalPago = doMes
-        .filter(v => v.situacao === 'Pago')
-        .reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
+    const totalBruto = doMes.reduce((acc, v) => acc + parseFloat(v.valor_total || 0), 0)
+    const totalPago  = doMes.reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
+    const totalFalta = doMes.reduce((acc, v) => acc + parseFloat(v.falta || 0), 0)
 
-      const totalBruto = doMes
-        .reduce((acc, v) => acc + parseFloat(v.total || v.recebido || 0), 0)
-
-      const totalPendente = doMes
-        .filter(v => v.situacao !== 'Pago')
-        .reduce((acc, v) => acc + parseFloat(v.total || 0), 0)
-
-      setTotalVendido(totalPago)
-      setTotalVendidoBruto(totalBruto)
-      setTotalAReceber(totalPendente)
-    }
+    setTotalVendidoBruto(totalBruto)
+    setTotalVendido(totalPago)
+    setTotalAReceber(totalFalta)
   }
+}
 
   async function buscarRetiradas() {
     const { data } = await supabase
