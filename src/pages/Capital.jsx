@@ -23,16 +23,17 @@ function Capital() {
   ]
 
   function gerarMeses() {
-    const anoInicio = 2025
-    const anoFim = new Date().getFullYear() + 2
-    const lista = []
-    for (let ano = anoInicio; ano <= anoFim; ano++) {
-      for (let m = 0; m <= 11; m++) {
-        lista.push(`${nomeMeses[m]}/${ano}`)
-      }
+  const anoInicio = 2025
+  const anoFim = new Date().getFullYear() + 2
+  const lista = []
+  for (let ano = anoInicio; ano <= anoFim; ano++) {
+    const mesInicio = ano === anoInicio ? 9 : 0  // 9 = outubro (índice base 0)
+    for (let m = mesInicio; m <= 11; m++) {
+      lista.push(`${nomeMeses[m]}/${ano}`)
     }
-    return lista
   }
+  return lista
+}
 
   const meses = gerarMeses()
 
