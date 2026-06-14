@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Target, PlusCircle, Trash2, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react'
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Target, PlusCircle, Trash2, Eye, EyeOff, CheckCircle, XCircle, ShoppingCart, Clock, User } from 'lucide-react'
 
 function Capital() {
   const [mes, setMes] = useState('')
   const [totalVendido, setTotalVendido] = useState(0)
+  const [totalVendidoBruto, setTotalVendidoBruto] = useState(0)
+  const [totalAReceber, setTotalAReceber] = useState(0)
   const [retiradas, setRetiradas] = useState([])
   const [tipoRetirada, setTipoRetirada] = useState('')
   const [descricaoRetirada, setDescricaoRetirada] = useState('')
@@ -62,20 +64,34 @@ function Capital() {
   }
 
   async function buscarTotalVendido() {
-    const { data } = await supabase
+    // Vendas pagas (recebido)
+    const { data: pagas } = await supabase
       .from('vendas')
-      .select('recebido, data_para_pagar')
-      .eq('situacao', 'Pago')
-    if (data) {
+      .select('recebido, total, data_para_pagar, situacao')
+
+    if (pagas) {
       const [nomeMes, ano] = mes.split('/')
       const indice = mesParaIndice(nomeMes)
-      const total = data
-        .filter(v => {
-          const d = new Date(v.data_para_pagar + 'T12:00:00')
-          return d.getMonth() === indice && d.getFullYear() === parseInt(ano)
-        })
+
+      const doMes = pagas.filter(v => {
+        const d = new Date(v.data_para_pagar + 'T12:00:00')
+        return d.getMonth() === indice && d.getFullYear() === parseInt(ano)
+      })
+
+      const totalPago = doMes
+        .filter(v => v.situacao === 'Pago')
         .reduce((acc, v) => acc + parseFloat(v.recebido || 0), 0)
-      setTotalVendido(total)
+
+      const totalBruto = doMes
+        .reduce((acc, v) => acc + parseFloat(v.total || v.recebido || 0), 0)
+
+      const totalPendente = doMes
+        .filter(v => v.situacao !== 'Pago')
+        .reduce((acc, v) => acc + parseFloat(v.total || 0), 0)
+
+      setTotalVendido(totalPago)
+      setTotalVendidoBruto(totalBruto)
+      setTotalAReceber(totalPendente)
     }
   }
 
@@ -144,6 +160,10 @@ function Capital() {
   const totalRetiradas = retiradas.reduce((acc, r) => acc + parseFloat(r.valor || 0), 0)
   const saldo = totalVendido - totalRetiradas
   const saldoExibido = mes ? saldo : saldoGeral
+
+  const pagarUbaldo = totalVendidoBruto * 0.25
+  const pagarViviane = totalVendidoBruto * 0.25
+
   const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'14px', boxSizing:'border-box' }
 
   return (
@@ -191,42 +211,78 @@ function Capital() {
 
       {mes && (
         <>
-          {/* KPIs do mês — empilhados */}
-          <div style={{display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px'}}>
-
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
-              <div style={{background:'#e8f5e9', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #2e7d32', display:'flex', alignItems:'center', gap:'12px'}}>
-                <TrendingUp size={24} color="#2e7d32"/>
-                <div>
-                  <p style={{color:'#666', fontSize:'12px', margin:0}}>Total Recebido</p>
-                  <strong style={{fontSize:'20px', color:'#2e7d32'}}>R$ {totalVendido.toFixed(2)}</strong>
-                </div>
-              </div>
-              <div style={{background:'#ffebee', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #c62828', display:'flex', alignItems:'center', gap:'12px'}}>
-                <TrendingDown size={24} color="#c62828"/>
-                <div>
-                  <p style={{color:'#666', fontSize:'12px', margin:0}}>Total Retiradas</p>
-                  <strong style={{fontSize:'20px', color:'#c62828'}}>R$ {totalRetiradas.toFixed(2)}</strong>
-                </div>
+          {/* LINHA 1 — Total Vendido + Total a Receber */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
+            <div style={{background:'#e3f2fd', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #1565c0', display:'flex', alignItems:'center', gap:'12px'}}>
+              <ShoppingCart size={24} color="#1565c0"/>
+              <div>
+                <p style={{color:'#666', fontSize:'12px', margin:0}}>Total Vendido</p>
+                <strong style={{fontSize:'20px', color:'#1565c0'}}>R$ {totalVendidoBruto.toFixed(2)}</strong>
               </div>
             </div>
-
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
-              <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#fff8e1', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#f57f17'}`, display:'flex', alignItems:'center', gap:'12px'}}>
-                <Wallet size={24} color={saldo >= 3000 ? '#2e7d32' : '#f57f17'}/>
-                <div>
-                  <p style={{color:'#666', fontSize:'12px', margin:0}}>Saldo do Mês</p>
-                  <strong style={{fontSize:'20px', color: saldo >= 3000 ? '#2e7d32' : '#f57f17'}}>R$ {saldo.toFixed(2)}</strong>
-                </div>
+            <div style={{background:'#fff3e0', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #e65100', display:'flex', alignItems:'center', gap:'12px'}}>
+              <Clock size={24} color="#e65100"/>
+              <div>
+                <p style={{color:'#666', fontSize:'12px', margin:0}}>A Receber</p>
+                <strong style={{fontSize:'20px', color:'#e65100'}}>R$ {totalAReceber.toFixed(2)}</strong>
               </div>
-              <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#ffebee', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#c62828'}`, display:'flex', alignItems:'center', gap:'12px'}}>
-                <Target size={24} color={saldo >= 3000 ? '#2e7d32' : '#c62828'}/>
-                <div>
-                  <p style={{color:'#666', fontSize:'12px', margin:0}}>Meta R$ 3.000</p>
-                  <strong style={{fontSize:'20px', color: saldo >= 3000 ? '#2e7d32' : '#c62828'}}>
-                    {saldo >= 3000 ? '+' : ''}R$ {(saldo - 3000).toFixed(2)}
-                  </strong>
-                </div>
+            </div>
+          </div>
+
+          {/* LINHA 2 — Total Recebido + Total Retiradas */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
+            <div style={{background:'#e8f5e9', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #2e7d32', display:'flex', alignItems:'center', gap:'12px'}}>
+              <TrendingUp size={24} color="#2e7d32"/>
+              <div>
+                <p style={{color:'#666', fontSize:'12px', margin:0}}>Total Recebido</p>
+                <strong style={{fontSize:'20px', color:'#2e7d32'}}>R$ {totalVendido.toFixed(2)}</strong>
+              </div>
+            </div>
+            <div style={{background:'#ffebee', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #c62828', display:'flex', alignItems:'center', gap:'12px'}}>
+              <TrendingDown size={24} color="#c62828"/>
+              <div>
+                <p style={{color:'#666', fontSize:'12px', margin:0}}>Total Retiradas</p>
+                <strong style={{fontSize:'20px', color:'#c62828'}}>R$ {totalRetiradas.toFixed(2)}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* LINHA 3 — Saldo do Mês + Meta */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
+            <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#fff8e1', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#f57f17'}`, display:'flex', alignItems:'center', gap:'12px'}}>
+              <Wallet size={24} color={saldo >= 3000 ? '#2e7d32' : '#f57f17'}/>
+              <div>
+                <p style={{color:'#666', fontSize:'12px', margin:0}}>Saldo do Mês</p>
+                <strong style={{fontSize:'20px', color: saldo >= 3000 ? '#2e7d32' : '#f57f17'}}>R$ {saldo.toFixed(2)}</strong>
+              </div>
+            </div>
+            <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#ffebee', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#c62828'}`, display:'flex', alignItems:'center', gap:'12px'}}>
+              <Target size={24} color={saldo >= 3000 ? '#2e7d32' : '#c62828'}/>
+              <div>
+                <p style={{color:'#666', fontSize:'12px', margin:0}}>Meta R$ 3.000</p>
+                <strong style={{fontSize:'20px', color: saldo >= 3000 ? '#2e7d32' : '#c62828'}}>
+                  {saldo >= 3000 ? '+' : ''}R$ {(saldo - 3000).toFixed(2)}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {/* LINHA 4 — Pagar Ubaldo + Pagar Viviane */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'20px'}}>
+            <div style={{background:'#f3e5f5', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #6a1b9a', display:'flex', alignItems:'center', gap:'12px'}}>
+              <User size={24} color="#6a1b9a"/>
+              <div>
+                <p style={{color:'#666', fontSize:'12px', margin:0}}>Pagar Ubaldo</p>
+                <p style={{color:'#888', fontSize:'10px', margin:'2px 0 2px'}}>25% do vendido</p>
+                <strong style={{fontSize:'20px', color:'#6a1b9a'}}>R$ {pagarUbaldo.toFixed(2)}</strong>
+              </div>
+            </div>
+            <div style={{background:'#fce4ec', borderRadius:'14px', padding:'18px', borderLeft:'4px solid #880e4f', display:'flex', alignItems:'center', gap:'12px'}}>
+              <User size={24} color="#880e4f"/>
+              <div>
+                <p style={{color:'#666', fontSize:'12px', margin:0}}>Pagar Viviane</p>
+                <p style={{color:'#888', fontSize:'10px', margin:'2px 0 2px'}}>25% do vendido</p>
+                <strong style={{fontSize:'20px', color:'#880e4f'}}>R$ {pagarViviane.toFixed(2)}</strong>
               </div>
             </div>
           </div>
