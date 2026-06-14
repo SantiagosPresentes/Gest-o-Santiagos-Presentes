@@ -97,34 +97,43 @@ function Capital() {
   }
 
   async function carregarRegistros() {
-    const { data: vendasData } = await supabase
-      .from('vendas')
-      .select('recebido, data_para_pagar')
-      .eq('situacao', 'Pago')
-    const { data: retiradasData } = await supabase.from('retiradas').select('*')
-    if (vendasData && retiradasData) {
-      const porMes = {}
-      vendasData.forEach(v => {
-        const d = new Date(v.data_para_pagar + 'T12:00:00')
-        const ano = d.getFullYear()
-        if (ano < 2025) return
-        const chave = `${nomeMeses[d.getMonth()]}/${ano}`
-        if (!porMes[chave]) porMes[chave] = { mes: chave, total_vendido: 0, retiradas: 0 }
-        porMes[chave].total_vendido += parseFloat(v.recebido || 0)
-      })
-      retiradasData.forEach(r => {
-        if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, total_vendido: 0, retiradas: 0 }
-        porMes[r.mes].retiradas += parseFloat(r.valor || 0)
-      })
-      const ordenado = Object.values(porMes).sort((a, b) => {
-        const [mA, aA] = a.mes.split('/')
-        const [mB, aB] = b.mes.split('/')
-        if (aA !== aB) return parseInt(aA) - parseInt(aB)
-        return nomeMeses.indexOf(mA) - nomeMeses.indexOf(mB)
-      })
-      setRegistros(ordenado)
-    }
+  const { data: vendasData } = await supabase
+    .from('vendas')
+    .select('valor_total, recebido, falta, data_para_pagar')
+
+  const { data: retiradasData } = await supabase
+    .from('retiradas')
+    .select('*')
+
+  if (vendasData && retiradasData) {
+    const porMes = {}
+
+    vendasData.forEach(v => {
+      const d = new Date(v.data_para_pagar + 'T12:00:00')
+      const ano = d.getFullYear()
+      if (ano < 2025) return
+      const chave = `${nomeMeses[d.getMonth()]}/${ano}`
+      if (!porMes[chave]) porMes[chave] = { mes: chave, total_vendido: 0, total_recebido: 0, a_receber: 0, retiradas: 0 }
+      porMes[chave].total_vendido  += parseFloat(v.valor_total || 0)
+      porMes[chave].total_recebido += parseFloat(v.recebido || 0)
+      porMes[chave].a_receber      += parseFloat(v.falta || 0)
+    })
+
+    retiradasData.forEach(r => {
+      if (!porMes[r.mes]) porMes[r.mes] = { mes: r.mes, total_vendido: 0, total_recebido: 0, a_receber: 0, retiradas: 0 }
+      porMes[r.mes].retiradas += parseFloat(r.valor || 0)
+    })
+
+    const ordenado = Object.values(porMes).sort((a, b) => {
+      const [mA, aA] = a.mes.split('/')
+      const [mB, aB] = b.mes.split('/')
+      if (aA !== aB) return parseInt(aA) - parseInt(aB)
+      return nomeMeses.indexOf(mA) - nomeMeses.indexOf(mB)
+    })
+
+    setRegistros(ordenado)
   }
+}
 
   async function adicionarRetirada() {
     if (!mes || !tipoRetirada || !valorRetirada) {
