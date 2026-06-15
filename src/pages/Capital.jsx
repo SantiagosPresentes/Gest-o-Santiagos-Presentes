@@ -251,19 +251,19 @@ function Capital() {
 
           {/* LINHA 3 — Saldo do Mês + Meta */}
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
-            <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#fff8e1', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#f57f17'}`, display:'flex', alignItems:'center', gap:'12px'}}>
-              <Wallet size={24} color={saldo >= 3000 ? '#2e7d32' : '#f57f17'}/>
+            <div style={{background: totalVendidoBruto >= 3000 ? '#e8f5e9' : '#fff8e1', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${totalVendidoBruto >= 3000 ? '#2e7d32' : '#f57f17'}`, display:'flex', alignItems:'center', gap:'12px'}}>
+              <Wallet size={24} color={totalVendidoBruto >= 3000 ? '#2e7d32' : '#f57f17'}/>
               <div>
                 <p style={{color:'#666', fontSize:'12px', margin:0}}>Saldo do Mês</p>
-                <strong style={{fontSize:'20px', color: saldo >= 3000 ? '#2e7d32' : '#f57f17'}}>R$ {saldo.toFixed(2)}</strong>
+                <strong style={{fontSize:'20px', color: totalVendidoBruto >= 3000 ? '#2e7d32' : '#f57f17'}}>R$ {saldo.toFixed(2)}</strong>
               </div>
             </div>
-            <div style={{background: saldo >= 3000 ? '#e8f5e9' : '#ffebee', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${saldo >= 3000 ? '#2e7d32' : '#c62828'}`, display:'flex', alignItems:'center', gap:'12px'}}>
-              <Target size={24} color={saldo >= 3000 ? '#2e7d32' : '#c62828'}/>
+            <div style={{background: totalVendidoBruto >= 3000 ? '#e8f5e9' : '#ffebee', borderRadius:'14px', padding:'18px', borderLeft:`4px solid ${totalVendidoBruto >= 3000 ? '#2e7d32' : '#c62828'}`, display:'flex', alignItems:'center', gap:'12px'}}>
+              <Target size={24} color={totalVendidoBruto >= 3000 ? '#2e7d32' : '#c62828'}/>
               <div>
                 <p style={{color:'#666', fontSize:'12px', margin:0}}>Meta R$ 3.000</p>
-                <strong style={{fontSize:'20px', color: saldo >= 3000 ? '#2e7d32' : '#c62828'}}>
-                  {saldo >= 3000 ? '+' : ''}R$ {(saldo - 3000).toFixed(2)}
+                <strong style={{fontSize:'20px', color: totalVendidoBruto >= 3000 ? '#2e7d32' : '#c62828'}}>
+                  {totalVendidoBruto >= 3000 ? '+' : ''}R$ {(totalVendidoBruto - 3000).toFixed(2)}
                 </strong>
               </div>
             </div>
@@ -379,7 +379,7 @@ function Capital() {
           <tbody>
             {registros.map((r, i) => {
               const saldoMes = r.total_vendido - r.retiradas
-              const bateuMeta = saldoMes >= 3000
+              const bateuMeta = r.total_vendido >= 3000
               return (
                 <tr key={r.mes} style={{background: i % 2 === 0 ? '#fff' : '#f9f9f9'}}>
                   <td style={{textAlign:'left'}}><strong>{r.mes}</strong></td>
