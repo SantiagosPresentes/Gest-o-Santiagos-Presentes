@@ -229,6 +229,8 @@ function Devolucoes() {
                   <option value="Desistência">Desistência</option>
                   <option value="Código Errado">Código Errado</option>
                   <option value="Produto Danificado">Produto Danificado</option>
+                  <option value="Venda Duplicada">Venda Duplicada</option>
+                  <option value="Outros">Outros</option>
                 </select>
               </div>
             )}
