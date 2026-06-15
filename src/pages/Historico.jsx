@@ -32,12 +32,13 @@ function Historico() {
   const [loading, setLoading] = useState(true)
   const [pagina, setPagina] = useState(0)
   const [totalVendas, setTotalVendas] = useState(0)
-  const [buscaCliente, setBuscaCliente] = useState('')
 
   const [filtroSituacao, setFiltroSituacao] = useState('')
   const [filtroDataInicio, setFiltroDataInicio] = useState('')
   const [filtroDataFim, setFiltroDataFim] = useState('')
   const [filtroCliente, setFiltroCliente] = useState('')
+  const [filtroNomeCliente, setFiltroNomeCliente] = useState('')
+  const [filtroNomeClienteDebounced, setFiltroNomeClienteDebounced] = useState('')
 
   const [vendaExpandida, setVendaExpandida] = useState(null)
   const [pagamentoVenda, setPagamentoVenda] = useState(null)
@@ -45,6 +46,15 @@ function Historico() {
   const [mensagem, setMensagem] = useState('')
   const [comprovanteVenda, setComprovanteVenda] = useState(null)
   const comprovanteRef = useRef(null)
+
+  // Debounce: só dispara a busca 400ms após parar de digitar
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFiltroNomeClienteDebounced(filtroNomeCliente)
+      setPagina(0)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [filtroNomeCliente])
 
   useEffect(() => {
     supabase
@@ -56,7 +66,7 @@ function Historico() {
 
   useEffect(() => {
     carregarDados()
-  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente])
+  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente, filtroNomeClienteDebounced])
 
   function calcularSituacao(venda, devolucoesLista = []) {
     const devs = devolucoesLista.filter(d => String(d.venda_id) === String(venda.id))
@@ -80,7 +90,27 @@ function Historico() {
   const carregarDados = useCallback(async () => {
     setLoading(true)
     try {
-      // Base query — sempre ordenada decrescente por data de vencimento, depois por data da venda
+      let idsClientes = null
+
+      // Se digitou um nome, resolve os IDs dos clientes que batem primeiro
+      if (filtroNomeClienteDebounced.trim()) {
+        const { data: clientesFiltrados } = await supabase
+          .from('clientes')
+          .select('id')
+          .ilike('nome', `%${filtroNomeClienteDebounced.trim()}%`)
+
+        idsClientes = (clientesFiltrados || []).map(c => c.id)
+
+        // Nenhum cliente encontrado — retorna imediatamente sem consultar vendas
+        if (idsClientes.length === 0) {
+          setVendas([])
+          setDevolucoes([])
+          setTotalVendas(0)
+          setLoading(false)
+          return
+        }
+      }
+
       let query = supabase
         .from('vendas')
         .select(
@@ -92,8 +122,10 @@ function Historico() {
         .order('data_para_pagar', { ascending: false })
         .order('data_venda', { ascending: false })
 
-      // Filtros que o banco resolve nativamente
+      // Filtro por ID exato (select) — tem prioridade sobre busca por nome
       if (filtroCliente)    query = query.eq('cliente_id', filtroCliente)
+      // Filtro por nome (lista de IDs resolvidos acima)
+      if (idsClientes)      query = query.in('cliente_id', idsClientes)
       if (filtroDataInicio) query = query.gte('data_para_pagar', filtroDataInicio)
       if (filtroDataFim)    query = query.lte('data_para_pagar', filtroDataFim)
 
@@ -101,13 +133,10 @@ function Historico() {
       let totalCount = 0
 
       if (filtroSituacao) {
-        // Situação é calculada no cliente — busca com limite seguro de 500 registros
-        // (suficiente para qualquer loja pequena/média, evita travar)
         const { data, count } = await query.limit(500)
         vendasData = data || []
         totalCount = count || 0
       } else {
-        // Sem filtro de situação: paginação 100% no banco — rápido e eficiente
         const { data, count } = await query.range(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE - 1)
         vendasData = data || []
         totalCount = count || 0
@@ -151,13 +180,11 @@ function Historico() {
       }))
 
       if (filtroSituacao) {
-        // Filtra e pagina no cliente apenas quando necessário (filtro de situação)
         const vendasFiltradas = vendasComItens.filter(v => v.situacao_real === filtroSituacao)
         const vendasPagina = vendasFiltradas.slice(pagina * PAGE_SIZE, (pagina + 1) * PAGE_SIZE)
         setVendas(vendasPagina)
         setTotalVendas(vendasFiltradas.length)
       } else {
-        // Sem filtro de situação: dados já chegam paginados e ordenados do banco
         setVendas(vendasComItens)
         setTotalVendas(totalCount)
       }
@@ -167,7 +194,7 @@ function Historico() {
     } finally {
       setLoading(false)
     }
-  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente])
+  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente, filtroNomeClienteDebounced])
 
   async function registrarPagamento() {
     if (!valorPago || parseFloat(valorPago) <= 0) {
@@ -192,7 +219,8 @@ function Historico() {
     setFiltroDataInicio('')
     setFiltroDataFim('')
     setFiltroCliente('')
-    setBuscaCliente('')   // ← adicionar esta linha
+    setFiltroNomeCliente('')
+    setFiltroNomeClienteDebounced('')
     setPagina(0)
   }
 
@@ -245,8 +273,14 @@ function Historico() {
   }
 
   const campo = { padding: '8px 12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '13px' }
-  const temFiltroAtivo = filtroSituacao !== '' || filtroDataInicio !== '' || filtroDataFim !== '' || filtroCliente !== '' || buscaCliente !== ''
+  const temFiltroAtivo = filtroSituacao !== '' || filtroDataInicio !== '' || filtroDataFim !== '' || filtroCliente !== '' || filtroNomeCliente !== ''
   const totalPaginas = Math.ceil(totalVendas / PAGE_SIZE)
+
+  // Clientes filtrados pelo nome digitado (para o select auxiliar)
+  const clientesFiltrados = clientes.filter(c =>
+    filtroNomeCliente.trim() === '' ||
+    c.nome.toLowerCase().includes(filtroNomeCliente.toLowerCase())
+  )
 
   return (
     <div style={{ background: '#f4f6f9', minHeight: '100vh', padding: '0 0 40px 0' }}>
@@ -392,6 +426,7 @@ function Historico() {
 
       {/* ── Filtros ── */}
       <div style={{ background: 'white', padding: '16px', borderRadius: '12px', marginTop: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+
         <div>
           <label style={{ fontSize: '12px', color: '#666' }}>Situação</label><br />
           <select value={filtroSituacao} onChange={e => { setFiltroSituacao(e.target.value); setPagina(0) }} style={campo}>
@@ -402,40 +437,44 @@ function Historico() {
             <option value="Devolvido">Devolvido</option>
           </select>
         </div>
+
         <div>
           <label style={{ fontSize: '12px', color: '#666' }}>Data (de)</label><br />
           <input type="date" value={filtroDataInicio} onChange={e => { setFiltroDataInicio(e.target.value); setPagina(0) }} style={campo} />
         </div>
+
         <div>
           <label style={{ fontSize: '12px', color: '#666' }}>Data (até)</label><br />
           <input type="date" value={filtroDataFim} onChange={e => { setFiltroDataFim(e.target.value); setPagina(0) }} style={campo} />
         </div>
+
+        {/* Campo de busca por nome — dispara query no banco com debounce */}
+        <div>
+          <label style={{ fontSize: '12px', color: '#666' }}>Buscar cliente</label><br />
+          <input
+            type="text"
+            placeholder="Digite o nome..."
+            value={filtroNomeCliente}
+            onChange={e => setFiltroNomeCliente(e.target.value)}
+            style={{ ...campo, width: '160px' }}
+          />
+        </div>
+
+        {/* Select auxiliar — filtrado pelo nome digitado, para seleção precisa por ID */}
         <div>
           <label style={{ fontSize: '12px', color: '#666' }}>Cliente</label><br />
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <input
-              type="text"
-              placeholder="Buscar por nome..."
-              value={buscaCliente}
-              onChange={e => setBuscaCliente(e.target.value)}
-              style={{ ...campo, width: '140px' }}
-            />
-            <select
-              value={filtroCliente}
-              onChange={e => { setFiltroCliente(e.target.value); setPagina(0) }}
-              style={{ ...campo, maxWidth: '160px' }}
-            >
-              <option value="">Todos</option>
-              {clientes
-                .filter(c =>
-                  buscaCliente.trim() === '' ||
-                  c.nome.toLowerCase().includes(buscaCliente.toLowerCase())
-                )
-                .map(c => <option key={c.id} value={c.id}>{c.nome}</option>)
-              }
-            </select>
-          </div>
+          <select
+            value={filtroCliente}
+            onChange={e => { setFiltroCliente(e.target.value); setPagina(0) }}
+            style={{ ...campo, maxWidth: '180px' }}
+          >
+            <option value="">Todos</option>
+            {clientesFiltrados.map(c => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
         </div>
+
         <button
           onClick={limparFiltros}
           style={{
@@ -454,6 +493,7 @@ function Historico() {
           <FilterX size={15} />
           Limpar filtros
         </button>
+
         <div style={{ marginLeft: 'auto', color: '#666', fontSize: '13px', whiteSpace: 'nowrap' }}>
           {loading ? '...' : `${totalVendas} venda(s)`}
         </div>
