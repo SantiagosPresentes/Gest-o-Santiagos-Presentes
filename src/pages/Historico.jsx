@@ -32,6 +32,7 @@ function Historico() {
   const [loading, setLoading] = useState(true)
   const [pagina, setPagina] = useState(0)
   const [totalVendas, setTotalVendas] = useState(0)
+  const [buscaCliente, setBuscaCliente] = useState('')
 
   const [filtroSituacao, setFiltroSituacao] = useState('')
   const [filtroDataInicio, setFiltroDataInicio] = useState('')
@@ -191,6 +192,7 @@ function Historico() {
     setFiltroDataInicio('')
     setFiltroDataFim('')
     setFiltroCliente('')
+    setBuscaCliente('')   // ← adicionar esta linha
     setPagina(0)
   }
 
@@ -243,7 +245,7 @@ function Historico() {
   }
 
   const campo = { padding: '8px 12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '13px' }
-  const temFiltroAtivo = filtroSituacao !== '' || filtroDataInicio !== '' || filtroDataFim !== '' || filtroCliente !== ''
+  const temFiltroAtivo = filtroSituacao !== '' || filtroDataInicio !== '' || filtroDataFim !== '' || filtroCliente !== '' || buscaCliente !== ''
   const totalPaginas = Math.ceil(totalVendas / PAGE_SIZE)
 
   return (
@@ -410,10 +412,29 @@ function Historico() {
         </div>
         <div>
           <label style={{ fontSize: '12px', color: '#666' }}>Cliente</label><br />
-          <select value={filtroCliente} onChange={e => { setFiltroCliente(e.target.value); setPagina(0) }} style={campo}>
-            <option value="">Todos</option>
-            {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <input
+              type="text"
+              placeholder="Buscar por nome..."
+              value={buscaCliente}
+              onChange={e => setBuscaCliente(e.target.value)}
+              style={{ ...campo, width: '140px' }}
+            />
+            <select
+              value={filtroCliente}
+              onChange={e => { setFiltroCliente(e.target.value); setPagina(0) }}
+              style={{ ...campo, maxWidth: '160px' }}
+            >
+              <option value="">Todos</option>
+              {clientes
+                .filter(c =>
+                  buscaCliente.trim() === '' ||
+                  c.nome.toLowerCase().includes(buscaCliente.toLowerCase())
+                )
+                .map(c => <option key={c.id} value={c.id}>{c.nome}</option>)
+              }
+            </select>
+          </div>
         </div>
         <button
           onClick={limparFiltros}
