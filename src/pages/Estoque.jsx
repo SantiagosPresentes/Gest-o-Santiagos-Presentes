@@ -7,6 +7,7 @@ function Estoque() {
   const [produtos, setProdutos] = useState([])
   const [busca, setBusca] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('') // 'zerado' | 'baixo' | 'ok'
 
   useEffect(() => { carregarProdutos() }, [])
 
@@ -19,14 +20,19 @@ function Estoque() {
     const termoBusca = busca.toLowerCase()
     const buscaOk = p.nome.toLowerCase().includes(termoBusca) || p.codigo.includes(busca)
     const categoriaOk = !filtroCategoria || p.categoria === filtroCategoria
-    return buscaOk && categoriaOk
+    const statusOk =
+      !filtroStatus ||
+      (filtroStatus === 'zerado' && p.estoque === 0) ||
+      (filtroStatus === 'baixo' && p.estoque > 0 && p.estoque <= p.estoque_minimo) ||
+      (filtroStatus === 'ok' && p.estoque > p.estoque_minimo)
+    return buscaOk && categoriaOk && statusOk
   })
 
   const totalEstoque = produtosFiltrados.reduce((acc, p) => acc + (p.estoque * parseFloat(p.preco_venda)), 0)
   const categorias = [...new Set(produtos.map(p => p.categoria))].sort()
   const campo = { padding: '8px 12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px' }
 
-  const temFiltroAtivo = busca !== '' || filtroCategoria !== ''
+  const temFiltroAtivo = busca !== '' || filtroCategoria !== '' || filtroStatus !== ''
 
   function getEstoqueStyle(p) {
     if (p.estoque === 0) {
@@ -38,6 +44,23 @@ function Estoque() {
     }
   }
 
+  // Contadores para cada status
+  const contadores = {
+    zerado: produtos.filter(p => p.estoque === 0).length,
+    baixo: produtos.filter(p => p.estoque > 0 && p.estoque <= p.estoque_minimo).length,
+    ok: produtos.filter(p => p.estoque > p.estoque_minimo).length,
+  }
+
+  const statusFiltros = [
+    { key: 'zerado', label: 'Sem estoque', cor: '#c62828', bg: '#ffebee', bgAtivo: '#c62828' },
+    { key: 'baixo',  label: 'Estoque baixo', cor: '#f57f17', bg: '#fff8e1', bgAtivo: '#f57f17' },
+    { key: 'ok',     label: 'Estoque OK',    cor: '#2e7d32', bg: '#e8f5e9', bgAtivo: '#2e7d32' },
+  ]
+
+  function toggleStatus(key) {
+    setFiltroStatus(prev => prev === key ? '' : key)
+  }
+
   return (
     <div>
       <PageHeader
@@ -47,6 +70,7 @@ function Estoque() {
       />
 
       <div style={{ background: 'white', padding: '16px', borderRadius: '12px', marginTop: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Busca */}
         <div style={{ flex: 1, minWidth: '180px', position: 'relative' }}>
           <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#999', pointerEvents: 'none' }} />
           <input
@@ -56,6 +80,8 @@ function Estoque() {
             style={{ ...campo, width: '100%', paddingLeft: '34px', boxSizing: 'border-box' }}
           />
         </div>
+
+        {/* Categoria */}
         <div>
           <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={campo}>
             <option value="">Todas as categorias</option>
@@ -63,8 +89,54 @@ function Estoque() {
           </select>
         </div>
 
+        {/* Separador visual */}
+        <div style={{ width: '1px', height: '32px', background: '#e0e0e0', flexShrink: 0 }} />
+
+        {/* Botões de status */}
+        {statusFiltros.map(({ key, label, cor, bg, bgAtivo }) => {
+          const ativo = filtroStatus === key
+          return (
+            <button
+              key={key}
+              onClick={() => toggleStatus(key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                border: `1.5px solid ${cor}`,
+                background: ativo ? bgAtivo : bg,
+                color: ativo ? 'white' : cor,
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                background: ativo ? 'rgba(255,255,255,0.25)' : cor,
+                color: 'white',
+                fontSize: '11px',
+                fontWeight: '700',
+              }}>
+                {contadores[key]}
+              </span>
+              {label}
+            </button>
+          )
+        })}
+
+        {/* Limpar filtros */}
         <button
-          onClick={() => { setBusca(''); setFiltroCategoria('') }}
+          onClick={() => { setBusca(''); setFiltroCategoria(''); setFiltroStatus('') }}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -86,6 +158,7 @@ function Estoque() {
           Limpar filtros
         </button>
 
+        {/* Contador e total */}
         <div style={{ marginLeft: 'auto', fontSize: '13px', color: '#666', whiteSpace: 'nowrap' }}>
           {produtosFiltrados.length} produto(s) | Total: <strong style={{ color: '#1a6b5a' }}>R$ {totalEstoque.toFixed(2)}</strong>
         </div>
