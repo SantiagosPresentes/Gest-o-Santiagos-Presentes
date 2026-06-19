@@ -40,6 +40,11 @@ function Historico() {
   const [filtroNomeCliente, setFiltroNomeCliente] = useState('')
   const [filtroNomeClienteDebounced, setFiltroNomeClienteDebounced] = useState('')
 
+  // ── Novo: filtro por produto ──────────────────────────────────────
+  const [filtroProduto, setFiltroProduto] = useState('')
+  const [filtroProdutoDebounced, setFiltroProdutoDebounced] = useState('')
+  // ─────────────────────────────────────────────────────────────────
+
   const [vendaExpandida, setVendaExpandida] = useState(null)
   const [pagamentoVenda, setPagamentoVenda] = useState(null)
   const [valorPago, setValorPago] = useState('')
@@ -47,7 +52,7 @@ function Historico() {
   const [comprovanteVenda, setComprovanteVenda] = useState(null)
   const comprovanteRef = useRef(null)
 
-  // Debounce: só dispara a busca 400ms após parar de digitar
+  // Debounce nome do cliente
   useEffect(() => {
     const timer = setTimeout(() => {
       setFiltroNomeClienteDebounced(filtroNomeCliente)
@@ -55,6 +60,15 @@ function Historico() {
     }, 400)
     return () => clearTimeout(timer)
   }, [filtroNomeCliente])
+
+  // Debounce nome/código do produto
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFiltroProdutoDebounced(filtroProduto)
+      setPagina(0)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [filtroProduto])
 
   useEffect(() => {
     supabase
@@ -66,7 +80,7 @@ function Historico() {
 
   useEffect(() => {
     carregarDados()
-  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente, filtroNomeClienteDebounced])
+  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente, filtroNomeClienteDebounced, filtroProdutoDebounced])
 
   function calcularSituacao(venda, devolucoesLista = []) {
     const devs = devolucoesLista.filter(d => String(d.venda_id) === String(venda.id))
@@ -91,8 +105,9 @@ function Historico() {
     setLoading(true)
     try {
       let idsClientes = null
+      let idsVendasPorProduto = null  // ← novo
 
-      // Se digitou um nome, resolve os IDs dos clientes que batem primeiro
+      // Resolve clientes por nome
       if (filtroNomeClienteDebounced.trim()) {
         const { data: clientesFiltrados } = await supabase
           .from('clientes')
@@ -101,15 +116,42 @@ function Historico() {
 
         idsClientes = (clientesFiltrados || []).map(c => c.id)
 
-        // Nenhum cliente encontrado — retorna imediatamente sem consultar vendas
         if (idsClientes.length === 0) {
-          setVendas([])
-          setDevolucoes([])
-          setTotalVendas(0)
-          setLoading(false)
+          setVendas([]); setDevolucoes([]); setTotalVendas(0); setLoading(false)
           return
         }
       }
+
+      // ── Resolve vendas que contêm o produto buscado ───────────────
+      if (filtroProdutoDebounced.trim()) {
+        // Busca primeiro nos produtos pelo nome ou código
+        const { data: produtosFiltrados } = await supabase
+          .from('produtos')
+          .select('id')
+          .or(`nome.ilike.%${filtroProdutoDebounced.trim()}%,codigo.ilike.%${filtroProdutoDebounced.trim()}%`)
+
+        const idsProdutos = (produtosFiltrados || []).map(p => p.id)
+
+        if (idsProdutos.length === 0) {
+          // Nenhum produto encontrado — sem resultados
+          setVendas([]); setDevolucoes([]); setTotalVendas(0); setLoading(false)
+          return
+        }
+
+        // Busca os itens_venda que referenciam esses produtos
+        const { data: itensFiltrados } = await supabase
+          .from('itens_venda')
+          .select('venda_id')
+          .in('produto_id', idsProdutos)
+
+        idsVendasPorProduto = [...new Set((itensFiltrados || []).map(i => i.venda_id))]
+
+        if (idsVendasPorProduto.length === 0) {
+          setVendas([]); setDevolucoes([]); setTotalVendas(0); setLoading(false)
+          return
+        }
+      }
+      // ─────────────────────────────────────────────────────────────
 
       let query = supabase
         .from('vendas')
@@ -122,12 +164,11 @@ function Historico() {
         .order('data_para_pagar', { ascending: false })
         .order('data_venda', { ascending: false })
 
-      // Filtro por ID exato (select) — tem prioridade sobre busca por nome
-      if (filtroCliente)    query = query.eq('cliente_id', filtroCliente)
-      // Filtro por nome (lista de IDs resolvidos acima)
-      if (idsClientes)      query = query.in('cliente_id', idsClientes)
-      if (filtroDataInicio) query = query.gte('data_para_pagar', filtroDataInicio)
-      if (filtroDataFim)    query = query.lte('data_para_pagar', filtroDataFim)
+      if (filtroCliente)           query = query.eq('cliente_id', filtroCliente)
+      if (idsClientes)             query = query.in('cliente_id', idsClientes)
+      if (idsVendasPorProduto)     query = query.in('id', idsVendasPorProduto)   // ← novo
+      if (filtroDataInicio)        query = query.gte('data_para_pagar', filtroDataInicio)
+      if (filtroDataFim)           query = query.lte('data_para_pagar', filtroDataFim)
 
       let vendasData = []
       let totalCount = 0
@@ -143,10 +184,7 @@ function Historico() {
       }
 
       if (vendasData.length === 0) {
-        setVendas([])
-        setDevolucoes([])
-        setTotalVendas(0)
-        setLoading(false)
+        setVendas([]); setDevolucoes([]); setTotalVendas(0); setLoading(false)
         return
       }
 
@@ -194,7 +232,7 @@ function Historico() {
     } finally {
       setLoading(false)
     }
-  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente, filtroNomeClienteDebounced])
+  }, [pagina, filtroSituacao, filtroDataInicio, filtroDataFim, filtroCliente, filtroNomeClienteDebounced, filtroProdutoDebounced])
 
   async function registrarPagamento() {
     if (!valorPago || parseFloat(valorPago) <= 0) {
@@ -221,6 +259,8 @@ function Historico() {
     setFiltroCliente('')
     setFiltroNomeCliente('')
     setFiltroNomeClienteDebounced('')
+    setFiltroProduto('')
+    setFiltroProdutoDebounced('')
     setPagina(0)
   }
 
@@ -273,10 +313,9 @@ function Historico() {
   }
 
   const campo = { padding: '8px 12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '13px' }
-  const temFiltroAtivo = filtroSituacao !== '' || filtroDataInicio !== '' || filtroDataFim !== '' || filtroCliente !== '' || filtroNomeCliente !== ''
+  const temFiltroAtivo = filtroSituacao !== '' || filtroDataInicio !== '' || filtroDataFim !== '' || filtroCliente !== '' || filtroNomeCliente !== '' || filtroProduto !== ''
   const totalPaginas = Math.ceil(totalVendas / PAGE_SIZE)
 
-  // Clientes filtrados pelo nome digitado (para o select auxiliar)
   const clientesFiltrados = clientes.filter(c =>
     filtroNomeCliente.trim() === '' ||
     c.nome.toLowerCase().includes(filtroNomeCliente.toLowerCase())
@@ -448,7 +487,6 @@ function Historico() {
           <input type="date" value={filtroDataFim} onChange={e => { setFiltroDataFim(e.target.value); setPagina(0) }} style={campo} />
         </div>
 
-        {/* Campo de busca por nome — dispara query no banco com debounce */}
         <div>
           <label style={{ fontSize: '12px', color: '#666' }}>Buscar cliente</label><br />
           <input
@@ -460,7 +498,6 @@ function Historico() {
           />
         </div>
 
-        {/* Select auxiliar — filtrado pelo nome digitado, para seleção precisa por ID */}
         <div>
           <label style={{ fontSize: '12px', color: '#666' }}>Cliente</label><br />
           <select
@@ -474,6 +511,19 @@ function Historico() {
             ))}
           </select>
         </div>
+
+        {/* ── Novo: busca por produto ── */}
+        <div>
+          <label style={{ fontSize: '12px', color: '#666' }}>Buscar produto</label><br />
+          <input
+            type="text"
+            placeholder="Nome ou código..."
+            value={filtroProduto}
+            onChange={e => setFiltroProduto(e.target.value)}
+            style={{ ...campo, width: '160px' }}
+          />
+        </div>
+        {/* ─────────────────────────── */}
 
         <button
           onClick={limparFiltros}
