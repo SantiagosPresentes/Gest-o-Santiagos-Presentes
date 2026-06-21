@@ -21,17 +21,19 @@ export async function registrarPushToken() {
     console.log("2. Permissão:", permission);
     if (permission !== "granted") return;
 
-    const registration = await navigator.serviceWorker.ready;
-    console.log("3. Service Worker pronto");
+    console.log("3. Registrando Service Worker...");
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    await navigator.serviceWorker.ready;
+    console.log("4. Service Worker pronto");
 
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     });
-    console.log("4. Subscription obtida:", subscription);
+    console.log("5. Subscription obtida");
 
     const { data: { user }, error } = await supabase.auth.getUser();
-    console.log("5. Usuário:", user?.id, error);
+    console.log("6. Usuário:", user?.id, error);
     if (!user) return;
 
     const { error: upsertError } = await supabase.from("push_tokens").upsert(
@@ -39,7 +41,7 @@ export async function registrarPushToken() {
       { onConflict: "user_id,token" }
     );
 
-    console.log("6. Resultado:", upsertError ? upsertError.message : "Token salvo!");
+    console.log("7. Resultado:", upsertError ? upsertError.message : "Token salvo!");
   } catch (err) {
     console.error("ERRO:", err);
   }
