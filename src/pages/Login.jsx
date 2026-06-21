@@ -16,9 +16,11 @@ function Login() {
       setMensagem('E-mail ou senha incorretos!')
       setCarregando(false)
     } else {
-      await registrarPushToken()
+      // Aguarda um momento para o Supabase confirmar a sessão
+      setTimeout(async () => {
+        await registrarPushToken()
+      }, 2000)
     }
-  }
 
   return (
     <div style={{
