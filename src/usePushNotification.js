@@ -1,6 +1,6 @@
 import { getToken } from "firebase/messaging";
 import { messaging } from "./firebase";
-import { supabase } from "./supabaseClient";
+import { supabase } from "./supabase";
 
 export async function registrarPushToken() {
   try {
