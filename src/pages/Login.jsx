@@ -1,19 +1,13 @@
-// Importa os hooks necessários
 import { useState } from 'react'
-// Importa a conexão com o Supabase
 import { supabase } from '../supabase'
+import { registrarPushToken } from '../usePushNotification'
 
 function Login() {
-  // Estado para o email digitado
   const [email, setEmail] = useState('')
-  // Estado para a senha digitada
   const [senha, setSenha] = useState('')
-  // Estado para exibir mensagens de erro
   const [mensagem, setMensagem] = useState('')
-  // Estado para controlar o carregamento
   const [carregando, setCarregando] = useState(false)
 
-  // Função para realizar o login
   async function fazerLogin() {
     if (!email || !senha) { setMensagem('Preencha o e-mail e a senha!'); return }
     setCarregando(true)
@@ -21,6 +15,8 @@ function Login() {
     if (error) {
       setMensagem('E-mail ou senha incorretos!')
       setCarregando(false)
+    } else {
+      await registrarPushToken()
     }
   }
 
@@ -42,7 +38,6 @@ function Login() {
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         textAlign: 'center'
       }}>
-        {/* Logo */}
         <img src="/logo.png" alt="Logo" style={{width:'100px', height:'100px', borderRadius:'50%', objectFit:'cover', marginBottom:'16px', border:'3px solid #1a6b5a'}}/>
         
         <h1 style={{color:'#1a6b5a', fontSize:'22px', fontWeight:'bold', marginBottom:'4px'}}>
@@ -52,7 +47,6 @@ function Login() {
           Faça login para continuar
         </p>
 
-        {/* Campo de e-mail */}
         <div style={{marginBottom:'16px', textAlign:'left'}}>
           <label style={{fontSize:'13px', color:'#555', fontWeight:'bold'}}>E-mail</label><br/>
           <input
@@ -65,7 +59,6 @@ function Login() {
           />
         </div>
 
-        {/* Campo de senha */}
         <div style={{marginBottom:'24px', textAlign:'left'}}>
           <label style={{fontSize:'13px', color:'#555', fontWeight:'bold'}}>Senha</label><br/>
           <input
@@ -78,7 +71,6 @@ function Login() {
           />
         </div>
 
-        {/* Botão de login */}
         <button
           onClick={fazerLogin}
           disabled={carregando}
@@ -98,7 +90,6 @@ function Login() {
           {carregando ? 'Entrando...' : 'Entrar'}
         </button>
 
-        {/* Mensagem de erro */}
         {mensagem && (
           <p style={{marginTop:'16px', color:'red', fontSize:'14px'}}>{mensagem}</p>
         )}
