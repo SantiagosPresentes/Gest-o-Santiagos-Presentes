@@ -27,12 +27,15 @@ function Produtos() {
       setMensagem('Preencha todos os campos!'); return
     }
     const { error } = await supabase.from('produtos').insert({
-      codigo, nome, categoria,
+      codigo: codigo.trim(),
+      nome: nome.trim(),
+      categoria: categoria.trim(),
       preco_venda: parseFloat(preco),
       estoque: 0,
       estoque_minimo: parseInt(estoqueMinimo) || 0,
       estoque_maximo: parseInt(estoqueMaximo) || 0
     })
+
     if (error) { setMensagem('Erro ao salvar: ' + error.message); return }
     setMensagem('Produto cadastrado com sucesso!')
     setCodigo(''); setNome(''); setCategoria(''); setPreco('')
@@ -45,11 +48,13 @@ function Produtos() {
       setMensagem('Preencha todos os campos!'); return
     }
     const { error } = await supabase.from('produtos').update({
-      nome, categoria,
+      nome: nome.trim(),
+      categoria: categoria.trim(),
       preco_venda: parseFloat(preco),
       estoque_minimo: parseInt(estoqueMinimo) || 0,
       estoque_maximo: parseInt(estoqueMaximo) || 0
     }).eq('id', editando.id)
+    
     if (error) { setMensagem('Erro ao atualizar: ' + error.message); return }
     setMensagem('Produto atualizado! Vendas anteriores não foram afetadas.')
     setEditando(null)
