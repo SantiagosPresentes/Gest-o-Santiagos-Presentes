@@ -36,11 +36,11 @@ function Investimentos() {
 
     const { error } = await supabase.from('investimentos').insert({
       produto_id: produto.id,
-      fornecedor,
+      fornecedor: capitalizarPalavras(fornecedor),  // <- aqui
       quantidade: parseInt(quantidade),
       valor_total_pago: parseFloat(valorTotal),
       preco_venda: parseFloat(produto.preco_venda),
-      mes
+      mes: capitalizarPalavras(mes)
     })
 
     if (error) {
@@ -50,6 +50,10 @@ function Investimentos() {
       setMensagem('Investimento registrado com sucesso!')
       setCodigo(''); setProduto(null); setFornecedor(''); setQuantidade(''); setValorTotal(''); setMes('')
     }
+  }
+
+  function capitalizarPalavras(str) {
+    return str.trim().replace(/\b\w/g, l => l.toUpperCase())
   }
 
   const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'6px', border:'1px solid #ddd' }
