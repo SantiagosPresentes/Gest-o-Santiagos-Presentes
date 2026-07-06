@@ -749,144 +749,157 @@ function BI() {
         )}
       </Card>
 
-      {/* ── 4. Top 10 Mais Vendidos ── */}
-      <Card titulo="Top 10 Produtos Mais Vendidos" icon={TrendingUp} cor="#1a6b5a">
-        {dadosMaisVendidos.length === 0
-          ? <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum produto encontrado.</p>
-          : dadosMaisVendidos.map((p,i) => (
-            <BarraTop
-              key={i}
-              nome={p.nome}
-              valor={p.quantidade}
-              max={dadosMaisVendidos[0]?.quantidade||1}
-              corInicio="#1a6b5a"
-              corFim="#4ade80"
-              sub={`R$ ${p.valor.toFixed(2)}`}
-              subDir={`${p.quantidade} un.`}
-            />
-          ))
-        }
-      </Card>
-
-      {/* ── 5. Top 10 Menos Vendidos ── */}
-      <Card titulo="Top 10 Produtos Menos Vendidos" icon={TrendingDown} cor="#ef4444">
-        {dadosMenosVendidos.length === 0
-          ? <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum produto encontrado.</p>
-          : dadosMenosVendidos.map((p,i) => {
-            const maxRef = dadosMaisVendidos[0]?.quantidade || 1
-            return (
+      {/* ── 4-6. Top 10: Mais Vendidos / Menos Vendidos / Mais Devolvidos ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '16px',
+        alignItems: 'start',
+        marginBottom: '16px'
+      }}>
+        <Card titulo="Top 10 Produtos Mais Vendidos" icon={TrendingUp} cor="#1a6b5a" style={{ marginBottom: 0 }}>
+          {dadosMaisVendidos.length === 0
+            ? <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum produto encontrado.</p>
+            : dadosMaisVendidos.map((p,i) => (
               <BarraTop
                 key={i}
                 nome={p.nome}
                 valor={p.quantidade}
-                max={maxRef}
-                corInicio="#ef4444"
-                corFim="#f97316"
+                max={dadosMaisVendidos[0]?.quantidade||1}
+                corInicio="#1a6b5a"
+                corFim="#4ade80"
                 sub={`R$ ${p.valor.toFixed(2)}`}
                 subDir={`${p.quantidade} un.`}
               />
-            )
-          })
-        }
-      </Card>
+            ))
+          }
+        </Card>
 
-      {/* ── 6. Top 10 Mais Devolvidos ── */}
-      <Card titulo="Top 10 Produtos Mais Devolvidos" icon={RotateCcw} cor="#f97316">
-        {dadosMaisDevolvidos.length === 0 ? (
-          <div style={{textAlign:'center',padding:'24px'}}>
-            <CheckCircle size={32} color="#10b981" style={{marginBottom:'8px'}}/>
-            <p style={{color:'#10b981',fontWeight:'bold',fontSize:'13px'}}>Nenhuma devolução registrada!</p>
-          </div>
-        ) : dadosMaisDevolvidos.map((p,i) => (
-          <BarraTop
-            key={i}
-            nome={p.nome}
-            valor={p.quantidade}
-            max={dadosMaisDevolvidos[0]?.quantidade||1}
-            corInicio="#f97316"
-            corFim="#fbbf24"
-            sub={`R$ ${p.valor.toFixed(2)}`}
-            subDir={`${p.quantidade} un.`}
-          />
-        ))}
-      </Card>
-
-      {/* ── 7. Vendas por Categoria ── */}
-      <Card titulo="Vendas por Categoria" icon={Layers} cor="#29abe2">
-        {dadosCategoria.length === 0 ? (
-          <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhuma categoria encontrada.</p>
-        ) : (
-          <>
-            {/* Pizza centralizada */}
-            <div style={{ marginBottom:'24px' }}>
-              <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Distribuição por Valor (R$)</p>
-              <ResponsiveContainer width="100%" height={210}>
-                <PieChart>
-                  <Pie data={dadosCategoria} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" outerRadius={90} innerRadius={44} paddingAngle={3} labelLine={false} label={LabelPizza}>
-                    {dadosCategoria.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <p style={{textAlign:'center',fontSize:'12px',color:'#718096',marginTop:'4px'}}>
-                Total: <strong style={{color:'#1a6b5a'}}>{fmtBRL(totalCategValor)}</strong>
-              </p>
-            </div>
-
-            {/* Barras por quantidade */}
-            <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px' }}>
-              <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'18px'}}>Por Quantidade Vendida</p>
-              {dadosCategoria.map((item, i) => (
-                <BarraCategoria
+        <Card titulo="Top 10 Produtos Menos Vendidos" icon={TrendingDown} cor="#ef4444" style={{ marginBottom: 0 }}>
+          {dadosMenosVendidos.length === 0
+            ? <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum produto encontrado.</p>
+            : dadosMenosVendidos.map((p,i) => {
+              const maxRef = dadosMaisVendidos[0]?.quantidade || 1
+              return (
+                <BarraTop
                   key={i}
-                  item={item}
-                  max={maxCategQtd}
-                  totalValor={totalCategValor}
-                  totalQtd={totalCategQtd}
-                  cor={CORES[i%CORES.length]}
+                  nome={p.nome}
+                  valor={p.quantidade}
+                  max={maxRef}
+                  corInicio="#ef4444"
+                  corFim="#f97316"
+                  sub={`R$ ${p.valor.toFixed(2)}`}
+                  subDir={`${p.quantidade} un.`}
                 />
-              ))}
-            </div>
-          </>
-        )}
-      </Card>
+              )
+            })
+          }
+        </Card>
 
-      {/* ── 8. Investimento por Fornecedor ── */}
-      <Card titulo="Investimento por Fornecedor" icon={Truck} cor="#f5821f">
-        {dadosFornecedor.length === 0 ? (
-          <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum investimento registrado.</p>
-        ) : (
-          <>
-            {/* Pizza centralizada */}
-            <div style={{ marginBottom:'24px' }}>
-              <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Distribuição por Valor Investido (R$)</p>
-              <ResponsiveContainer width="100%" height={210}>
-                <PieChart>
-                  <Pie data={dadosFornecedor} dataKey="investido" nameKey="fornecedor" cx="50%" cy="50%" outerRadius={90} innerRadius={44} paddingAngle={3} labelLine={false} label={LabelPizza}>
-                    {dadosFornecedor.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <p style={{textAlign:'center',fontSize:'12px',color:'#718096',marginTop:'4px'}}>
-                Total: <strong style={{color:'#f5821f'}}>{fmtBRL(totalInvestido)}</strong>
-              </p>
+        <Card titulo="Top 10 Produtos Mais Devolvidos" icon={RotateCcw} cor="#f97316" style={{ marginBottom: 0 }}>
+          {dadosMaisDevolvidos.length === 0 ? (
+            <div style={{textAlign:'center',padding:'24px'}}>
+              <CheckCircle size={32} color="#10b981" style={{marginBottom:'8px'}}/>
+              <p style={{color:'#10b981',fontWeight:'bold',fontSize:'13px'}}>Nenhuma devolução registrada!</p>
             </div>
+          ) : dadosMaisDevolvidos.map((p,i) => (
+            <BarraTop
+              key={i}
+              nome={p.nome}
+              valor={p.quantidade}
+              max={dadosMaisDevolvidos[0]?.quantidade||1}
+              corInicio="#f97316"
+              corFim="#fbbf24"
+              sub={`R$ ${p.valor.toFixed(2)}`}
+              subDir={`${p.quantidade} un.`}
+            />
+          ))}
+        </Card>
+      </div>
 
-            {/* Barras por valor investido */}
-            <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px' }}>
-              <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'18px'}}>Por Valor Investido</p>
-              {dadosFornecedor.map((item, i) => (
-                <BarraFornecedor
-                  key={i}
-                  item={item}
-                  max={maxFornInvestido}
-                  totalInvestido={totalInvestido}
-                  cor={CORES[i%CORES.length]}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </Card>
+      {/* ── 7-8. Vendas por Categoria + Investimento por Fornecedor ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+        gap: '16px',
+        alignItems: 'start',
+        marginBottom: '16px'
+      }}>
+        <Card titulo="Vendas por Categoria" icon={Layers} cor="#29abe2" style={{ marginBottom: 0 }}>
+          {dadosCategoria.length === 0 ? (
+            <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhuma categoria encontrada.</p>
+          ) : (
+            <>
+              {/* Pizza centralizada */}
+              <div style={{ marginBottom:'24px' }}>
+                <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Distribuição por Valor (R$)</p>
+                <ResponsiveContainer width="100%" height={210}>
+                  <PieChart>
+                    <Pie data={dadosCategoria} dataKey="valor" nameKey="categoria" cx="50%" cy="50%" outerRadius={90} innerRadius={44} paddingAngle={3} labelLine={false} label={LabelPizza}>
+                      {dadosCategoria.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <p style={{textAlign:'center',fontSize:'12px',color:'#718096',marginTop:'4px'}}>
+                  Total: <strong style={{color:'#1a6b5a'}}>{fmtBRL(totalCategValor)}</strong>
+                </p>
+              </div>
+
+              {/* Barras por quantidade */}
+              <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px' }}>
+                <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'18px'}}>Por Quantidade Vendida</p>
+                {dadosCategoria.map((item, i) => (
+                  <BarraCategoria
+                    key={i}
+                    item={item}
+                    max={maxCategQtd}
+                    totalValor={totalCategValor}
+                    totalQtd={totalCategQtd}
+                    cor={CORES[i%CORES.length]}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </Card>
+
+        <Card titulo="Investimento por Fornecedor" icon={Truck} cor="#f5821f" style={{ marginBottom: 0 }}>
+          {dadosFornecedor.length === 0 ? (
+            <p style={{color:'#a0aec0',textAlign:'center',padding:'24px',fontSize:'13px'}}>Nenhum investimento registrado.</p>
+          ) : (
+            <>
+              {/* Pizza centralizada */}
+              <div style={{ marginBottom:'24px' }}>
+                <p style={{textAlign:'center',fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'10px'}}>Distribuição por Valor Investido (R$)</p>
+                <ResponsiveContainer width="100%" height={210}>
+                  <PieChart>
+                    <Pie data={dadosFornecedor} dataKey="investido" nameKey="fornecedor" cx="50%" cy="50%" outerRadius={90} innerRadius={44} paddingAngle={3} labelLine={false} label={LabelPizza}>
+                      {dadosFornecedor.map((_,i) => <Cell key={i} fill={CORES[i%CORES.length]}/>)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <p style={{textAlign:'center',fontSize:'12px',color:'#718096',marginTop:'4px'}}>
+                  Total: <strong style={{color:'#f5821f'}}>{fmtBRL(totalInvestido)}</strong>
+                </p>
+              </div>
+
+              {/* Barras por valor investido */}
+              <div style={{ borderTop:'1px solid #f7fafc', paddingTop:'18px' }}>
+                <p style={{fontSize:'11px',color:'#a0aec0',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'18px'}}>Por Valor Investido</p>
+                {dadosFornecedor.map((item, i) => (
+                  <BarraFornecedor
+                    key={i}
+                    item={item}
+                    max={maxFornInvestido}
+                    totalInvestido={totalInvestido}
+                    cor={CORES[i%CORES.length]}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </Card>
+      </div>
 
       {/* ── 9. Ranking Clientes ── */}
       <Card titulo="Clientes que Mais Compraram" icon={Star} cor="#e91e8c">
