@@ -88,9 +88,8 @@ function Historico() {
       const totalDevolvido = devs.reduce((acc, d) => acc + parseFloat(d.valor_total || 0), 0)
       const referencia = parseFloat(venda.valor_bruto || venda.valor_total || 0)
       const zerada = parseFloat(venda.valor_total || 0) === 0
-      const obsDevolvida = venda.observacao && venda.observacao.toLowerCase().includes('devolução')
       const valorCobre = referencia > 0 && totalDevolvido >= referencia - 0.01
-      if (zerada || obsDevolvida || valorCobre) return 'Devolvido'
+      if (zerada || valorCobre) return 'Devolvido'
     }
     if (parseFloat(venda.recebido) >= parseFloat(venda.valor_total) && parseFloat(venda.valor_total) > 0) return 'Pago'
     if (!venda.data_para_pagar) return 'Pendente'
@@ -745,5 +744,4 @@ function Historico() {
     </div>
   )
 }
-
 export default Historico
