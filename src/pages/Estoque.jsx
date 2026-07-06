@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
-import { ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, FilterX, Search } from 'lucide-react'
+import { ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, FilterX, Search, Printer, ArrowUpDown } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 function Estoque() {
@@ -8,6 +8,7 @@ function Estoque() {
   const [busca, setBusca] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('') // 'zerado' | 'baixo' | 'ok'
+  const [ordenacao, setOrdenacao] = useState('nome_asc')
 
   useEffect(() => { carregarProdutos() }, [])
 
@@ -16,17 +17,44 @@ function Estoque() {
     if (data) setProdutos(data)
   }
 
-  const produtosFiltrados = produtos.filter(p => {
-    const termoBusca = busca.toLowerCase()
-    const buscaOk = p.nome.toLowerCase().includes(termoBusca) || p.codigo.includes(busca)
-    const categoriaOk = !filtroCategoria || p.categoria === filtroCategoria
-    const statusOk =
-      !filtroStatus ||
-      (filtroStatus === 'zerado' && p.estoque === 0) ||
-      (filtroStatus === 'baixo' && p.estoque > 0 && p.estoque <= p.estoque_minimo) ||
-      (filtroStatus === 'ok' && p.estoque > p.estoque_minimo)
-    return buscaOk && categoriaOk && statusOk
-  })
+  const produtosFiltrados = useMemo(() => {
+    const filtrados = produtos.filter(p => {
+      const termoBusca = busca.toLowerCase()
+      const buscaOk = p.nome.toLowerCase().includes(termoBusca) || p.codigo.includes(busca)
+      const categoriaOk = !filtroCategoria || p.categoria === filtroCategoria
+      const statusOk =
+        !filtroStatus ||
+        (filtroStatus === 'zerado' && p.estoque === 0) ||
+        (filtroStatus === 'baixo' && p.estoque > 0 && p.estoque <= p.estoque_minimo) ||
+        (filtroStatus === 'ok' && p.estoque > p.estoque_minimo)
+      return buscaOk && categoriaOk && statusOk
+    })
+
+    const ordenados = [...filtrados]
+    switch (ordenacao) {
+      case 'nome_asc':
+        ordenados.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+        break
+      case 'nome_desc':
+        ordenados.sort((a, b) => b.nome.localeCompare(a.nome, 'pt-BR'))
+        break
+      case 'codigo_asc':
+        ordenados.sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }))
+        break
+      case 'codigo_desc':
+        ordenados.sort((a, b) => b.codigo.localeCompare(a.codigo, 'pt-BR', { numeric: true }))
+        break
+      case 'estoque_desc':
+        ordenados.sort((a, b) => b.estoque - a.estoque)
+        break
+      case 'estoque_asc':
+        ordenados.sort((a, b) => a.estoque - b.estoque)
+        break
+      default:
+        break
+    }
+    return ordenados
+  }, [produtos, busca, filtroCategoria, filtroStatus, ordenacao])
 
   const totalEstoque = produtosFiltrados.reduce((acc, p) => acc + (p.estoque * parseFloat(p.preco_venda)), 0)
   const categorias = [...new Set(produtos.map(p => p.categoria))].sort()
@@ -57,8 +85,114 @@ function Estoque() {
     { key: 'ok',     label: 'Estoque OK',    cor: '#2e7d32', bg: '#e8f5e9', bgAtivo: '#2e7d32' },
   ]
 
+  const ordenacaoLabel = {
+    nome_asc:     'Nome (A-Z)',
+    nome_desc:    'Nome (Z-A)',
+    codigo_asc:   'Código (crescente)',
+    codigo_desc:  'Código (decrescente)',
+    estoque_desc: 'Quantidade em estoque (maior → menor)',
+    estoque_asc:  'Quantidade em estoque (menor → maior)',
+  }
+
   function toggleStatus(key) {
     setFiltroStatus(prev => prev === key ? '' : key)
+  }
+
+  function imprimirEstoque() {
+    const dataAtual = new Date().toLocaleDateString('pt-BR')
+    const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const linhasHtml = produtosFiltrados.map((p, i) => `
+      <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f7f9fa'}">
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;">${p.codigo}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;"><strong>${p.nome}</strong></td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;">${p.categoria || '—'}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;">${p.estoque}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">R$ ${parseFloat(p.preco_venda).toFixed(2)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">R$ ${(p.estoque * parseFloat(p.preco_venda)).toFixed(2)}</td>
+      </tr>
+    `).join('')
+
+    const filtrosAplicados = []
+    if (busca) filtrosAplicados.push(`Busca: "${busca}"`)
+    if (filtroCategoria) filtrosAplicados.push(`Categoria: ${filtroCategoria}`)
+    if (filtroStatus) filtrosAplicados.push(`Status: ${statusFiltros.find(s => s.key === filtroStatus)?.label}`)
+
+    const janela = window.open('', '_blank')
+    janela.document.write(`
+      <html>
+        <head>
+          <title>Relatório de Estoque</title>
+          <style>
+            * { margin:0; padding:0; box-sizing:border-box; font-family: Arial, Helvetica, sans-serif; }
+            body { padding: 32px; color: #2d3748; }
+            .cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a6b5a; padding-bottom:16px; margin-bottom:20px; }
+            .cabecalho h1 { font-size:20px; color:#1a6b5a; margin-bottom:4px; }
+            .cabecalho p { font-size:12px; color:#718096; }
+            .meta { text-align:right; font-size:12px; color:#718096; }
+            .filtros { font-size:12px; color:#718096; margin-bottom:16px; background:#f7fafc; padding:10px 14px; border-radius:8px; border:1px solid #edf2f7; }
+            .filtros strong { color:#2d3748; }
+            table { width:100%; border-collapse:collapse; font-size:13px; }
+            thead th { background:#1a6b5a; color:white; text-align:left; padding:10px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
+            tfoot td { padding:12px 10px; font-weight:bold; border-top:2px solid #1a6b5a; }
+            .rodape { margin-top:24px; text-align:center; font-size:11px; color:#a0aec0; }
+            .btn-imprimir { margin-top:20px; text-align:center; }
+            .btn-imprimir button { background:#1a6b5a; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer; }
+            @media print {
+              body { padding: 12px; }
+              .btn-imprimir { display:none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="cabecalho">
+            <div>
+              <h1>Relatório de Estoque</h1>
+              <p>Santiagos Presentes</p>
+            </div>
+            <div class="meta">
+              <p>Emitido em: ${dataAtual} às ${horaAtual}</p>
+              <p>${produtosFiltrados.length} produto(s) listado(s)</p>
+            </div>
+          </div>
+
+          <div class="filtros">
+            ${filtrosAplicados.length > 0 ? `<strong>Filtros aplicados:</strong> ${filtrosAplicados.join(' | ')}<br/>` : ''}
+            <strong>Ordenado por:</strong> ${ordenacaoLabel[ordenacao]}
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Produto</th>
+                <th>Categoria</th>
+                <th style="text-align:center;">Estoque</th>
+                <th style="text-align:right;">Preço Unit.</th>
+                <th style="text-align:right;">Total em Estoque</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linhasHtml}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" style="text-align:right;">TOTAL GERAL EM ESTOQUE</td>
+                <td style="text-align:right;color:#1a6b5a;">R$ ${totalEstoque.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="rodape">Relatório gerado automaticamente pelo sistema — Santiagos Presentes</div>
+
+          <div class="btn-imprimir">
+            <button onclick="window.print()">🖨️ Imprimir</button>
+          </div>
+        </body>
+      </html>
+    `)
+    janela.document.close()
+    janela.focus()
   }
 
   return (
@@ -86,6 +220,19 @@ function Estoque() {
           <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)} style={campo}>
             <option value="">Todas as categorias</option>
             {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        {/* Ordenação */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <ArrowUpDown size={15} color="#718096" />
+          <select value={ordenacao} onChange={e => setOrdenacao(e.target.value)} style={campo}>
+            <option value="nome_asc">Nome (A-Z)</option>
+            <option value="nome_desc">Nome (Z-A)</option>
+            <option value="codigo_asc">Código (crescente)</option>
+            <option value="codigo_desc">Código (decrescente)</option>
+            <option value="estoque_desc">Estoque (maior → menor)</option>
+            <option value="estoque_asc">Estoque (menor → maior)</option>
           </select>
         </div>
 
@@ -156,6 +303,28 @@ function Estoque() {
         >
           <FilterX size={15} />
           Limpar filtros
+        </button>
+
+        {/* Imprimir */}
+        <button
+          onClick={imprimirEstoque}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #1a6b5a, #145a4a)',
+            color: 'white',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Printer size={15} />
+          Imprimir
         </button>
 
         {/* Contador e total */}
