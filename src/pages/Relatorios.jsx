@@ -5,7 +5,7 @@ import {
   FileText, Calendar, User, X, Plus, Search,
   Loader2, DollarSign, ShoppingCart, BarChart2,
   Users, TrendingUp, TrendingDown, Package,
-  ClipboardList, CheckSquare
+  ClipboardList, CheckSquare, Printer, Wallet
 } from 'lucide-react'
 
 const COR = ['#eeeeee', '#f5821f', '#c2185b', '#7b1fa2', '#0288d1', '#388e3c']
@@ -13,6 +13,16 @@ const COR_TEXTO = ['#333333', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffff
 
 function fmt(v) {
   return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+}
+
+function capitalizar(str) {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+function mesAtualStr() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 function PeriodoCard({ index, periodo, onChange, vendedores }) {
@@ -165,6 +175,14 @@ export default function Relatorios() {
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
 
+  // ---- Previsão de recebimento por mês ----
+  const [previsaoMeses, setPrevisaoMeses] = useState([])
+  const [carregandoPrevisao, setCarregandoPrevisao] = useState(false)
+  const [mesDetalhe, setMesDetalhe] = useState(mesAtualStr())
+  const [detalheMes, setDetalheMes] = useState(null)
+  const [carregandoDetalhe, setCarregandoDetalhe] = useState(false)
+  const [erroDetalhe, setErroDetalhe] = useState('')
+
   useEffect(() => {
     async function carregarVendedores() {
       const { data, error } = await supabase
@@ -177,6 +195,128 @@ export default function Relatorios() {
     }
     carregarVendedores()
   }, [])
+
+  useEffect(() => {
+    carregarPrevisao()
+    buscarDetalheMes(mesAtualStr())
+  }, [])
+
+  async function carregarPrevisao() {
+    setCarregandoPrevisao(true)
+    try {
+      const hoje = new Date()
+      const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+      const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 6, 0)
+      const inicioStr = inicio.toISOString().slice(0, 10)
+      const fimStr = fim.toISOString().slice(0, 10)
+
+      const { data, error } = await supabase
+        .from('vendas')
+        .select('valor_total, data_para_pagar')
+        .gte('data_para_pagar', inicioStr)
+        .lte('data_para_pagar', fimStr)
+
+      if (!error && data) {
+        const mapa = {}
+        data.forEach(v => {
+          if (!v.data_para_pagar) return
+          const chave = v.data_para_pagar.slice(0, 7)
+          if (!mapa[chave]) mapa[chave] = { total: 0, qtd: 0 }
+          mapa[chave].total += v.valor_total || 0
+          mapa[chave].qtd += 1
+        })
+
+        const meses = []
+        for (let i = 0; i < 6; i++) {
+          const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1)
+          const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+          meses.push({
+            chave,
+            label: capitalizar(d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })),
+            total: mapa[chave]?.total || 0,
+            qtd: mapa[chave]?.qtd || 0,
+          })
+        }
+        setPrevisaoMeses(meses)
+      }
+    } catch (e) {
+      // silencioso: a previsão é um extra, não bloqueia o restante da tela
+    }
+    setCarregandoPrevisao(false)
+  }
+
+  function selecionarMes(chave) {
+    setMesDetalhe(chave)
+    buscarDetalheMes(chave)
+  }
+
+  async function buscarDetalheMes(mesParam) {
+    const mesAlvo = mesParam || mesDetalhe
+    if (!mesAlvo) { setErroDetalhe('Selecione um mês.'); return }
+    setErroDetalhe('')
+    setCarregandoDetalhe(true)
+
+    try {
+      const [ano, mes] = mesAlvo.split('-').map(Number)
+      const inicio = `${mesAlvo}-01`
+      const ultimoDia = new Date(ano, mes, 0).getDate()
+      const fim = `${mesAlvo}-${String(ultimoDia).padStart(2, '0')}`
+
+      const { data: vendas } = await supabase
+        .from('vendas')
+        .select('id, valor_total, data_para_pagar, vendedor_nome')
+        .gte('data_para_pagar', inicio)
+        .lte('data_para_pagar', fim)
+        .order('data_para_pagar', { ascending: true })
+
+      const totalReceita = vendas?.reduce((acc, v) => acc + (v.valor_total || 0), 0) || 0
+      const qtdVendas = vendas?.length || 0
+      const ticketMedio = qtdVendas > 0 ? totalReceita / qtdVendas : 0
+
+      const porVendedorMap = {}
+      vendas?.forEach(v => {
+        const nome = v.vendedor_nome || 'Sem vendedor'
+        if (!porVendedorMap[nome]) porVendedorMap[nome] = { nome, total: 0, qtd: 0 }
+        porVendedorMap[nome].total += v.valor_total || 0
+        porVendedorMap[nome].qtd += 1
+      })
+      const porVendedor = Object.values(porVendedorMap).sort((a, b) => b.total - a.total)
+
+      const ids = vendas?.map(v => v.id) || []
+      let produtosMaisVendidos = []
+      if (ids.length > 0) {
+        const { data: itens } = await supabase
+          .from('itens_venda')
+          .select('produto_id, quantidade, valor_unitario, produtos(nome)')
+          .in('venda_id', ids)
+
+        const mapaProd = {}
+        itens?.forEach(item => {
+          const nome = item.produtos?.nome || 'Produto'
+          if (!mapaProd[nome]) mapaProd[nome] = { nome, quantidade: 0, receita: 0 }
+          mapaProd[nome].quantidade += item.quantidade
+          mapaProd[nome].receita += item.quantidade * item.valor_unitario
+        })
+        produtosMaisVendidos = Object.values(mapaProd)
+          .sort((a, b) => b.receita - a.receita)
+          .slice(0, 5)
+      }
+
+      setDetalheMes({
+        totalReceita,
+        qtdVendas,
+        ticketMedio,
+        porVendedor,
+        produtosMaisVendidos,
+        vendas: vendas || [],
+      })
+    } catch (e) {
+      setErroDetalhe('Erro ao buscar dados: ' + e.message)
+    }
+
+    setCarregandoDetalhe(false)
+  }
+  // ---- fim previsão de recebimento ----
 
   function atualizarPeriodo(i, campo, valor) {
     const copia = [...periodos]
@@ -286,6 +426,194 @@ export default function Relatorios() {
         subtitle="Relatórios estratégicos e exportação de dados"
         icon={<FileText size={22} color="white" />}
       />
+
+      <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <button
+          onClick={() => window.print()}
+          className="btn-secundario"
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <Printer size={15} /> Imprimir relatório
+        </button>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Wallet size={18} color="#1a6b5a" strokeWidth={2} />
+          Previsão de Recebimento
+        </h3>
+        <p style={{ fontSize: 13, color: '#718096', marginTop: 4, marginBottom: 14 }}>
+          Valores de vendas já realizadas com recebimento previsto para os próximos meses. Clique em um mês para ver os detalhes.
+        </p>
+
+        {carregandoPrevisao ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#718096', fontSize: 13 }}>
+            <Loader2 size={15} style={{ animation: 'spin 0.9s linear infinite' }} /> Carregando previsão...
+          </div>
+        ) : (
+          <div className="previsao-grid">
+            {previsaoMeses.map((m, i) => (
+              <div
+                key={m.chave}
+                className={`previsao-card no-print${mesDetalhe === m.chave ? ' previsao-card-ativo' : ''}`}
+                onClick={() => selecionarMes(m.chave)}
+              >
+                <div className="previsao-mes">{i === 0 ? 'Este mês' : m.label}</div>
+                <div className="previsao-valor">{fmt(m.total)}</div>
+                <div className="previsao-qtd">{m.qtd} venda{m.qtd === 1 ? '' : 's'} a receber</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Calendar size={18} color="#1a6b5a" strokeWidth={2} />
+          Detalhe do Mês de Recebimento
+        </h3>
+
+        <div className="no-print" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 10 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Mês para receber</label>
+            <input
+              type="month"
+              value={mesDetalhe}
+              onChange={e => setMesDetalhe(e.target.value)}
+              style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
+            />
+          </div>
+          <button
+            onClick={() => buscarDetalheMes()}
+            disabled={carregandoDetalhe}
+            className="btn-primario"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            {carregandoDetalhe
+              ? <><Loader2 size={15} style={{ animation: 'spin 0.9s linear infinite' }} /> Buscando...</>
+              : <><Search size={15} /> Buscar</>
+            }
+          </button>
+        </div>
+
+        {erroDetalhe && (
+          <div style={{ marginTop: 12, background: '#ffebee', color: '#c62828', padding: '10px 14px', borderRadius: 8, fontSize: 13 }}>
+            {erroDetalhe}
+          </div>
+        )}
+
+        {detalheMes && (
+          <div style={{ marginTop: 16 }}>
+            <div className="resumo-grid">
+              <div className="resumo-card" style={{ borderTop: '4px solid #1a6b5a' }}>
+                <div className="resumo-periodo" style={{ color: '#1a6b5a' }}>
+                  {capitalizar(new Date(mesDetalhe + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))}
+                </div>
+                <div className="resumo-item">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <DollarSign size={13} color="#718096" /> Total a receber
+                  </span>
+                  <strong style={{ color: '#1a6b5a' }}>{fmt(detalheMes.totalReceita)}</strong>
+                </div>
+                <div className="resumo-item">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <ShoppingCart size={13} color="#718096" /> Qtd. vendas
+                  </span>
+                  <strong>{detalheMes.qtdVendas}</strong>
+                </div>
+                <div className="resumo-item">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <BarChart2 size={13} color="#718096" /> Ticket médio
+                  </span>
+                  <strong>{fmt(detalheMes.ticketMedio)}</strong>
+                </div>
+              </div>
+            </div>
+
+            {detalheMes.porVendedor.length > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#333', margin: '0 0 10px' }}>
+                  <Users size={15} color="#1a6b5a" /> Por vendedor
+                </h4>
+                <div className="tabela-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Vendedor</th>
+                        <th>Qtd. vendas</th>
+                        <th>Total a receber</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalheMes.porVendedor.map(v => (
+                        <tr key={v.nome}>
+                          <td>{v.nome}</td>
+                          <td>{v.qtd}</td>
+                          <td>{fmt(v.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {detalheMes.produtosMaisVendidos.length > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#333', margin: '0 0 10px' }}>
+                  <Package size={15} color="#1a6b5a" /> Produtos mais vendidos no mês
+                </h4>
+                <div className="tabela-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Produto</th>
+                        <th>Quantidade</th>
+                        <th>Receita</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalheMes.produtosMaisVendidos.map(p => (
+                        <tr key={p.nome}>
+                          <td>{p.nome}</td>
+                          <td>{p.quantidade}</td>
+                          <td>{fmt(p.receita)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: 18 }}>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#333', margin: '0 0 10px' }}>
+                <ClipboardList size={15} color="#1a6b5a" /> Vendas do mês
+              </h4>
+              <div className="tabela-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Data p/ receber</th>
+                      <th>Vendedor</th>
+                      <th>Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detalheMes.vendas.map(v => (
+                      <tr key={v.id}>
+                        <td>{new Date(v.data_para_pagar + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                        <td>{v.vendedor_nome || '—'}</td>
+                        <td>{fmt(v.valor_total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="card" style={{ marginTop: 16 }}>
         <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -487,7 +815,34 @@ export default function Relatorios() {
         </>
       )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+
+        .previsao-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 10px;
+          margin-top: 4px;
+        }
+        .previsao-card {
+          background: #f7f9f8;
+          border: 1px solid #e2e8e6;
+          border-radius: 10px;
+          padding: 12px 14px;
+          cursor: pointer;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .previsao-card:hover { border-color: #1a6b5a; background: #eef6f3; }
+        .previsao-card-ativo { border-color: #1a6b5a; background: #e6f2ee; }
+        .previsao-mes { font-size: 12px; color: #718096; margin-bottom: 4px; }
+        .previsao-valor { font-size: 17px; font-weight: 700; color: #1a6b5a; }
+        .previsao-qtd { font-size: 12px; color: #999; margin-top: 2px; }
+
+        @media print {
+          .no-print { display: none !important; }
+          .card { box-shadow: none !important; border: 1px solid #ddd; break-inside: avoid; }
+        }
+      `}</style>
     </div>
   )
 }
