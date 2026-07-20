@@ -5,7 +5,7 @@ import {
   FileText, Calendar, User, X, Plus, Search,
   Loader2, DollarSign, ShoppingCart, BarChart2,
   Users, TrendingUp, TrendingDown, Package,
-  ClipboardList, CheckSquare, Printer, Wallet
+  ClipboardList, Printer, Wallet
 } from 'lucide-react'
 
 const COR = ['#eeeeee', '#f5821f', '#c2185b', '#7b1fa2', '#0288d1', '#388e3c']
@@ -175,7 +175,7 @@ export default function Relatorios() {
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
 
-  // ---- Previsão de recebimento por mês ----
+  // ---- Recebimento por mês ----
   const [previsaoMeses, setPrevisaoMeses] = useState([])
   const [carregandoPrevisao, setCarregandoPrevisao] = useState(false)
   const [mesDetalhe, setMesDetalhe] = useState(mesAtualStr())
@@ -240,7 +240,7 @@ export default function Relatorios() {
         setPrevisaoMeses(meses)
       }
     } catch (e) {
-      // silencioso: a previsão é um extra, não bloqueia o restante da tela
+      // previsão é um complemento; não bloqueia o restante da tela
     }
     setCarregandoPrevisao(false)
   }
@@ -267,7 +267,6 @@ export default function Relatorios() {
         .select('id, valor_total, data_para_pagar, vendedor_nome')
         .gte('data_para_pagar', inicio)
         .lte('data_para_pagar', fim)
-        .order('data_para_pagar', { ascending: true })
 
       const totalReceita = vendas?.reduce((acc, v) => acc + (v.valor_total || 0), 0) || 0
       const qtdVendas = vendas?.length || 0
@@ -308,7 +307,6 @@ export default function Relatorios() {
         ticketMedio,
         porVendedor,
         produtosMaisVendidos,
-        vendas: vendas || [],
       })
     } catch (e) {
       setErroDetalhe('Erro ao buscar dados: ' + e.message)
@@ -316,7 +314,7 @@ export default function Relatorios() {
 
     setCarregandoDetalhe(false)
   }
-  // ---- fim previsão de recebimento ----
+  // ---- fim recebimento por mês ----
 
   function atualizarPeriodo(i, campo, valor) {
     const copia = [...periodos]
@@ -419,6 +417,10 @@ export default function Relatorios() {
     return `${base} · ${vends.length} vendedores`
   }
 
+  const mesDetalheLabel = capitalizar(
+    new Date(mesDetalhe + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  )
+
   return (
     <div>
       <PageHeader
@@ -437,185 +439,9 @@ export default function Relatorios() {
         </button>
       </div>
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Wallet size={18} color="#1a6b5a" strokeWidth={2} />
-          Previsão de Recebimento
-        </h3>
-        <p style={{ fontSize: 13, color: '#718096', marginTop: 4, marginBottom: 14 }}>
-          Valores de vendas já realizadas com recebimento previsto para os próximos meses. Clique em um mês para ver os detalhes.
-        </p>
+      {/* ======================= SELEÇÃO (topo) ======================= */}
 
-        {carregandoPrevisao ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#718096', fontSize: 13 }}>
-            <Loader2 size={15} style={{ animation: 'spin 0.9s linear infinite' }} /> Carregando previsão...
-          </div>
-        ) : (
-          <div className="previsao-grid">
-            {previsaoMeses.map((m, i) => (
-              <div
-                key={m.chave}
-                className={`previsao-card no-print${mesDetalhe === m.chave ? ' previsao-card-ativo' : ''}`}
-                onClick={() => selecionarMes(m.chave)}
-              >
-                <div className="previsao-mes">{i === 0 ? 'Este mês' : m.label}</div>
-                <div className="previsao-valor">{fmt(m.total)}</div>
-                <div className="previsao-qtd">{m.qtd} venda{m.qtd === 1 ? '' : 's'} a receber</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="card" style={{ marginTop: 16 }}>
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Calendar size={18} color="#1a6b5a" strokeWidth={2} />
-          Detalhe do Mês de Recebimento
-        </h3>
-
-        <div className="no-print" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 10 }}>
-          <div>
-            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Mês para receber</label>
-            <input
-              type="month"
-              value={mesDetalhe}
-              onChange={e => setMesDetalhe(e.target.value)}
-              style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
-            />
-          </div>
-          <button
-            onClick={() => buscarDetalheMes()}
-            disabled={carregandoDetalhe}
-            className="btn-primario"
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            {carregandoDetalhe
-              ? <><Loader2 size={15} style={{ animation: 'spin 0.9s linear infinite' }} /> Buscando...</>
-              : <><Search size={15} /> Buscar</>
-            }
-          </button>
-        </div>
-
-        {erroDetalhe && (
-          <div style={{ marginTop: 12, background: '#ffebee', color: '#c62828', padding: '10px 14px', borderRadius: 8, fontSize: 13 }}>
-            {erroDetalhe}
-          </div>
-        )}
-
-        {detalheMes && (
-          <div style={{ marginTop: 16 }}>
-            <div className="resumo-grid">
-              <div className="resumo-card" style={{ borderTop: '4px solid #1a6b5a' }}>
-                <div className="resumo-periodo" style={{ color: '#1a6b5a' }}>
-                  {capitalizar(new Date(mesDetalhe + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))}
-                </div>
-                <div className="resumo-item">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <DollarSign size={13} color="#718096" /> Total a receber
-                  </span>
-                  <strong style={{ color: '#1a6b5a' }}>{fmt(detalheMes.totalReceita)}</strong>
-                </div>
-                <div className="resumo-item">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <ShoppingCart size={13} color="#718096" /> Qtd. vendas
-                  </span>
-                  <strong>{detalheMes.qtdVendas}</strong>
-                </div>
-                <div className="resumo-item">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <BarChart2 size={13} color="#718096" /> Ticket médio
-                  </span>
-                  <strong>{fmt(detalheMes.ticketMedio)}</strong>
-                </div>
-              </div>
-            </div>
-
-            {detalheMes.porVendedor.length > 0 && (
-              <div style={{ marginTop: 18 }}>
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#333', margin: '0 0 10px' }}>
-                  <Users size={15} color="#1a6b5a" /> Por vendedor
-                </h4>
-                <div className="tabela-wrapper">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Vendedor</th>
-                        <th>Qtd. vendas</th>
-                        <th>Total a receber</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detalheMes.porVendedor.map(v => (
-                        <tr key={v.nome}>
-                          <td>{v.nome}</td>
-                          <td>{v.qtd}</td>
-                          <td>{fmt(v.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {detalheMes.produtosMaisVendidos.length > 0 && (
-              <div style={{ marginTop: 18 }}>
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#333', margin: '0 0 10px' }}>
-                  <Package size={15} color="#1a6b5a" /> Produtos mais vendidos no mês
-                </h4>
-                <div className="tabela-wrapper">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Produto</th>
-                        <th>Quantidade</th>
-                        <th>Receita</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detalheMes.produtosMaisVendidos.map(p => (
-                        <tr key={p.nome}>
-                          <td>{p.nome}</td>
-                          <td>{p.quantidade}</td>
-                          <td>{fmt(p.receita)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            <div style={{ marginTop: 18 }}>
-              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#333', margin: '0 0 10px' }}>
-                <ClipboardList size={15} color="#1a6b5a" /> Vendas do mês
-              </h4>
-              <div className="tabela-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Data p/ receber</th>
-                      <th>Vendedor</th>
-                      <th>Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detalheMes.vendas.map(v => (
-                      <tr key={v.id}>
-                        <td>{new Date(v.data_para_pagar + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                        <td>{v.vendedor_nome || '—'}</td>
-                        <td>{fmt(v.valor_total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card no-print" style={{ marginTop: 16 }}>
         <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Calendar size={18} color="#1a6b5a" strokeWidth={2} />
           Selecionar Períodos
@@ -664,67 +490,228 @@ export default function Relatorios() {
         )}
       </div>
 
-      {resultados.length > 0 && (
-        <>
-          <div className="resumo-grid" style={{ marginTop: 20 }}>
-            {resultados.map((r, i) => {
-              const isClaro = i === 0
-              return (
-                <div key={i} className="resumo-card" style={{ borderTop: `4px solid ${isClaro ? '#aaaaaa' : COR[i]}` }}>
-                  <div className="resumo-periodo" style={{ color: isClaro ? '#555' : COR[i] }}>
-                    {labelPeriodo(r.periodo, i)}
-                  </div>
-                  <div className="resumo-item">
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <DollarSign size={13} color="#718096" /> Receita total
-                    </span>
-                    <strong style={{ color: isClaro ? '#333' : COR[i] }}>{fmt(r.totalReceita)}</strong>
-                  </div>
-                  <div className="resumo-item">
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <ShoppingCart size={13} color="#718096" /> Qtd. vendas
-                    </span>
-                    <strong>{r.qtdVendas}</strong>
-                  </div>
-                  <div className="resumo-item">
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <BarChart2 size={13} color="#718096" /> Ticket médio
-                    </span>
-                    <strong>{fmt(r.ticketMedio)}</strong>
-                  </div>
-                  {r.periodo.vendedores?.length > 0 && (
-                    <div className="resumo-item" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #eee' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Users size={13} color="#718096" /> Vendedores
-                      </span>
-                      <strong style={{ color: isClaro ? '#333' : COR[i], textAlign: 'right', maxWidth: '60%' }}>
-                        {r.periodo.vendedores.length === 1
-                          ? r.periodo.vendedores[0]
-                          : r.periodo.vendedores.join(', ')}
-                      </strong>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+      <div className="card no-print" style={{ marginTop: 16 }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Wallet size={18} color="#1a6b5a" strokeWidth={2} />
+          Recebimento por Mês
+        </h3>
+        <p style={{ fontSize: 13, color: '#718096', marginTop: 4, marginBottom: 14 }}>
+          Selecione um mês para ver o total já vendido com recebimento previsto nele.
+        </p>
+
+        {carregandoPrevisao ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#718096', fontSize: 13, marginBottom: 14 }}>
+            <Loader2 size={15} style={{ animation: 'spin 0.9s linear infinite' }} /> Carregando meses...
+          </div>
+        ) : (
+          <div className="previsao-grid">
+            {previsaoMeses.map((m, i) => (
+              <div
+                key={m.chave}
+                className={`previsao-card${mesDetalhe === m.chave ? ' previsao-card-ativo' : ''}`}
+                onClick={() => selecionarMes(m.chave)}
+              >
+                <div className="previsao-mes">{i === 0 ? 'Este mês' : m.label}</div>
+                <div className="previsao-valor">{fmt(m.total)}</div>
+                <div className="previsao-qtd">{m.qtd} venda{m.qtd === 1 ? '' : 's'}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Outro mês</label>
+            <input
+              type="month"
+              value={mesDetalhe}
+              onChange={e => setMesDetalhe(e.target.value)}
+              style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
+            />
+          </div>
+          <button
+            onClick={() => buscarDetalheMes()}
+            disabled={carregandoDetalhe}
+            className="btn-primario"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            {carregandoDetalhe
+              ? <><Loader2 size={15} style={{ animation: 'spin 0.9s linear infinite' }} /> Buscando...</>
+              : <><Search size={15} /> Buscar</>
+            }
+          </button>
+        </div>
+
+        {erroDetalhe && (
+          <div style={{ marginTop: 12, background: '#ffebee', color: '#c62828', padding: '10px 14px', borderRadius: 8, fontSize: 13 }}>
+            {erroDetalhe}
+          </div>
+        )}
+      </div>
+
+      {/* ======================= RELATÓRIO (parte inferior) ======================= */}
+
+      {(detalheMes || resultados.length > 0) && (
+        <h2 className="relatorio-titulo">Relatório</h2>
+      )}
+
+      {detalheMes && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Wallet size={18} color="#1a6b5a" strokeWidth={2} />
+            Recebimento em {mesDetalheLabel}
+          </h3>
+
+          <div className="resumo-grid" style={{ marginTop: 12 }}>
+            <div className="resumo-card" style={{ borderTop: '4px solid #1a6b5a' }}>
+              <div className="resumo-periodo" style={{ color: '#1a6b5a' }}>{mesDetalheLabel}</div>
+              <div className="resumo-item">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <DollarSign size={13} color="#718096" /> Total a receber
+                </span>
+                <strong style={{ color: '#1a6b5a' }}>{fmt(detalheMes.totalReceita)}</strong>
+              </div>
+              <div className="resumo-item">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <ShoppingCart size={13} color="#718096" /> Qtd. vendas
+                </span>
+                <strong>{detalheMes.qtdVendas}</strong>
+              </div>
+              <div className="resumo-item">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <BarChart2 size={13} color="#718096" /> Ticket médio
+                </span>
+                <strong>{fmt(detalheMes.ticketMedio)}</strong>
+              </div>
+            </div>
           </div>
 
-          <div className="legenda">
-            {resultados.map((r, i) => {
-              const isClaro = i === 0
-              return (
-                <div key={i} className="legenda-item">
-                  <span
-                    className="legenda-dot"
-                    style={{
-                      background: isClaro ? '#aaa' : COR[i],
-                      border: isClaro ? '1px solid #999' : 'none',
-                    }}
-                  />
-                  <span>{labelPeriodo(r.periodo, i)}</span>
-                </div>
-              )
-            })}
+          {detalheMes.porVendedor.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#333', margin: '0 0 10px' }}>
+                <Users size={15} color="#1a6b5a" /> Por vendedor
+              </h4>
+              <div className="tabela-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Vendedor</th>
+                      <th>Qtd. vendas</th>
+                      <th>Total a receber</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detalheMes.porVendedor.map(v => (
+                      <tr key={v.nome}>
+                        <td>{v.nome}</td>
+                        <td>{v.qtd}</td>
+                        <td>{fmt(v.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {detalheMes.produtosMaisVendidos.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#333', margin: '0 0 10px' }}>
+                <Package size={15} color="#1a6b5a" /> Produtos mais vendidos no mês
+              </h4>
+              <div className="tabela-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Produto</th>
+                      <th>Quantidade</th>
+                      <th>Receita</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detalheMes.produtosMaisVendidos.map(p => (
+                      <tr key={p.nome}>
+                        <td>{p.nome}</td>
+                        <td>{p.quantidade}</td>
+                        <td>{fmt(p.receita)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {resultados.length > 0 && (
+        <>
+          <div className="card" style={{ marginTop: 16 }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Calendar size={18} color="#1a6b5a" strokeWidth={2} />
+              Comparativo de Períodos
+            </h3>
+
+            <div className="resumo-grid" style={{ marginTop: 12 }}>
+              {resultados.map((r, i) => {
+                const isClaro = i === 0
+                return (
+                  <div key={i} className="resumo-card" style={{ borderTop: `4px solid ${isClaro ? '#aaaaaa' : COR[i]}` }}>
+                    <div className="resumo-periodo" style={{ color: isClaro ? '#555' : COR[i] }}>
+                      {labelPeriodo(r.periodo, i)}
+                    </div>
+                    <div className="resumo-item">
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <DollarSign size={13} color="#718096" /> Receita total
+                      </span>
+                      <strong style={{ color: isClaro ? '#333' : COR[i] }}>{fmt(r.totalReceita)}</strong>
+                    </div>
+                    <div className="resumo-item">
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <ShoppingCart size={13} color="#718096" /> Qtd. vendas
+                      </span>
+                      <strong>{r.qtdVendas}</strong>
+                    </div>
+                    <div className="resumo-item">
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <BarChart2 size={13} color="#718096" /> Ticket médio
+                      </span>
+                      <strong>{fmt(r.ticketMedio)}</strong>
+                    </div>
+                    {r.periodo.vendedores?.length > 0 && (
+                      <div className="resumo-item" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #eee' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <Users size={13} color="#718096" /> Vendedores
+                        </span>
+                        <strong style={{ color: isClaro ? '#333' : COR[i], textAlign: 'right', maxWidth: '60%' }}>
+                          {r.periodo.vendedores.length === 1
+                            ? r.periodo.vendedores[0]
+                            : r.periodo.vendedores.join(', ')}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="legenda">
+              {resultados.map((r, i) => {
+                const isClaro = i === 0
+                return (
+                  <div key={i} className="legenda-item">
+                    <span
+                      className="legenda-dot"
+                      style={{
+                        background: isClaro ? '#aaa' : COR[i],
+                        border: isClaro ? '1px solid #999' : 'none',
+                      }}
+                    />
+                    <span>{labelPeriodo(r.periodo, i)}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           <div className="card" style={{ marginTop: 16 }}>
@@ -818,11 +805,19 @@ export default function Relatorios() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
 
+        .relatorio-titulo {
+          margin: 28px 0 -4px;
+          font-size: 15px;
+          font-weight: 700;
+          color: #718096;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+
         .previsao-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: 10px;
-          margin-top: 4px;
         }
         .previsao-card {
           background: #f7f9f8;
@@ -840,6 +835,7 @@ export default function Relatorios() {
 
         @media print {
           .no-print { display: none !important; }
+          .relatorio-titulo { display: none !important; }
           .card { box-shadow: none !important; border: 1px solid #ddd; break-inside: avoid; }
         }
       `}</style>
