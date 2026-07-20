@@ -494,7 +494,7 @@ export default function Relatorios() {
         )}
       </div>
 
-      <div className="card no-print" style={{ marginTop: 16 }}>
+      <div className="card" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
           <div>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
@@ -506,7 +506,7 @@ export default function Relatorios() {
             </p>
           </div>
 
-          <div>
+          <div className="no-print">
             <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Meses a exibir</label>
             <input
               type="number"
@@ -526,7 +526,7 @@ export default function Relatorios() {
         <div style={{ marginTop: 14 }} />
 
         {carregandoPrevisao ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#718096', fontSize: 13, marginBottom: 14 }}>
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#718096', fontSize: 13, marginBottom: 14 }}>
             <Loader2 size={15} style={{ animation: 'spin 0.9s linear infinite' }} /> Carregando meses...
           </div>
         ) : (
@@ -534,7 +534,7 @@ export default function Relatorios() {
             {previsaoMeses.map((m, i) => (
               <div
                 key={m.chave}
-                className={`previsao-card${mesDetalhe === m.chave ? ' previsao-card-ativo' : ''}`}
+                className={`previsao-card no-print-hover${mesDetalhe === m.chave ? ' previsao-card-ativo' : ''}`}
                 onClick={() => selecionarMes(m.chave)}
               >
                 <div className="previsao-mes">{i === 0 ? 'Este mês' : m.label}</div>
@@ -545,7 +545,7 @@ export default function Relatorios() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 14 }}>
+        <div className="no-print" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 14 }}>
           <div>
             <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Outro mês</label>
             <input
@@ -863,6 +863,8 @@ export default function Relatorios() {
           .no-print { display: none !important; }
           .relatorio-titulo { display: none !important; }
           .card { box-shadow: none !important; border: 1px solid #ddd; break-inside: avoid; }
+          .previsao-card { cursor: default; break-inside: avoid; }
+          .previsao-grid { break-inside: avoid; }
         }
       `}</style>
     </div>
