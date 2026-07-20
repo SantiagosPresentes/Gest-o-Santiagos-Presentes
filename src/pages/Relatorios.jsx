@@ -178,6 +178,7 @@ export default function Relatorios() {
   // ---- Recebimento por mês ----
   const [previsaoMeses, setPrevisaoMeses] = useState([])
   const [carregandoPrevisao, setCarregandoPrevisao] = useState(false)
+  const [qtdMeses, setQtdMeses] = useState(6)
   const [mesDetalhe, setMesDetalhe] = useState(mesAtualStr())
   const [detalheMes, setDetalheMes] = useState(null)
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false)
@@ -197,16 +198,19 @@ export default function Relatorios() {
   }, [])
 
   useEffect(() => {
-    carregarPrevisao()
     buscarDetalheMes(mesAtualStr())
   }, [])
+
+  useEffect(() => {
+    carregarPrevisao()
+  }, [qtdMeses])
 
   async function carregarPrevisao() {
     setCarregandoPrevisao(true)
     try {
       const hoje = new Date()
       const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
-      const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 6, 0)
+      const fim = new Date(hoje.getFullYear(), hoje.getMonth() + qtdMeses, 0)
       const inicioStr = inicio.toISOString().slice(0, 10)
       const fimStr = fim.toISOString().slice(0, 10)
 
@@ -227,7 +231,7 @@ export default function Relatorios() {
         })
 
         const meses = []
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < qtdMeses; i++) {
           const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1)
           const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
           meses.push({
@@ -491,13 +495,35 @@ export default function Relatorios() {
       </div>
 
       <div className="card no-print" style={{ marginTop: 16 }}>
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Wallet size={18} color="#1a6b5a" strokeWidth={2} />
-          Recebimento por Mês
-        </h3>
-        <p style={{ fontSize: 13, color: '#718096', marginTop: 4, marginBottom: 14 }}>
-          Selecione um mês para ver o total já vendido com recebimento previsto nele.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <Wallet size={18} color="#1a6b5a" strokeWidth={2} />
+              Recebimento por Mês
+            </h3>
+            <p style={{ fontSize: 13, color: '#718096', marginTop: 4, marginBottom: 0 }}>
+              Selecione um mês para ver o total já vendido com recebimento previsto nele.
+            </p>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Meses a exibir</label>
+            <input
+              type="number"
+              min={1}
+              max={24}
+              value={qtdMeses}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10)
+                if (Number.isNaN(v)) return
+                setQtdMeses(Math.min(24, Math.max(1, v)))
+              }}
+              style={{ width: 80, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14 }} />
 
         {carregandoPrevisao ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#718096', fontSize: 13, marginBottom: 14 }}>
@@ -816,7 +842,7 @@ export default function Relatorios() {
 
         .previsao-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
           gap: 10px;
         }
         .previsao-card {
