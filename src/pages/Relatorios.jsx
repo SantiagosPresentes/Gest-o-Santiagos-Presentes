@@ -425,6 +425,169 @@ export default function Relatorios() {
     new Date(mesDetalhe + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
   )
 
+  function imprimirRelatorio() {
+    const dataAtual = new Date().toLocaleDateString('pt-BR')
+    const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const linhasPrevisao = previsaoMeses.map((m, i) => `
+      <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f7f9fa'}">
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;">${i === 0 ? 'Este mês' : m.label}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">${m.qtd}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">${fmt(m.total)}</td>
+      </tr>
+    `).join('')
+
+    const seccaoPrevisao = previsaoMeses.length > 0 ? `
+      <div class="secao">
+        <h2>Previsão de Recebimento por Mês</h2>
+        <table>
+          <thead>
+            <tr><th>Mês</th><th style="text-align:center;">Qtd. Vendas</th><th style="text-align:right;">Total a Receber</th></tr>
+          </thead>
+          <tbody>${linhasPrevisao}</tbody>
+        </table>
+      </div>
+    ` : ''
+
+    let seccaoDetalhe = ''
+    if (detalheMes) {
+      const linhasVendedor = detalheMes.porVendedor.map((v, i) => `
+        <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f7f9fa'}">
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;">${v.nome}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">${v.qtd}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">${fmt(v.total)}</td>
+        </tr>
+      `).join('')
+
+      const linhasProdutos = detalheMes.produtosMaisVendidos.map((p, i) => `
+        <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f7f9fa'}">
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;">${p.nome}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">${p.quantidade}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">${fmt(p.receita)}</td>
+        </tr>
+      `).join('')
+
+      seccaoDetalhe = `
+        <div class="secao">
+          <h2>Recebimento em ${mesDetalheLabel}</h2>
+          <div class="resumo-linha">
+            <div class="resumo-box"><span>Total a receber</span><strong>${fmt(detalheMes.totalReceita)}</strong></div>
+            <div class="resumo-box"><span>Qtd. vendas</span><strong>${detalheMes.qtdVendas}</strong></div>
+            <div class="resumo-box"><span>Ticket médio</span><strong>${fmt(detalheMes.ticketMedio)}</strong></div>
+          </div>
+          ${detalheMes.porVendedor.length > 0 ? `
+            <h3>Por vendedor</h3>
+            <table>
+              <thead><tr><th>Vendedor</th><th style="text-align:center;">Qtd.</th><th style="text-align:right;">Total</th></tr></thead>
+              <tbody>${linhasVendedor}</tbody>
+            </table>
+          ` : ''}
+          ${detalheMes.produtosMaisVendidos.length > 0 ? `
+            <h3>Produtos mais vendidos no mês</h3>
+            <table>
+              <thead><tr><th>Produto</th><th style="text-align:center;">Qtd.</th><th style="text-align:right;">Receita</th></tr></thead>
+              <tbody>${linhasProdutos}</tbody>
+            </table>
+          ` : ''}
+        </div>
+      `
+    }
+
+    let seccaoComparativo = ''
+    if (resultados.length > 0) {
+      const colunas = resultados.map((r, i) => labelPeriodo(r.periodo, i))
+      const linhaReceita = `<tr><td style="padding:8px 10px;border-bottom:1px solid #eee;"><strong>Receita Total</strong></td>${resultados.map(r => `<td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${fmt(r.totalReceita)}</td>`).join('')}</tr>`
+      const linhaQtd = `<tr><td style="padding:8px 10px;border-bottom:1px solid #eee;"><strong>Qtd. Vendas</strong></td>${resultados.map(r => `<td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${r.qtdVendas}</td>`).join('')}</tr>`
+      const linhaTicket = `<tr><td style="padding:8px 10px;border-bottom:1px solid #eee;"><strong>Ticket Médio</strong></td>${resultados.map(r => `<td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${fmt(r.ticketMedio)}</td>`).join('')}</tr>`
+
+      const todosProdutosImpressao = [...new Set(resultados.flatMap(r => r.produtosMaisVendidos.map(p => p.nome)))]
+      const linhasProdutosComp = todosProdutosImpressao.map(nome => `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;">${nome}</td>
+          ${resultados.map(r => `<td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${fmt(r.produtosMaisVendidos.find(p => p.nome === nome)?.receita || 0)}</td>`).join('')}
+        </tr>
+      `).join('')
+
+      seccaoComparativo = `
+        <div class="secao">
+          <h2>Comparativo de Períodos</h2>
+          <table>
+            <thead><tr><th>Métrica</th>${colunas.map(c => `<th style="text-align:right;">${c}</th>`).join('')}</tr></thead>
+            <tbody>${linhaReceita}${linhaQtd}${linhaTicket}</tbody>
+          </table>
+          ${todosProdutosImpressao.length > 0 ? `
+            <h3>Produtos mais vendidos por período</h3>
+            <table>
+              <thead><tr><th>Produto</th>${colunas.map(c => `<th style="text-align:right;">${c}</th>`).join('')}</tr></thead>
+              <tbody>${linhasProdutosComp}</tbody>
+            </table>
+          ` : ''}
+        </div>
+      `
+    }
+
+    const semDados = !detalheMes && resultados.length === 0 && previsaoMeses.length === 0
+
+    const janela = window.open('', '_blank')
+    janela.document.write(`
+      <html>
+        <head>
+          <title>Relatório - Santiagos Presentes</title>
+          <style>
+            * { margin:0; padding:0; box-sizing:border-box; font-family: Arial, Helvetica, sans-serif; }
+            body { padding: 32px; color: #2d3748; }
+            .cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a6b5a; padding-bottom:16px; margin-bottom:20px; }
+            .cabecalho h1 { font-size:20px; color:#1a6b5a; margin-bottom:4px; }
+            .cabecalho p { font-size:12px; color:#718096; }
+            .meta { text-align:right; font-size:12px; color:#718096; }
+            .secao { margin-bottom:28px; }
+            .secao h2 { font-size:15px; color:#1a6b5a; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid #e2e8f0; }
+            .secao h3 { font-size:13px; color:#2d3748; margin:16px 0 8px; }
+            table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:4px; }
+            thead th { background:#1a6b5a; color:white; text-align:left; padding:10px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
+            .resumo-linha { display:flex; gap:12px; margin-bottom:16px; }
+            .resumo-box { flex:1; background:#f7fafc; border:1px solid #edf2f7; border-radius:8px; padding:12px 14px; }
+            .resumo-box span { display:block; font-size:11px; color:#718096; margin-bottom:4px; }
+            .resumo-box strong { font-size:16px; color:#1a6b5a; }
+            .rodape { margin-top:24px; text-align:center; font-size:11px; color:#a0aec0; }
+            .btn-imprimir { margin-top:20px; text-align:center; }
+            .btn-imprimir button { background:#1a6b5a; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer; }
+            @media print {
+              body { padding: 12px; }
+              .btn-imprimir { display:none; }
+              .secao { break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="cabecalho">
+            <div>
+              <h1>Relatório de Vendas e Recebimentos</h1>
+              <p>Santiagos Presentes</p>
+            </div>
+            <div class="meta">
+              <p>Emitido em: ${dataAtual} às ${horaAtual}</p>
+            </div>
+          </div>
+
+          ${seccaoPrevisao}
+          ${seccaoDetalhe}
+          ${seccaoComparativo}
+
+          ${semDados ? '<p style="color:#a0aec0;">Nenhum dado disponível para impressão.</p>' : ''}
+
+          <div class="rodape">Relatório gerado automaticamente pelo sistema — Santiagos Presentes</div>
+
+          <div class="btn-imprimir">
+            <button onclick="window.print()">🖨️ Imprimir</button>
+          </div>
+        </body>
+      </html>
+    `)
+    janela.document.close()
+    janela.focus()
+  }
+
   return (
     <div>
       <PageHeader
@@ -435,7 +598,7 @@ export default function Relatorios() {
 
       <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
         <button
-          onClick={() => window.print()}
+          onClick={imprimirRelatorio}
           className="btn-secundario"
           style={{ display: 'flex', alignItems: 'center', gap: 6 }}
         >
