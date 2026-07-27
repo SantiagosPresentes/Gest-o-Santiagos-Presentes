@@ -291,13 +291,23 @@ function LeitorCamera({ onLeitura, onFechar }) {
   )
 }
 
+const MESES_PT = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+]
+
+function mesReferenciaAtual() {
+  const hoje = new Date()
+  return `${MESES_PT[hoje.getMonth()]}/${hoje.getFullYear()}`
+}
+
 function Investimentos() {
   const [codigo, setCodigo] = useState('')
   const [produto, setProduto] = useState(null)
   const [fornecedor, setFornecedor] = useState('')
   const [quantidade, setQuantidade] = useState('')
   const [valorTotal, setValorTotal] = useState('')
-  const [mes, setMes] = useState('')
+  const [mes, setMes] = useState(mesReferenciaAtual())
   const [mensagem, setMensagem] = useState('')
   const [cameraAberta, setCameraAberta] = useState(false)
 
@@ -344,7 +354,7 @@ function Investimentos() {
     } else {
       await supabase.from('produtos').update({ estoque: produto.estoque + parseInt(quantidade) }).eq('id', produto.id)
       setMensagem('Investimento registrado com sucesso!')
-      setCodigo(''); setProduto(null); setFornecedor(''); setQuantidade(''); setValorTotal(''); setMes('')
+      setCodigo(''); setProduto(null); setFornecedor(''); setQuantidade(''); setValorTotal(''); setMes(mesReferenciaAtual())
     }
   }
 
@@ -428,7 +438,8 @@ function Investimentos() {
 
         <div style={{marginBottom:'24px'}}>
           <label>Mês de Referência</label><br/>
-          <input value={mes} onChange={e => setMes(e.target.value)} placeholder="Ex: Maio/2026" style={campo}/>
+          <input value={mes} onChange={e => setMes(e.target.value)} placeholder="Ex: Julho/2026" style={campo}/>
+          <small style={{color:'#888'}}>Preenchido automaticamente com o mês atual — altere se necessário</small>
         </div>
 
         <button onClick={salvarInvestimento} style={{background:'linear-gradient(135deg, #f5821f, #c2185b)', color:'white', border:'none', padding:'12px 24px', borderRadius:'8px', cursor:'pointer', fontSize:'16px', width:'100%'}}>
