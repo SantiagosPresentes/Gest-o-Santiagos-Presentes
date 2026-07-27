@@ -438,8 +438,7 @@ function Investimentos() {
 
         <div style={{marginBottom:'24px'}}>
           <label>Mês de Referência</label><br/>
-          <input value={mes} onChange={e => setMes(e.target.value)} placeholder="Ex: Julho/2026" style={campo}/>
-          <small style={{color:'#888'}}>Preenchido automaticamente com o mês atual — altere se necessário</small>
+          <input value={mes} readOnly disabled style={{...campo, background:'#f5f5f5', color:'#888', cursor:'not-allowed'}}/>
         </div>
 
         <button onClick={salvarInvestimento} style={{background:'linear-gradient(135deg, #f5821f, #c2185b)', color:'white', border:'none', padding:'12px 24px', borderRadius:'8px', cursor:'pointer', fontSize:'16px', width:'100%'}}>
