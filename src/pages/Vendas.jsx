@@ -1,129 +1,292 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import html2canvas from 'html2canvas'
 import PageHeader from '../components/PageHeader'
-import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, ScanLine, X, CheckCircle, AlertCircle, CameraOff} from 'lucide-react'
 
-// Leitor de câmera usando a biblioteca ZXing via CDN (carregada dinamicamente)
+// ─── Leitor de Código (BarcodeDetector nativo, com fallback ZXing) ────────────
 function LeitorCamera({ onLeitura, onFechar }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
-  const [erro, setErro] = useState('')
-  const [status, setStatus] = useState('Apontando câmera para o código...')
+  const animFrameRef = useRef(null)
+  const detectorRef = useRef(null)
+  const lastCodeRef = useRef(null)
+  const debounceRef = useRef(null)
 
+  const [status, setStatus] = useState('starting') // starting | scanning | error
+  const [errorMsg, setErrorMsg] = useState('')
+  const [lastScanned, setLastScanned] = useState(null)
+  const [scanLine, setScanLine] = useState(0)
+
+  // Animação da linha de scan
   useEffect(() => {
-    let codeReader = null
+    let dir = 1
+    let pos = 10
+    const interval = setInterval(() => {
+      pos += dir * 1.2
+      if (pos >= 90) dir = -1
+      if (pos <= 10) dir = 1
+      setScanLine(pos)
+    }, 16)
+    return () => clearInterval(interval)
+  }, [])
 
-    async function iniciar() {
-      try {
-        // Carrega a biblioteca ZXing dinamicamente se ainda não foi carregada
-        if (!window.ZXing) {
+  const stopCamera = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+    }
+  }, [])
+
+  const startScan = useCallback(async () => {
+    try {
+      // Prefere câmera traseira
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      })
+      streamRef.current = stream
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+
+      // Usa BarcodeDetector nativo se disponível
+      if ('BarcodeDetector' in window) {
+        detectorRef.current = new window.BarcodeDetector({
+          formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'code_93', 'upc_a', 'upc_e', 'itf', 'data_matrix']
+        })
+        setStatus('scanning')
+
+        const tick = async () => {
+          if (!videoRef.current || videoRef.current.readyState < 2) {
+            animFrameRef.current = requestAnimationFrame(tick)
+            return
+          }
+          try {
+            const barcodes = await detectorRef.current.detect(videoRef.current)
+            if (barcodes.length > 0) {
+              const code = barcodes[0].rawValue
+              if (code !== lastCodeRef.current) {
+                lastCodeRef.current = code
+                clearTimeout(debounceRef.current)
+                debounceRef.current = setTimeout(() => { lastCodeRef.current = null }, 2000)
+                setLastScanned(code)
+                setTimeout(() => {
+                  stopCamera()
+                  onLeitura(code)
+                }, 300)
+                return
+              }
+            }
+          } catch (_) {}
+          animFrameRef.current = requestAnimationFrame(tick)
+        }
+        animFrameRef.current = requestAnimationFrame(tick)
+      } else {
+        // Fallback: ZXing via CDN
+        setStatus('scanning')
+        if (!window.__zxingLoaded) {
           await new Promise((resolve, reject) => {
             const script = document.createElement('script')
-            script.src = 'https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js'
-            script.onload = resolve
+            script.src = 'https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js'
+            script.onload = () => { window.__zxingLoaded = true; resolve() }
             script.onerror = reject
             document.head.appendChild(script)
           })
         }
-
-        codeReader = new window.ZXing.BrowserMultiFormatReader()
-        const devices = await codeReader.listVideoInputDevices()
-
-        if (devices.length === 0) {
-          setErro('Nenhuma câmera encontrada.')
-          return
-        }
-
-        // Prefere câmera traseira
-        const deviceId = devices.find(d =>
-          d.label.toLowerCase().includes('back') ||
-          d.label.toLowerCase().includes('tras') ||
-          d.label.toLowerCase().includes('rear') ||
-          d.label.toLowerCase().includes('environment')
-        )?.deviceId || devices[devices.length - 1].deviceId
-
-        await codeReader.decodeFromVideoDevice(deviceId, videoRef.current, (result, err) => {
+        const codeReader = new window.ZXingBrowser.BrowserMultiFormatReader()
+        codeReader.decodeFromVideoElement(videoRef.current, (result, err, controls) => {
           if (result) {
-            onLeitura(result.getText())
-            codeReader.reset()
+            const code = result.getText()
+            controls.stop()
+            stopCamera()
+            onLeitura(code)
           }
         })
-      } catch (e) {
-        setErro('Erro ao acessar câmera: ' + e.message)
       }
+    } catch (err) {
+      console.error('Scanner error:', err)
+      if (err.name === 'NotAllowedError') {
+        setErrorMsg('Permissão de câmera negada. Habilite o acesso à câmera nas configurações do navegador.')
+      } else if (err.name === 'NotFoundError') {
+        setErrorMsg('Nenhuma câmera encontrada neste dispositivo.')
+      } else {
+        setErrorMsg('Não foi possível iniciar a câmera. ' + (err.message || ''))
+      }
+      setStatus('error')
     }
+  }, [onLeitura, stopCamera])
 
-    iniciar()
-
+  useEffect(() => {
+    startScan()
     return () => {
-      if (codeReader) codeReader.reset()
+      stopCamera()
+      clearTimeout(debounceRef.current)
     }
-  }, [])
+  }, [startScan, stopCamera])
 
   return (
     <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.92)', zIndex: 2000,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      padding: '20px'
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+      zIndex: 2000, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
     }}>
-      <div style={{ width: '100%', maxWidth: '400px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-          <p style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>📷 Leitor de Código</p>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginTop: '4px' }}>{status}</p>
-        </div>
-
-        {/* Visor da câmera */}
-        <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', background: '#111' }}>
-          <video ref={videoRef} style={{ width: '100%', display: 'block', maxHeight: '300px', objectFit: 'cover' }} />
-
-          {/* Mira */}
+      {/* Header */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0,
+        padding: '20px 20px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
-            position: 'absolute', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '200px', height: '120px',
-            border: '2px solid #1a6b5a',
-            borderRadius: '8px',
-            boxShadow: '0 0 0 2000px rgba(0,0,0,0.4)',
-            pointerEvents: 'none'
+            width: '32px', height: '32px', borderRadius: '8px',
+            background: 'rgba(26,107,90,0.25)', border: '1px solid rgba(26,107,90,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {/* Cantos da mira */}
-            {[['0','0'], ['0','auto'], ['auto','0'], ['auto','auto']].map(([t,b], i) => (
-              <div key={i} style={{
-                position: 'absolute',
-                top: t !== 'auto' ? '-2px' : 'auto',
-                bottom: b !== 'auto' ? '-2px' : 'auto',
-                left: i % 2 === 0 ? '-2px' : 'auto',
-                right: i % 2 === 1 ? '-2px' : 'auto',
-                width: '20px', height: '20px',
-                borderTop: (i < 2) ? '3px solid #f5821f' : 'none',
-                borderBottom: (i >= 2) ? '3px solid #f5821f' : 'none',
-                borderLeft: (i % 2 === 0) ? '3px solid #f5821f' : 'none',
-                borderRight: (i % 2 === 1) ? '3px solid #f5821f' : 'none',
-              }}/>
-            ))}
+            <ScanLine size={16} color='#4fd1a5' />
+          </div>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>Leitor de Código</div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+              {status === 'scanning' ? 'Aponte para o código' : status === 'starting' ? 'Iniciando câmera...' : 'Erro'}
+            </div>
           </div>
         </div>
+        <button
+          onClick={() => { stopCamera(); onFechar() }}
+          style={{
+            width: '36px', height: '36px', borderRadius: '10px',
+            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
+            color: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <X size={18} />
+        </button>
+      </div>
 
-        {erro && (
-          <div style={{ background: '#ffebee', color: '#c62828', padding: '10px 14px', borderRadius: '8px', marginTop: '12px', fontSize: '13px' }}>
-            {erro}
+      {/* Camera View */}
+      <div style={{
+        position: 'relative',
+        width: '100%', maxWidth: '420px',
+        aspectRatio: '1 / 1',
+        overflow: 'hidden',
+      }}>
+        {status !== 'error' && (
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        )}
+
+        {status === 'error' && (
+          <div style={{
+            width: '100%', height: '100%',
+            background: '#111',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: '16px',
+            padding: '32px',
+          }}>
+            <div style={{
+              width: '56px', height: '56px', borderRadius: '16px',
+              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <CameraOff size={24} color='#ef4444' />
+            </div>
+            <p style={{
+              fontSize: '13px', color: 'rgba(255,255,255,0.6)',
+              textAlign: 'center', lineHeight: '1.6',
+            }}>
+              {errorMsg}
+            </p>
           </div>
         )}
 
-        <button
-          onClick={onFechar}
-          style={{
-            marginTop: '16px', width: '100%',
-            background: 'rgba(255,255,255,0.1)', color: 'white',
-            border: '1px solid rgba(255,255,255,0.2)',
-            padding: '12px', borderRadius: '10px',
-            fontSize: '15px', cursor: 'pointer'
-          }}
-        >
-          Cancelar
-        </button>
+        {/* Overlay: viewfinder */}
+        {status === 'scanning' && (
+          <>
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              WebkitMaskImage: 'radial-gradient(ellipse 60% 60% at 50% 50%, transparent 55%, black 56%)',
+              maskImage: 'radial-gradient(ellipse 60% 60% at 50% 50%, transparent 55%, black 56%)',
+            }} />
+
+            {/* Cantos da mira */}
+            {[
+              { top: '20%', left: '20%', borderTop: '2px solid #1a6b5a', borderLeft: '2px solid #1a6b5a', borderRadius: '4px 0 0 0' },
+              { top: '20%', right: '20%', borderTop: '2px solid #1a6b5a', borderRight: '2px solid #1a6b5a', borderRadius: '0 4px 0 0' },
+              { bottom: '20%', left: '20%', borderBottom: '2px solid #1a6b5a', borderLeft: '2px solid #1a6b5a', borderRadius: '0 0 0 4px' },
+              { bottom: '20%', right: '20%', borderBottom: '2px solid #1a6b5a', borderRight: '2px solid #1a6b5a', borderRadius: '0 0 4px 0' },
+            ].map((style, i) => (
+              <div key={i} style={{
+                position: 'absolute', width: '28px', height: '28px', ...style,
+              }} />
+            ))}
+
+            {/* Linha de scan */}
+            <div style={{
+              position: 'absolute',
+              left: '21%', right: '21%',
+              top: `${20 + scanLine * 0.6}%`,
+              height: '1.5px',
+              background: 'linear-gradient(to right, transparent, #1a6b5a 20%, #4fd1a5 50%, #1a6b5a 80%, transparent)',
+              boxShadow: '0 0 8px rgba(26,107,90,0.8)',
+              transition: 'top 16ms linear',
+            }} />
+          </>
+        )}
+
+        {/* Loading */}
+        {status === 'starting' && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: '#111',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              width: '40px', height: '40px', borderRadius: '50%',
+              border: '2px solid rgba(26,107,90,0.2)',
+              borderTop: '2px solid #1a6b5a',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        )}
+      </div>
+
+      {/* Rodapé */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        padding: '24px 24px 40px',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+      }}>
+        {lastScanned ? (
+          <div style={{
+            background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)',
+            borderRadius: '10px', padding: '10px 16px',
+            display: 'flex', alignItems: 'center', gap: '8px',
+          }}>
+            <CheckCircle size={14} color='#10b981' />
+            <span style={{ fontSize: '12px', color: '#10b981', fontWeight: '600' }}>
+              Código lido: {lastScanned}
+            </span>
+          </div>
+        ) : (
+          <p style={{
+            fontSize: '12px', color: 'rgba(255,255,255,0.4)',
+            textAlign: 'center',
+          }}>
+            Posicione o código de barras ou QR Code dentro da área marcada
+          </p>
+        )}
       </div>
     </div>
   )
@@ -434,12 +597,7 @@ function Vendas() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/>
-                <rect x="3" y="16" width="5" height="5"/>
-                <path d="M21 16h-3v3"/><path d="M18 21h3"/><path d="M14 3h1v5h-1z"/>
-                <path d="M14 11h1v2h-1z"/><path d="M11 3v3"/><path d="M11 10v2"/>
-              </svg>
+              <ScanLine size={20} />
             </button>
             {/* Botão adicionar */}
             <button

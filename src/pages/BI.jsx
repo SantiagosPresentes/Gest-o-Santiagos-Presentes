@@ -12,11 +12,15 @@ import {
   RotateCcw, Package, DollarSign, CheckCircle, Target,
   AlertTriangle, Award, RefreshCw, Filter, X,
   Star, Minus, ArrowUpRight, ArrowDownRight,
-  Gift, ShoppingCart, Layers, Truck, Eye, ClipboardList
+  Gift, ShoppingCart, Layers, Truck, Eye, ClipboardList,
+  Printer, Share2
 } from 'lucide-react'
 
 // ── Paleta ──────────────────────────────────────────────────────────────────
 const CORES = ['#1a6b5a','#f5821f','#29abe2','#e91e8c','#8b5cf6','#f7c948','#10b981','#ef4444','#06b6d4','#84cc16']
+
+// ── Identidade da empresa (usada no cabeçalho de impressão) ─────────────────
+const NOME_EMPRESA = 'Santiagos Presentes'
 
 // ── Datas Comemorativas ──────────────────────────────────────────────────────
 const TODAS_DATAS_COMEMORATIVAS = [
@@ -113,6 +117,7 @@ function BarraTop({ nome, valor, max, corInicio, corFim, sub, subDir }) {
 function KpiCard({ label, valor, cor, icon: Icon, selecionado, onClick }) {
   return (
     <motion.div
+      className="kpi-card"
       whileHover={{ y:-3, boxShadow:'0 10px 30px rgba(0,0,0,0.10)' }}
       whileTap={{ scale:0.97 }}
       transition={{ duration:0.15 }}
@@ -138,7 +143,7 @@ function KpiCard({ label, valor, cor, icon: Icon, selecionado, onClick }) {
 // ── Card container ────────────────────────────────────────────────────────────
 function Card({ titulo, icon: Icon, cor='#1a6b5a', children, style={} }) {
   return (
-    <div style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', marginBottom:'16px', ...style }}>
+    <div className="bi-card" style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', marginBottom:'16px', ...style }}>
       <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'18px', paddingBottom:'14px', borderBottom:'1px solid #f7f7f7' }}>
         <div style={{ width:'32px', height:'32px', borderRadius:'9px', background:`${cor}18`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
           <Icon size={16} color={cor} strokeWidth={2.2}/>
@@ -250,6 +255,7 @@ function BI() {
   const [filtroAno,       setFiltroAno]       = useState('')
   const [kpiSelecionado,  setKpiSelecionado]  = useState(null)
   const [mostrarFiltros,  setMostrarFiltros]  = useState(false)
+  const [compartilhando,  setCompartilhando]  = useState(false)
 
   useEffect(() => { carregarDados() }, [])
 
@@ -536,7 +542,56 @@ function BI() {
   const maxCategQtd     = dadosCategoria.length > 0 ? Math.max(...dadosCategoria.map(c => c.quantidade)) : 1
   const temFiltroAtivo  = filtroAno !== '' || filtroMes !== '' || filtroCategoria !== ''
 
+  // ── Texto do período (usado no cabeçalho de impressão/compartilhamento) ──
+  const filtroTexto = useMemo(() => {
+    const partes = []
+    if (filtroMes) partes.push(MESES_NOMES[parseInt(filtroMes)-1])
+    if (filtroAno) partes.push(filtroAno)
+    if (filtroCategoria) partes.push(`Categoria: ${filtroCategoria}`)
+    return partes.length ? partes.join(' / ') : 'Todos os períodos'
+  }, [filtroMes, filtroAno, filtroCategoria])
+
+  const dataGeracao = useMemo(() => {
+    return new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  }, [])
+
   function limparFiltros() { setFiltroAno(''); setFiltroMes(''); setFiltroCategoria('') }
+
+  // ── Imprimir relatório ────────────────────────────────────────────────────
+  function imprimirRelatorio() {
+    window.print()
+  }
+
+  // ── Compartilhar resumo do relatório ─────────────────────────────────────
+  async function compartilharRelatorio() {
+    const resumo =
+      `📊 Relatório BI — ${NOME_EMPRESA}\n` +
+      `Período: ${filtroTexto}\n` +
+      `Emitido em: ${dataGeracao}\n\n` +
+      `Total Vendido: ${fmtBRL(totalVendido)}\n` +
+      `Total Recebido: ${fmtBRL(totalRecebido)}\n` +
+      `Ticket Médio: ${fmtBRL(ticketMedio)}\n` +
+      `Inadimplência: ${taxaInad}%\n` +
+      `Total de Vendas: ${vendasFiltradas.length}`
+
+    setCompartilhando(true)
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Relatório BI — ${NOME_EMPRESA}`, text: resumo })
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(resumo)
+        alert('Resumo copiado para a área de transferência!\n\nPara compartilhar o relatório completo (com gráficos), use "Imprimir" e escolha "Salvar como PDF".')
+      } else {
+        alert('Use o botão "Imprimir" e escolha "Salvar como PDF" para compartilhar o relatório completo.')
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        console.error('Erro ao compartilhar:', err)
+      }
+    } finally {
+      setCompartilhando(false)
+    }
+  }
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (carregando) {
@@ -553,15 +608,83 @@ function BI() {
   const fmtN = v => v > 0 ? v : ''
 
   return (
-    <div style={{ background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0' }}>
+    <div className="bi-dashboard-root" style={{ background:'#f4f6f9', minHeight:'100vh', padding:'0 0 40px 0' }}>
+
+      {/* ── Estilos de impressão ── */}
+      <style>{`
+        .print-header { display: none; }
+        @media print {
+          html, body { background: #fff !important; }
+          .no-print { display: none !important; }
+          .print-header { display: flex !important; }
+          .bi-dashboard-root { background: #fff !important; padding: 0 !important; }
+          .bi-card, .kpi-card {
+            box-shadow: none !important;
+            border: 1px solid #ddd !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .chart-scroll { overflow: visible !important; }
+          .chart-scroll-inner { min-width: 0 !important; width: 100% !important; }
+          .kpi-grid { grid-template-columns: repeat(5, 1fr) !important; gap: 8px !important; }
+          @page { size: A4 landscape; margin: 12mm; }
+        }
+      `}</style>
+
+      {/* ── Cabeçalho de impressão (só aparece ao imprimir/exportar PDF) ── */}
+      <div className="print-header" style={{
+        alignItems:'center', justifyContent:'space-between',
+        borderBottom:'2px solid #1a6b5a', paddingBottom:'12px', marginBottom:'18px'
+      }}>
+        <div>
+          <div style={{ fontSize:'20px', fontWeight:'800', color:'#1a202c' }}>{NOME_EMPRESA}</div>
+          <div style={{ fontSize:'13px', color:'#4a5568', marginTop:'2px' }}>Relatório Gerencial — Dashboard BI</div>
+        </div>
+        <div style={{ textAlign:'right', fontSize:'11px', color:'#718096' }}>
+          <div><strong>Período:</strong> {filtroTexto}</div>
+          <div><strong>Emitido em:</strong> {dataGeracao}</div>
+        </div>
+      </div>
+
       <PageHeader
         title="Dashboard BI"
         subtitle="Análise de vendas, investimentos, devoluções e desempenho"
         icon={<BarChart3 size={22} color="white"/>}
       />
 
+      {/* ── Barra de ações: Imprimir / Compartilhar ── */}
+      <div className="no-print" style={{
+        display:'flex', justifyContent:'flex-end', gap:'10px', margin:'16px 0 0 0'
+      }}>
+        <button
+          onClick={compartilharRelatorio}
+          disabled={compartilhando}
+          style={{
+            display:'flex', alignItems:'center', gap:'6px', padding:'9px 16px',
+            borderRadius:'10px', border:'1px solid #e2e8f0', background:'#fff',
+            color:'#2d3748', fontSize:'13px', fontWeight:'600',
+            cursor: compartilhando ? 'default' : 'pointer',
+            opacity: compartilhando ? 0.6 : 1,
+            boxShadow:'0 1px 4px rgba(15,23,42,0.06)'
+          }}
+        >
+          <Share2 size={14}/> Compartilhar
+        </button>
+        <button
+          onClick={imprimirRelatorio}
+          style={{
+            display:'flex', alignItems:'center', gap:'6px', padding:'9px 16px',
+            borderRadius:'10px', border:'none', background:'#1a202c',
+            color:'#fff', fontSize:'13px', fontWeight:'600', cursor:'pointer',
+            boxShadow:'0 1px 4px rgba(15,23,42,0.15)'
+          }}
+        >
+          <Printer size={14}/> Imprimir Relatório
+        </button>
+      </div>
+
       {/* ── Filtros ── */}
-      <div style={{ background:'#fff', borderRadius:'16px', padding:'16px 20px', boxShadow:'0 2px 10px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', margin:'16px 0' }}>
+      <div className="no-print" style={{ background:'#fff', borderRadius:'16px', padding:'16px 20px', boxShadow:'0 2px 10px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', margin:'16px 0' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: mostrarFiltros ? '16px' : 0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
             <Filter size={16} color="#1a6b5a"/>
@@ -605,7 +728,7 @@ function BI() {
       </div>
 
       {/* ── KPIs ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(155px, 1fr))', gap:'12px', marginBottom:'16px' }}>
+      <div className="kpi-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(155px, 1fr))', gap:'12px', marginBottom:'16px' }}>
         <KpiCard label="Total Vendido"      valor={fmtBRL(totalVendido)}    cor="#1a6b5a" icon={DollarSign}     selecionado={kpiSelecionado==='tv'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tv'?null:'tv')}/>
         <KpiCard label="Total Recebido"     valor={fmtBRL(totalRecebido)}   cor="#29abe2" icon={CheckCircle}    selecionado={kpiSelecionado==='tr'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='tr'?null:'tr')}/>
         <KpiCard label="Valor Retirado"     valor={fmtBRL(totalRetirado)}   cor="#8b5cf6" icon={ArrowUpRight}   selecionado={kpiSelecionado==='vr'}  onClick={()=>setKpiSelecionado(kpiSelecionado==='vr'?null:'vr')}/>
@@ -620,8 +743,8 @@ function BI() {
 
       {/* ── 1. Total Vendido por Mês ── */}
       <Card titulo="Total Vendido por Mês" icon={TrendingUp} cor="#1a6b5a">
-        <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
-          <div style={{ minWidth: Math.max(360, dadosLinha.length*90) }}>
+        <div className="chart-scroll" style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
+          <div className="chart-scroll-inner" style={{ minWidth: Math.max(360, dadosLinha.length*90) }}>
             <ComposedChart width={Math.max(360, dadosLinha.length*90)} height={280} data={dadosLinha} margin={{top:28,right:16,left:8,bottom:10}}>
               <defs>
                 <linearGradient id="gV" x1="0" y1="0" x2="0" y2="1">
@@ -647,13 +770,13 @@ function BI() {
             </ComposedChart>
           </div>
         </div>
-        {dadosLinha.length > 5 && <p style={{fontSize:'11px',color:'#cbd5e0',textAlign:'center',marginTop:'6px'}}>← deslize para ver mais →</p>}
+        {dadosLinha.length > 5 && <p className="no-print" style={{fontSize:'11px',color:'#cbd5e0',textAlign:'center',marginTop:'6px'}}>← deslize para ver mais →</p>}
       </Card>
 
       {/* ── 2. Vendas vs Devoluções por Mês ── */}
       <Card titulo="Vendas vs Devoluções por Mês" icon={RotateCcw} cor="#ef4444">
-        <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
-          <div style={{ minWidth: Math.max(360, dadosVendasDev.length*120) }}>
+        <div className="chart-scroll" style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
+          <div className="chart-scroll-inner" style={{ minWidth: Math.max(360, dadosVendasDev.length*120) }}>
             <ComposedChart
               width={Math.max(360, dadosVendasDev.length*120)}
               height={320}
@@ -682,7 +805,7 @@ function BI() {
             </ComposedChart>
           </div>
         </div>
-        {dadosVendasDev.length > 5 && <p style={{fontSize:'11px',color:'#cbd5e0',textAlign:'center',marginTop:'6px'}}>← deslize para ver mais →</p>}
+        {dadosVendasDev.length > 5 && <p className="no-print" style={{fontSize:'11px',color:'#cbd5e0',textAlign:'center',marginTop:'6px'}}>← deslize para ver mais →</p>}
       </Card>
 
       {/* ── 3. Desempenho por Vendedor ── */}
@@ -949,7 +1072,7 @@ function BI() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:'16px' }}>
 
         {/* Previsão */}
-        <div style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', borderTop:'3px solid #8b5cf6' }}>
+        <div className="bi-card" style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', borderTop:'3px solid #8b5cf6' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px', paddingBottom:'12px', borderBottom:'1px solid #f7f7f7' }}>
             <div style={{ width:'32px', height:'32px', borderRadius:'9px', background:'#8b5cf618', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Eye size={16} color="#8b5cf6" strokeWidth={2.2}/>
@@ -989,7 +1112,7 @@ function BI() {
         </div>
 
         {/* Estoque Crítico */}
-        <div style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', borderTop:'3px solid #ef4444' }}>
+        <div className="bi-card" style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', borderTop:'3px solid #ef4444' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px', paddingBottom:'12px', borderBottom:'1px solid #f7f7f7' }}>
             <div style={{ width:'32px', height:'32px', borderRadius:'9px', background:'#ef444418', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Package size={16} color="#ef4444" strokeWidth={2.2}/>
@@ -1015,7 +1138,7 @@ function BI() {
         </div>
 
         {/* Próximas Datas Festivas */}
-        <div style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', borderTop:'3px solid #e91e8c' }}>
+        <div className="bi-card" style={{ background:'#fff', borderRadius:'18px', padding:'22px', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', border:'1px solid #eef2f7', borderTop:'3px solid #e91e8c' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px', paddingBottom:'12px', borderBottom:'1px solid #f7f7f7' }}>
             <div style={{ width:'32px', height:'32px', borderRadius:'9px', background:'#e91e8c18', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Gift size={16} color="#e91e8c" strokeWidth={2.2}/>
