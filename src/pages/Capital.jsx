@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Target, PlusCircle, Trash2, Eye, EyeOff, CheckCircle, XCircle, ShoppingCart, Clock, User } from 'lucide-react'
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Target, PlusCircle, Trash2, Eye, EyeOff, CheckCircle, XCircle, ShoppingCart, Clock, User, Printer, Share2 } from 'lucide-react'
 
 function Capital() {
   const [mes, setMes] = useState('')
@@ -166,6 +166,216 @@ function Capital() {
   const pagarUbaldo = totalVendidoBruto * 0.25
   const pagarViviane = totalVendidoBruto * 0.25
 
+  // ─── IMPRIMIR (mesmo estilo do Estoque.jsx) ───────────────────────────
+  function imprimirCapital() {
+    const dataAtual = new Date().toLocaleDateString('pt-BR')
+    const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    let conteudoHtml = ''
+
+    if (mes) {
+      // Relatório detalhado do mês selecionado
+      const linhasRetiradas = retiradas.map((r, i) => `
+        <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f7f9fa'}">
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;"><strong>${r.tipo}</strong></td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;">${r.descricao || '—'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">R$ ${parseFloat(r.valor).toFixed(2)}</td>
+        </tr>
+      `).join('')
+
+      conteudoHtml = `
+        <div class="filtros">
+          <strong>Mês de referência:</strong> ${mes}
+        </div>
+
+        <div class="cards-grid">
+          <div class="card"><span>Total Vendido</span><strong>R$ ${totalVendidoBruto.toFixed(2)}</strong></div>
+          <div class="card"><span>A Receber</span><strong>R$ ${totalAReceber.toFixed(2)}</strong></div>
+          <div class="card"><span>Total Recebido</span><strong>R$ ${totalVendido.toFixed(2)}</strong></div>
+          <div class="card"><span>Total Retiradas</span><strong>R$ ${totalRetiradas.toFixed(2)}</strong></div>
+          <div class="card"><span>Saldo do Mês</span><strong>R$ ${saldo.toFixed(2)}</strong></div>
+          <div class="card"><span>Meta R$ 3.000</span><strong>${totalVendidoBruto >= 3000 ? '+' : ''}R$ ${(totalVendidoBruto - 3000).toFixed(2)}</strong></div>
+          <div class="card"><span>Pagar Ubaldo (25%)</span><strong>R$ ${pagarUbaldo.toFixed(2)}</strong></div>
+          <div class="card"><span>Pagar Viviane (25%)</span><strong>R$ ${pagarViviane.toFixed(2)}</strong></div>
+        </div>
+
+        <h2 class="subtitulo">Retiradas de ${mes}</h2>
+        ${retiradas.length > 0 ? `
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Descrição</th>
+              <th style="text-align:right;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasRetiradas}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" style="text-align:right;">TOTAL DE RETIRADAS</td>
+              <td style="text-align:right;color:#c62828;">R$ ${totalRetiradas.toFixed(2)}</td>
+            </tr>
+          </tfoot>
+        </table>
+        ` : `<p style="color:#a0aec0;font-size:13px;">Nenhuma retirada registrada neste mês.</p>`}
+      `
+    } else {
+      // Relatório resumo por mês (todos os registros)
+      const linhasResumo = registros.map((r, i) => {
+        const saldoMes = r.total_vendido - r.retiradas
+        const bateuMeta = r.total_vendido >= 3000
+        return `
+          <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f7f9fa'}">
+            <td style="padding:8px 10px;border-bottom:1px solid #eee;"><strong>${r.mes}</strong></td>
+            <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">R$ ${r.total_vendido.toFixed(2)}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">R$ 3.000,00</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">R$ ${r.retiradas.toFixed(2)}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">R$ ${saldoMes.toFixed(2)}</td>
+            <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">${bateuMeta ? '✅ Meta atingida' : '⚠️ Abaixo da meta'}</td>
+          </tr>
+        `
+      }).join('')
+
+      const totalGeralRecebido = registros.reduce((acc, r) => acc + r.total_vendido, 0)
+      const totalGeralRetiradas = registros.reduce((acc, r) => acc + r.retiradas, 0)
+
+      conteudoHtml = `
+        <div class="filtros">
+          <strong>Saldo geral em caixa:</strong> R$ ${saldoGeral.toFixed(2)}
+        </div>
+
+        <h2 class="subtitulo">Resumo por Mês</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Mês</th>
+              <th style="text-align:right;">Total Recebido</th>
+              <th style="text-align:right;">Meta</th>
+              <th style="text-align:right;">Retiradas</th>
+              <th style="text-align:right;">Saldo</th>
+              <th style="text-align:center;">Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasResumo}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style="text-align:right;">TOTAL GERAL</td>
+              <td style="text-align:right;">R$ ${totalGeralRecebido.toFixed(2)}</td>
+              <td></td>
+              <td style="text-align:right;color:#c62828;">R$ ${totalGeralRetiradas.toFixed(2)}</td>
+              <td style="text-align:right;color:#1a6b5a;">R$ ${(totalGeralRecebido - totalGeralRetiradas).toFixed(2)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      `
+    }
+
+    const janela = window.open('', '_blank')
+    janela.document.write(`
+      <html>
+        <head>
+          <title>Relatório de Capital</title>
+          <style>
+            * { margin:0; padding:0; box-sizing:border-box; font-family: Arial, Helvetica, sans-serif; }
+            body { padding: 32px; color: #2d3748; }
+            .cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a6b5a; padding-bottom:16px; margin-bottom:20px; }
+            .cabecalho h1 { font-size:20px; color:#1a6b5a; margin-bottom:4px; }
+            .cabecalho p { font-size:12px; color:#718096; }
+            .meta { text-align:right; font-size:12px; color:#718096; }
+            .filtros { font-size:12px; color:#718096; margin-bottom:20px; background:#f7fafc; padding:10px 14px; border-radius:8px; border:1px solid #edf2f7; }
+            .filtros strong { color:#2d3748; }
+            .subtitulo { font-size:15px; color:#1a6b5a; margin:24px 0 10px; }
+            .cards-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:10px; }
+            .card { background:#f7fafc; border:1px solid #edf2f7; border-radius:8px; padding:10px 12px; }
+            .card span { display:block; font-size:11px; color:#718096; margin-bottom:4px; }
+            .card strong { font-size:15px; color:#1a6b5a; }
+            table { width:100%; border-collapse:collapse; font-size:13px; }
+            thead th { background:#1a6b5a; color:white; text-align:left; padding:10px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
+            tfoot td { padding:12px 10px; font-weight:bold; border-top:2px solid #1a6b5a; }
+            .rodape { margin-top:24px; text-align:center; font-size:11px; color:#a0aec0; }
+            .btn-imprimir { margin-top:20px; text-align:center; }
+            .btn-imprimir button { background:#1a6b5a; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer; }
+            @media print {
+              body { padding: 12px; }
+              .btn-imprimir { display:none; }
+              .cards-grid { grid-template-columns: repeat(4, 1fr); }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="cabecalho">
+            <div>
+              <h1>Relatório de Capital</h1>
+              <p>Santiagos Presentes</p>
+            </div>
+            <div class="meta">
+              <p>Emitido em: ${dataAtual} às ${horaAtual}</p>
+            </div>
+          </div>
+
+          ${conteudoHtml}
+
+          <div class="rodape">Relatório gerado automaticamente pelo sistema — Santiagos Presentes</div>
+
+          <div class="btn-imprimir">
+            <button onclick="window.print()">🖨️ Imprimir</button>
+          </div>
+        </body>
+      </html>
+    `)
+    janela.document.close()
+    janela.focus()
+  }
+
+  // ─── COMPARTILHAR (WhatsApp / apps do celular) ────────────────────────
+  async function compartilharCapital() {
+    let texto = ''
+
+    if (mes) {
+      texto =
+        `📊 *Capital — ${mes}*\n` +
+        `Santiagos Presentes\n\n` +
+        `🛒 Total Vendido: R$ ${totalVendidoBruto.toFixed(2)}\n` +
+        `⏳ A Receber: R$ ${totalAReceber.toFixed(2)}\n` +
+        `📈 Total Recebido: R$ ${totalVendido.toFixed(2)}\n` +
+        `📉 Total Retiradas: R$ ${totalRetiradas.toFixed(2)}\n` +
+        `💰 Saldo do Mês: R$ ${saldo.toFixed(2)}\n` +
+        `🎯 Meta R$ 3.000: ${totalVendidoBruto >= 3000 ? '+' : ''}R$ ${(totalVendidoBruto - 3000).toFixed(2)}\n` +
+        `👤 Pagar Ubaldo: R$ ${pagarUbaldo.toFixed(2)}\n` +
+        `👤 Pagar Viviane: R$ ${pagarViviane.toFixed(2)}`
+    } else {
+      const linhas = registros.map(r => {
+        const saldoMes = r.total_vendido - r.retiradas
+        const bateuMeta = r.total_vendido >= 3000 ? '✅' : '⚠️'
+        return `${bateuMeta} ${r.mes}: Recebido R$ ${r.total_vendido.toFixed(2)} | Retiradas R$ ${r.retiradas.toFixed(2)} | Saldo R$ ${saldoMes.toFixed(2)}`
+      }).join('\n')
+
+      texto =
+        `📊 *Resumo de Capital*\n` +
+        `Santiagos Presentes\n\n` +
+        `💰 Saldo geral em caixa: R$ ${saldoGeral.toFixed(2)}\n\n` +
+        (linhas || 'Nenhum registro ainda.')
+    }
+
+    // Web Share API: abre o menu nativo do celular (WhatsApp, e-mail, etc.)
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Relatório de Capital - Santiagos Presentes', text: texto })
+      } catch (err) {
+        // usuário cancelou o compartilhamento — não faz nada
+      }
+    } else {
+      // Fallback para desktop: abre o WhatsApp Web com o texto pronto
+      const url = `https://wa.me/?text=${encodeURIComponent(texto)}`
+      window.open(url, '_blank')
+    }
+  }
+
   const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'14px', boxSizing:'border-box' }
 
   return (
@@ -202,13 +412,40 @@ function Capital() {
         )}
       </div>
 
-      {/* Seletor de mês */}
-      <div style={{background:'white', padding:'20px', borderRadius:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'16px'}}>
-        <label style={{fontWeight:'bold', color:'#1a6b5a', fontSize:'14px'}}>Filtrar por Mês</label>
-        <select value={mes} onChange={e => setMes(e.target.value)} style={{...campo, maxWidth:'300px', marginTop:'8px'}}>
-          <option value="">Todos os meses</option>
-          {meses.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
+      {/* Seletor de mês + ações */}
+      <div style={{background:'white', padding:'20px', borderRadius:'14px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)', marginBottom:'16px', display:'flex', alignItems:'flex-end', gap:'12px', flexWrap:'wrap'}}>
+        <div style={{flex:1, minWidth:'220px'}}>
+          <label style={{fontWeight:'bold', color:'#1a6b5a', fontSize:'14px'}}>Filtrar por Mês</label>
+          <select value={mes} onChange={e => setMes(e.target.value)} style={{...campo, maxWidth:'300px', marginTop:'8px'}}>
+            <option value="">Todos os meses</option>
+            {meses.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+
+        <div style={{display:'flex', gap:'8px'}}>
+          <button
+            onClick={imprimirCapital}
+            style={{
+              display:'flex', alignItems:'center', gap:'6px',
+              padding:'10px 16px', borderRadius:'8px', border:'none',
+              background:'linear-gradient(135deg, #1a6b5a, #145a4a)', color:'white',
+              fontSize:'13px', fontWeight:'600', cursor:'pointer', whiteSpace:'nowrap',
+            }}
+          >
+            <Printer size={15}/> Imprimir
+          </button>
+          <button
+            onClick={compartilharCapital}
+            style={{
+              display:'flex', alignItems:'center', gap:'6px',
+              padding:'10px 16px', borderRadius:'8px', border:'none',
+              background:'linear-gradient(135deg, #25D366, #128C7E)', color:'white',
+              fontSize:'13px', fontWeight:'600', cursor:'pointer', whiteSpace:'nowrap',
+            }}
+          >
+            <Share2 size={15}/> Compartilhar
+          </button>
+        </div>
       </div>
 
       {mes && (
