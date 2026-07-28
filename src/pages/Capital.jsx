@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 import PageHeader from '../components/PageHeader'
 import { DollarSign, TrendingUp, TrendingDown, Wallet, Target, PlusCircle, Trash2, Eye, EyeOff, CheckCircle, XCircle, ShoppingCart, Clock, User, Printer, Share2 } from 'lucide-react'
 
@@ -16,6 +18,8 @@ function Capital() {
   const [mensagem, setMensagem] = useState('')
   const [mostrarCaixa, setMostrarCaixa] = useState(false)
   const [saldoGeral, setSaldoGeral] = useState(0)
+  const [gerandoPdf, setGerandoPdf] = useState(false)
+  const pdfRef = useRef(null)
 
   const nomeMeses = [
     'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -332,54 +336,184 @@ function Capital() {
     janela.focus()
   }
 
-  // ─── COMPARTILHAR (WhatsApp / apps do celular) ────────────────────────
+  // ─── COMPARTILHAR (PDF profissional via WhatsApp / apps do celular) ──
   async function compartilharCapital() {
-    let texto = ''
+    if (gerandoPdf) return
+    setGerandoPdf(true)
+    try {
+      const elemento = pdfRef.current
+      const canvas = await html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+      const imgData = canvas.toDataURL('image/png')
 
-    if (mes) {
-      texto =
-        `📊 *Capital — ${mes}*\n` +
-        `Santiagos Presentes\n\n` +
-        `🛒 Total Vendido: R$ ${totalVendidoBruto.toFixed(2)}\n` +
-        `⏳ A Receber: R$ ${totalAReceber.toFixed(2)}\n` +
-        `📈 Total Recebido: R$ ${totalVendido.toFixed(2)}\n` +
-        `📉 Total Retiradas: R$ ${totalRetiradas.toFixed(2)}\n` +
-        `💰 Saldo do Mês: R$ ${saldo.toFixed(2)}\n` +
-        `🎯 Meta R$ 3.000: ${totalVendidoBruto >= 3000 ? '+' : ''}R$ ${(totalVendidoBruto - 3000).toFixed(2)}\n` +
-        `👤 Pagar Ubaldo: R$ ${pagarUbaldo.toFixed(2)}\n` +
-        `👤 Pagar Viviane: R$ ${pagarViviane.toFixed(2)}`
-    } else {
-      const linhas = registros.map(r => {
-        const saldoMes = r.total_vendido - r.retiradas
-        const bateuMeta = r.total_vendido >= 3000 ? '✅' : '⚠️'
-        return `${bateuMeta} ${r.mes}: Recebido R$ ${r.total_vendido.toFixed(2)} | Retiradas R$ ${r.retiradas.toFixed(2)} | Saldo R$ ${saldoMes.toFixed(2)}`
-      }).join('\n')
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      })
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
+      const blob = pdf.output('blob')
 
-      texto =
-        `📊 *Resumo de Capital*\n` +
-        `Santiagos Presentes\n\n` +
-        `💰 Saldo geral em caixa: R$ ${saldoGeral.toFixed(2)}\n\n` +
-        (linhas || 'Nenhum registro ainda.')
-    }
+      const nomeArquivo = `Relatorio-Capital-${(mes || 'Geral').replace('/', '-')}.pdf`
+      const file = new File([blob], nomeArquivo, { type: 'application/pdf' })
 
-    // Web Share API: abre o menu nativo do celular (WhatsApp, e-mail, etc.)
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Relatório de Capital - Santiagos Presentes', text: texto })
-      } catch (err) {
-        // usuário cancelou o compartilhamento — não faz nada
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Relatório de Capital - Santiagos Presentes',
+          text: `📊 Relatório de Capital${mes ? ' — ' + mes : ''} — Santiagos Presentes`
+        })
+      } else {
+        // Fallback (desktop ou navegador sem suporte a compartilhar arquivos): baixa o PDF
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = nomeArquivo; a.click()
+        URL.revokeObjectURL(url)
+        setMensagem('PDF baixado! Envie pelo WhatsApp Web ou app de sua preferência.')
       }
-    } else {
-      // Fallback para desktop: abre o WhatsApp Web com o texto pronto
-      const url = `https://wa.me/?text=${encodeURIComponent(texto)}`
-      window.open(url, '_blank')
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err)
+      setMensagem('Erro ao gerar o PDF de compartilhamento.')
+    } finally {
+      setGerandoPdf(false)
     }
   }
 
   const campo = { width:'100%', padding:'10px', marginTop:'6px', borderRadius:'8px', border:'1px solid #ddd', fontSize:'14px', boxSizing:'border-box' }
 
+  const dataAtual = new Date().toLocaleDateString('pt-BR')
+  const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+  const cardsPdf = [
+    { label: 'Total Vendido', valor: totalVendidoBruto, cor: '#1565c0', bg: '#e3f2fd' },
+    { label: 'A Receber', valor: totalAReceber, cor: '#e65100', bg: '#fff3e0' },
+    { label: 'Total Recebido', valor: totalVendido, cor: '#2e7d32', bg: '#e8f5e9' },
+    { label: 'Total Retiradas', valor: totalRetiradas, cor: '#c62828', bg: '#ffebee' },
+    { label: 'Saldo do Mês', valor: saldo, cor: totalVendidoBruto >= 3000 ? '#2e7d32' : '#f57f17', bg: totalVendidoBruto >= 3000 ? '#e8f5e9' : '#fff8e1' },
+    { label: 'Meta R$ 3.000', valor: totalVendidoBruto - 3000, cor: totalVendidoBruto >= 3000 ? '#2e7d32' : '#c62828', bg: totalVendidoBruto >= 3000 ? '#e8f5e9' : '#ffebee', comSinal: true },
+    { label: 'Pagar Ubaldo (25%)', valor: pagarUbaldo, cor: '#6a1b9a', bg: '#f3e5f5' },
+    { label: 'Pagar Viviane (25%)', valor: pagarViviane, cor: '#880e4f', bg: '#fce4ec' },
+  ]
+
   return (
     <div>
+      {/* TEMPLATE OCULTO — usado apenas para gerar o PDF de compartilhamento */}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
+        <div ref={pdfRef} style={{ width: '800px', background: 'white', padding: '40px', fontFamily: 'Arial, Helvetica, sans-serif', color: '#2d3748' }}>
+
+          {/* Cabeçalho */}
+          <div style={{ background: 'linear-gradient(135deg, #1a6b5a, #145a4a)', borderRadius: '14px', padding: '28px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <img src="/logo.png" alt="Logo" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.6)' }} />
+              <div>
+                <h1 style={{ fontSize: '24px', color: 'white', margin: 0 }}>Relatório de Capital</h1>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', margin: '4px 0 0' }}>Santiagos Presentes</p>
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', margin: 0 }}>Emitido em {dataAtual} às {horaAtual}</p>
+              {mes && (
+                <p style={{ fontSize: '15px', color: 'white', fontWeight: 'bold', margin: '6px 0 0', background: 'rgba(255,255,255,0.15)', display: 'inline-block', padding: '4px 12px', borderRadius: '20px' }}>
+                  {mes}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {mes ? (
+            <>
+              {/* Cards de indicadores */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '28px' }}>
+                {cardsPdf.map((c, i) => (
+                  <div key={i} style={{ background: c.bg, borderRadius: '12px', padding: '16px 18px', borderLeft: `4px solid ${c.cor}` }}>
+                    <p style={{ fontSize: '12px', color: '#666', margin: '0 0 4px' }}>{c.label}</p>
+                    <strong style={{ fontSize: '20px', color: c.cor }}>
+                      {c.comSinal && c.valor >= 0 ? '+' : ''}R$ {c.valor.toFixed(2)}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tabela de retiradas */}
+              <h2 style={{ fontSize: '16px', color: '#1a6b5a', marginBottom: '12px' }}>Retiradas de {mes}</h2>
+              {retiradas.length > 0 ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ background: '#1a6b5a', color: 'white', textAlign: 'left', padding: '10px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '6px 0 0 0' }}>Tipo</th>
+                      <th style={{ background: '#1a6b5a', color: 'white', textAlign: 'left', padding: '10px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Descrição</th>
+                      <th style={{ background: '#1a6b5a', color: 'white', textAlign: 'right', padding: '10px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '0 6px 0 0' }}>Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {retiradas.map((r, i) => (
+                      <tr key={r.id} style={{ background: i % 2 === 0 ? '#ffffff' : '#f7f9fa' }}>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}><strong>{r.tipo}</strong></td>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #eee', color: '#666' }}>{r.descricao || '—'}</td>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #eee', textAlign: 'right', fontWeight: 'bold', color: '#c62828' }}>R$ {parseFloat(r.valor).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2} style={{ padding: '12px 10px', fontWeight: 'bold', borderTop: '2px solid #1a6b5a', textAlign: 'right' }}>TOTAL DE RETIRADAS</td>
+                      <td style={{ padding: '12px 10px', fontWeight: 'bold', borderTop: '2px solid #1a6b5a', textAlign: 'right', color: '#c62828' }}>R$ {totalRetiradas.toFixed(2)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              ) : (
+                <p style={{ color: '#a0aec0', fontSize: '13px' }}>Nenhuma retirada registrada neste mês.</p>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Saldo geral */}
+              <div style={{ background: 'linear-gradient(135deg, #1a6b5a, #145a4a)', borderRadius: '12px', padding: '20px', textAlign: 'center', marginBottom: '28px' }}>
+                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', margin: '0 0 6px' }}>Saldo Geral em Caixa</p>
+                <strong style={{ color: 'white', fontSize: '32px' }}>R$ {saldoGeral.toFixed(2)}</strong>
+              </div>
+
+              {/* Tabela resumo por mês */}
+              <h2 style={{ fontSize: '16px', color: '#1a6b5a', marginBottom: '12px' }}>Resumo por Mês</h2>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ background: '#1a6b5a', color: 'white', textAlign: 'left', padding: '10px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Mês</th>
+                    <th style={{ background: '#1a6b5a', color: 'white', textAlign: 'right', padding: '10px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recebido</th>
+                    <th style={{ background: '#1a6b5a', color: 'white', textAlign: 'right', padding: '10px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Retiradas</th>
+                    <th style={{ background: '#1a6b5a', color: 'white', textAlign: 'right', padding: '10px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saldo</th>
+                    <th style={{ background: '#1a6b5a', color: 'white', textAlign: 'center', padding: '10px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registros.map((r, i) => {
+                    const saldoMes = r.total_vendido - r.retiradas
+                    const bateuMeta = r.total_vendido >= 3000
+                    return (
+                      <tr key={r.mes} style={{ background: i % 2 === 0 ? '#ffffff' : '#f7f9fa' }}>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #eee' }}><strong>{r.mes}</strong></td>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #eee', textAlign: 'right', color: '#2e7d32' }}>R$ {r.total_vendido.toFixed(2)}</td>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #eee', textAlign: 'right', color: '#c62828' }}>R$ {r.retiradas.toFixed(2)}</td>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #eee', textAlign: 'right', fontWeight: 'bold' }}>R$ {saldoMes.toFixed(2)}</td>
+                        <td style={{ padding: '10px', borderBottom: '1px solid #eee', textAlign: 'center' }}>
+                          <span style={{ background: bateuMeta ? '#e8f5e9' : '#ffebee', color: bateuMeta ? '#2e7d32' : '#c62828', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>
+                            {bateuMeta ? 'Meta atingida' : 'Abaixo da meta'}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {/* Rodapé */}
+          <div style={{ marginTop: '32px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
+            <p style={{ fontSize: '11px', color: '#a0aec0', margin: 0 }}>Relatório gerado automaticamente pelo sistema — Santiagos Presentes</p>
+          </div>
+        </div>
+      </div>
+
       <PageHeader
         title="Capital"
         subtitle="Fluxo financeiro, caixa e capital da empresa"
@@ -436,14 +570,15 @@ function Capital() {
           </button>
           <button
             onClick={compartilharCapital}
+            disabled={gerandoPdf}
             style={{
               display:'flex', alignItems:'center', gap:'6px',
               padding:'10px 16px', borderRadius:'8px', border:'none',
-              background:'linear-gradient(135deg, #25D366, #128C7E)', color:'white',
-              fontSize:'13px', fontWeight:'600', cursor:'pointer', whiteSpace:'nowrap',
+              background: gerandoPdf ? '#94d3ae' : 'linear-gradient(135deg, #25D366, #128C7E)', color:'white',
+              fontSize:'13px', fontWeight:'600', cursor: gerandoPdf ? 'default' : 'pointer', whiteSpace:'nowrap',
             }}
           >
-            <Share2 size={15}/> Compartilhar
+            <Share2 size={15}/> {gerandoPdf ? 'Gerando PDF...' : 'Compartilhar PDF'}
           </button>
         </div>
       </div>
