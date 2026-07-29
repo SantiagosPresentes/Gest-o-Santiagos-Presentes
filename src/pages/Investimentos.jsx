@@ -315,6 +315,16 @@ function Investimentos() {
   const lucroUnitario = produto && custoUnitario ? (parseFloat(produto.preco_venda) - parseFloat(custoUnitario)).toFixed(2) : '0.00'
   const lucroFinal = lucroUnitario && quantidade ? (parseFloat(lucroUnitario) * parseInt(quantidade)).toFixed(2) : '0.00'
 
+  // Percentual do lucro unitário em relação ao custo unitário
+  const percentualLucroUnitario = parseFloat(custoUnitario) > 0
+    ? ((parseFloat(lucroUnitario) / parseFloat(custoUnitario)) * 100).toFixed(1)
+    : '0.0'
+
+  // Percentual do lucro final em relação ao valor total investido
+  const percentualLucroFinal = valorTotal && parseFloat(valorTotal) > 0
+    ? ((parseFloat(lucroFinal) / parseFloat(valorTotal)) * 100).toFixed(1)
+    : '0.0'
+
   async function buscarProduto(codigoOverride) {
     const codigoUsado = codigoOverride || codigo
     if (!codigoUsado) return
@@ -431,9 +441,24 @@ function Investimentos() {
         </div>
 
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'12px', marginBottom:'16px', background:'#f8f8f8', padding:'12px', borderRadius:'8px'}}>
-          <div><small>Custo Unitário</small><br/><strong>R$ {custoUnitario}</strong></div>
-          <div><small>Lucro Unitário</small><br/><strong style={{color: parseFloat(lucroUnitario) >= 0 ? 'green' : 'red'}}>R$ {lucroUnitario}</strong></div>
-          <div><small>Lucro Final</small><br/><strong style={{color: parseFloat(lucroFinal) >= 0 ? 'green' : 'red'}}>R$ {lucroFinal}</strong></div>
+          <div>
+            <small>Custo Unitário</small><br/>
+            <strong>R$ {custoUnitario}</strong>
+          </div>
+          <div>
+            <small>Lucro Unitário</small><br/>
+            <strong style={{color: parseFloat(lucroUnitario) >= 0 ? 'green' : 'red'}}>R$ {lucroUnitario}</strong><br/>
+            <small style={{color: parseFloat(percentualLucroUnitario) >= 0 ? 'green' : 'red'}}>
+              ({percentualLucroUnitario}%)
+            </small>
+          </div>
+          <div>
+            <small>Lucro Final</small><br/>
+            <strong style={{color: parseFloat(lucroFinal) >= 0 ? 'green' : 'red'}}>R$ {lucroFinal}</strong><br/>
+            <small style={{color: parseFloat(percentualLucroFinal) >= 0 ? 'green' : 'red'}}>
+              ({percentualLucroFinal}%)
+            </small>
+          </div>
         </div>
 
         <div style={{marginBottom:'24px'}}>
