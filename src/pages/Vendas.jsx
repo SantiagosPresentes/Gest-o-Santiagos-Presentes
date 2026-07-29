@@ -305,6 +305,7 @@ function BuscaCliente({ clientes, cliente, onSelecionar, campoStyle }) {
   const [aberto, setAberto] = useState(false)
   const [indiceAtivo, setIndiceAtivo] = useState(-1)
   const containerRef = useRef(null)
+  const listaRef = useRef(null)
 
   // Mantém o texto do input sincronizado com o cliente selecionado
   useEffect(() => {
@@ -324,9 +325,11 @@ function BuscaCliente({ clientes, cliente, onSelecionar, campoStyle }) {
   }, [])
 
   const termoBusca = normalizarTexto(texto.trim())
+  // Mostra TODOS os clientes cadastrados (sem limite) quando o campo está vazio,
+  // e filtra por nome (em qualquer parte) conforme o usuário digita.
   const resultados = termoBusca
-    ? clientes.filter(c => normalizarTexto(c.nome).includes(termoBusca)).slice(0, 8)
-    : clientes.slice(0, 8)
+    ? clientes.filter(c => normalizarTexto(c.nome).includes(termoBusca))
+    : clientes
 
   function selecionar(c) {
     onSelecionar(c)
@@ -361,6 +364,13 @@ function BuscaCliente({ clientes, cliente, onSelecionar, campoStyle }) {
     }
   }
 
+  // Mantém o item ativo (navegação por teclado) visível dentro da lista
+  useEffect(() => {
+    if (indiceAtivo < 0 || !listaRef.current) return
+    const item = listaRef.current.children[indiceAtivo]
+    if (item) item.scrollIntoView({ block: 'nearest' })
+  }, [indiceAtivo])
+
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
       <div style={{ position: 'relative' }}>
@@ -373,6 +383,7 @@ function BuscaCliente({ clientes, cliente, onSelecionar, campoStyle }) {
             if (cliente) onSelecionar(null)
           }}
           onFocus={() => setAberto(true)}
+          onClick={() => setAberto(true)}
           onKeyDown={handleKeyDown}
           placeholder="Digite o nome do cliente..."
           style={{ ...campoStyle, paddingRight: cliente ? '32px' : campoStyle.padding }}
@@ -396,12 +407,15 @@ function BuscaCliente({ clientes, cliente, onSelecionar, campoStyle }) {
       </div>
 
       {aberto && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-          background: 'white', border: '1px solid #ddd', borderRadius: '8px',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 50,
-          maxHeight: '220px', overflowY: 'auto',
-        }}>
+        <div
+          ref={listaRef}
+          style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+            background: 'white', border: '1px solid #ddd', borderRadius: '8px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 50,
+            maxHeight: '260px', overflowY: 'auto',
+          }}
+        >
           {resultados.length === 0 ? (
             <div style={{ padding: '12px', fontSize: '13px', color: '#999', textAlign: 'center' }}>
               Nenhum cliente encontrado
