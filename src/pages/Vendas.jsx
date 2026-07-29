@@ -292,6 +292,143 @@ function LeitorCamera({ onLeitura, onFechar }) {
   )
 }
 
+// ─── Busca de Cliente (autocomplete) ──────────────────────────────────────────
+function normalizarTexto(texto) {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function BuscaCliente({ clientes, cliente, onSelecionar, campoStyle }) {
+  const [texto, setTexto] = useState('')
+  const [aberto, setAberto] = useState(false)
+  const [indiceAtivo, setIndiceAtivo] = useState(-1)
+  const containerRef = useRef(null)
+
+  // Mantém o texto do input sincronizado com o cliente selecionado
+  useEffect(() => {
+    setTexto(cliente ? cliente.nome : '')
+  }, [cliente])
+
+  // Fecha o dropdown ao clicar fora
+  useEffect(() => {
+    function handleClickFora(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setAberto(false)
+        setIndiceAtivo(-1)
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora)
+    return () => document.removeEventListener('mousedown', handleClickFora)
+  }, [])
+
+  const termoBusca = normalizarTexto(texto.trim())
+  const resultados = termoBusca
+    ? clientes.filter(c => normalizarTexto(c.nome).includes(termoBusca)).slice(0, 8)
+    : clientes.slice(0, 8)
+
+  function selecionar(c) {
+    onSelecionar(c)
+    setTexto(c.nome)
+    setAberto(false)
+    setIndiceAtivo(-1)
+  }
+
+  function limpar() {
+    onSelecionar(null)
+    setTexto('')
+    setAberto(false)
+    setIndiceAtivo(-1)
+  }
+
+  function handleKeyDown(e) {
+    if (!aberto) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setIndiceAtivo(i => Math.min(i + 1, resultados.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setIndiceAtivo(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (indiceAtivo >= 0 && resultados[indiceAtivo]) {
+        selecionar(resultados[indiceAtivo])
+      }
+    } else if (e.key === 'Escape') {
+      setAberto(false)
+      setIndiceAtivo(-1)
+    }
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={texto}
+          onChange={e => {
+            setTexto(e.target.value)
+            setAberto(true)
+            setIndiceAtivo(-1)
+            if (cliente) onSelecionar(null)
+          }}
+          onFocus={() => setAberto(true)}
+          onKeyDown={handleKeyDown}
+          placeholder="Digite o nome do cliente..."
+          style={{ ...campoStyle, paddingRight: cliente ? '32px' : campoStyle.padding }}
+          autoComplete="off"
+        />
+        {cliente && (
+          <button
+            type="button"
+            onClick={limpar}
+            title="Limpar seleção"
+            style={{
+              position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '4px',
+            }}
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
+      {aberto && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+          background: 'white', border: '1px solid #ddd', borderRadius: '8px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 50,
+          maxHeight: '220px', overflowY: 'auto',
+        }}>
+          {resultados.length === 0 ? (
+            <div style={{ padding: '12px', fontSize: '13px', color: '#999', textAlign: 'center' }}>
+              Nenhum cliente encontrado
+            </div>
+          ) : (
+            resultados.map((c, i) => (
+              <div
+                key={c.id}
+                onMouseDown={(e) => { e.preventDefault(); selecionar(c) }}
+                onMouseEnter={() => setIndiceAtivo(i)}
+                style={{
+                  padding: '10px 12px', cursor: 'pointer', fontSize: '14px',
+                  background: i === indiceAtivo ? '#f0f9f0' : 'white',
+                  borderBottom: i < resultados.length - 1 ? '1px solid #f0f0f0' : 'none',
+                }}
+              >
+                <div style={{ fontWeight: '500' }}>{c.nome}</div>
+                {c.telefone && <div style={{ fontSize: '12px', color: '#888' }}>{c.telefone}</div>}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Vendas() {
   const [codigoBusca, setCodigoBusca] = useState('')
   const [itens, setItens] = useState([])
@@ -662,11 +799,13 @@ function Vendas() {
           <h3 style={{ marginBottom: '16px', color: '#1a6b5a' }}>Dados da Venda</h3>
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Cliente</label><br />
-            <select value={cliente ? cliente.id : ''} onChange={e => setCliente(clientes.find(c => c.id === e.target.value) || null)} style={campo}>
-              <option value="">Selecione o cliente...</option>
-              {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+            <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Cliente</label>
+            <BuscaCliente
+              clientes={clientes}
+              cliente={cliente}
+              onSelecionar={setCliente}
+              campoStyle={campo}
+            />
           </div>
 
           {cliente && (
