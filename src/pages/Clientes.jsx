@@ -18,8 +18,21 @@ function Clientes() {
     if (data) setClientes(data)
   }
 
+  function normalizarNome(texto) {
+    return texto.trim().toLowerCase().replace(/\s+/g, ' ')
+  }
+
+  function nomeJaExiste(nomeDigitado, ignorarId = null) {
+    const alvo = normalizarNome(nomeDigitado)
+    return clientes.some(c => c.id !== ignorarId && normalizarNome(c.nome) === alvo)
+  }
+
   async function salvarCliente() {
     if (!nome) { setMensagem('O nome do cliente é obrigatório!'); return }
+    if (nomeJaExiste(nome)) {
+      setMensagem('Já existe um cliente cadastrado com esse nome!')
+      return
+    }
     const { error } = await supabase.from('clientes').insert({ nome, telefone })
     if (error) { setMensagem('Erro ao salvar: ' + error.message); return }
     setMensagem('Cliente cadastrado com sucesso!')
@@ -29,6 +42,10 @@ function Clientes() {
 
   async function salvarEdicao() {
     if (!nome) { setMensagem('O nome é obrigatório!'); return }
+    if (nomeJaExiste(nome, editando.id)) {
+      setMensagem('Já existe outro cliente cadastrado com esse nome!')
+      return
+    }
     const { error } = await supabase.from('clientes').update({ nome, telefone }).eq('id', editando.id)
     if (error) { setMensagem('Erro ao atualizar: ' + error.message); return }
     setMensagem('Cliente atualizado com sucesso!')
@@ -106,8 +123,8 @@ function Clientes() {
         </div>
 
         {mensagem && (
-          <p style={{ marginTop:'16px', color: mensagem.includes('Erro') || mensagem.includes('obrigatório') ? 'red' : 'green', fontSize:'14px', display:'flex', alignItems:'center', gap:'6px' }}>
-            {mensagem.includes('Erro') || mensagem.includes('obrigatório')
+          <p style={{ marginTop:'16px', color: mensagem.includes('Erro') || mensagem.includes('obrigatório') || mensagem.includes('Já existe') ? 'red' : 'green', fontSize:'14px', display:'flex', alignItems:'center', gap:'6px' }}>
+            {mensagem.includes('Erro') || mensagem.includes('obrigatório') || mensagem.includes('Já existe')
               ? <AlertTriangle size={14} color="red" />
               : <Users size={14} color="green" />
             }
