@@ -461,6 +461,7 @@ function Produtos() {
               <option>Acessórios</option>
               <option>Cama / Mesa / Banho</option>
               <option>Cozinha</option>
+              <option>Datas Comemorativas</option>
               <option>Decoração</option>
               <option>Escolar</option>
               <option>Infantil</option>
