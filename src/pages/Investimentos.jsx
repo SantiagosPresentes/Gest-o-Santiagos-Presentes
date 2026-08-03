@@ -291,6 +291,152 @@ function LeitorCamera({ onLeitura, onFechar }) {
   )
 }
 
+// ─── Busca de Fornecedor (autocomplete, igual ao Cliente em Vendas.jsx) ───────
+function normalizarTexto(texto) {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function BuscaFornecedor({ fornecedores, fornecedor, onSelecionar, campoStyle }) {
+  const [texto, setTexto] = useState('')
+  const [aberto, setAberto] = useState(false)
+  const [indiceAtivo, setIndiceAtivo] = useState(-1)
+  const containerRef = useRef(null)
+  const listaRef = useRef(null)
+
+  useEffect(() => {
+    setTexto(fornecedor ? fornecedor.nome : '')
+  }, [fornecedor])
+
+  useEffect(() => {
+    function handleClickFora(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setAberto(false)
+        setIndiceAtivo(-1)
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora)
+    return () => document.removeEventListener('mousedown', handleClickFora)
+  }, [])
+
+  const termoBusca = normalizarTexto(texto.trim())
+  const resultados = termoBusca
+    ? fornecedores.filter(f => normalizarTexto(f.nome).includes(termoBusca))
+    : fornecedores
+
+  function selecionar(f) {
+    onSelecionar(f)
+    setTexto(f.nome)
+    setAberto(false)
+    setIndiceAtivo(-1)
+  }
+
+  function limpar() {
+    onSelecionar(null)
+    setTexto('')
+    setAberto(false)
+    setIndiceAtivo(-1)
+  }
+
+  function handleKeyDown(e) {
+    if (!aberto) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setIndiceAtivo(i => Math.min(i + 1, resultados.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setIndiceAtivo(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (indiceAtivo >= 0 && resultados[indiceAtivo]) {
+        selecionar(resultados[indiceAtivo])
+      }
+    } else if (e.key === 'Escape') {
+      setAberto(false)
+      setIndiceAtivo(-1)
+    }
+  }
+
+  useEffect(() => {
+    if (indiceAtivo < 0 || !listaRef.current) return
+    const item = listaRef.current.children[indiceAtivo]
+    if (item) item.scrollIntoView({ block: 'nearest' })
+  }, [indiceAtivo])
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={texto}
+          onChange={e => {
+            setTexto(e.target.value)
+            setAberto(true)
+            setIndiceAtivo(-1)
+            if (fornecedor) onSelecionar(null)
+          }}
+          onFocus={() => setAberto(true)}
+          onClick={() => setAberto(true)}
+          onKeyDown={handleKeyDown}
+          placeholder="Digite o nome do fornecedor..."
+          style={{ ...campoStyle, marginTop: 0, paddingRight: fornecedor ? '32px' : campoStyle.padding }}
+          autoComplete="off"
+        />
+        {fornecedor && (
+          <button
+            type="button"
+            onClick={limpar}
+            title="Limpar seleção"
+            style={{
+              position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '4px',
+            }}
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
+      {aberto && (
+        <div
+          ref={listaRef}
+          style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+            background: 'white', border: '1px solid #ddd', borderRadius: '8px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 50,
+            maxHeight: '260px', overflowY: 'auto',
+          }}
+        >
+          {resultados.length === 0 ? (
+            <div style={{ padding: '12px', fontSize: '13px', color: '#999', textAlign: 'center' }}>
+              Nenhum fornecedor encontrado
+            </div>
+          ) : (
+            resultados.map((f, i) => (
+              <div
+                key={f.id}
+                onMouseDown={(e) => { e.preventDefault(); selecionar(f) }}
+                onMouseEnter={() => setIndiceAtivo(i)}
+                style={{
+                  padding: '10px 12px', cursor: 'pointer', fontSize: '14px',
+                  background: i === indiceAtivo ? '#f0f9f0' : 'white',
+                  borderBottom: i < resultados.length - 1 ? '1px solid #f0f0f0' : 'none',
+                }}
+              >
+                <div style={{ fontWeight: '500' }}>{f.nome}</div>
+                {f.telefone && <div style={{ fontSize: '12px', color: '#888' }}>{f.telefone}</div>}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const MESES_PT = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -304,12 +450,19 @@ function mesReferenciaAtual() {
 function Investimentos() {
   const [codigo, setCodigo] = useState('')
   const [produto, setProduto] = useState(null)
-  const [fornecedor, setFornecedor] = useState('')
+  const [fornecedor, setFornecedor] = useState(null)
+  const [fornecedores, setFornecedores] = useState([])
   const [quantidade, setQuantidade] = useState('')
   const [valorTotal, setValorTotal] = useState('')
   const [mes, setMes] = useState(mesReferenciaAtual())
   const [mensagem, setMensagem] = useState('')
   const [cameraAberta, setCameraAberta] = useState(false)
+
+  useEffect(() => {
+    supabase.from('fornecedores').select('*').order('nome').then(({ data }) => {
+      if (data) setFornecedores(data)
+    })
+  }, [])
 
   const custoUnitario = quantidade && valorTotal ? (parseFloat(valorTotal) / parseInt(quantidade)).toFixed(2) : '0.00'
   const lucroUnitario = produto && custoUnitario ? (parseFloat(produto.preco_venda) - parseFloat(custoUnitario)).toFixed(2) : '0.00'
@@ -352,7 +505,7 @@ function Investimentos() {
 
     const { error } = await supabase.from('investimentos').insert({
       produto_id: produto.id,
-      fornecedor: capitalizarPalavras(fornecedor),  // <- aqui
+      fornecedor: fornecedor.nome,
       quantidade: parseInt(quantidade),
       valor_total_pago: parseFloat(valorTotal),
       preco_venda: parseFloat(produto.preco_venda),
@@ -364,7 +517,7 @@ function Investimentos() {
     } else {
       await supabase.from('produtos').update({ estoque: produto.estoque + parseInt(quantidade) }).eq('id', produto.id)
       setMensagem('Investimento registrado com sucesso!')
-      setCodigo(''); setProduto(null); setFornecedor(''); setQuantidade(''); setValorTotal(''); setMes(mesReferenciaAtual())
+      setCodigo(''); setProduto(null); setFornecedor(null); setQuantidade(''); setValorTotal(''); setMes(mesReferenciaAtual())
     }
   }
 
@@ -427,7 +580,12 @@ function Investimentos() {
 
         <div style={{marginBottom:'16px'}}>
           <label>Fornecedor / Loja</label><br/>
-          <input value={fornecedor} onChange={e => setFornecedor(e.target.value)} placeholder="Ex: Atacadão" style={campo}/>
+          <BuscaFornecedor
+            fornecedores={fornecedores}
+            fornecedor={fornecedor}
+            onSelecionar={setFornecedor}
+            campoStyle={campo}
+          />
         </div>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'16px'}}>
           <div>
