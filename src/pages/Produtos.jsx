@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
-import { Package, Pencil, AlertTriangle, Search, X, ScanLine, CheckCircle, CameraOff } from 'lucide-react'
+import { Package, Pencil, AlertTriangle, Search, X, ScanLine, CheckCircle, CameraOff, ArrowUpDown } from 'lucide-react'
 
 // ─── Leitor de Código (BarcodeDetector nativo, com fallback ZXing) ────────────
 function LeitorCamera({ onLeitura, onFechar }) {
@@ -302,6 +302,7 @@ function Produtos() {
   const [produtos, setProdutos] = useState([])
   const [editando, setEditando] = useState(null)
   const [busca, setBusca] = useState('')
+  const [ordenacao, setOrdenacao] = useState('nome') // 'nome' | 'codigo' | 'preco_asc' | 'preco_desc'
   const [cameraAlvo, setCameraAlvo] = useState(null) // 'codigo' | 'busca' | null
 
   useEffect(() => { carregarProdutos() }, [])
@@ -380,10 +381,18 @@ function Produtos() {
     setMensagem('')
   }
 
-  const produtosFiltrados = produtos.filter(p =>
-    p.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    p.codigo.includes(busca)
-  )
+  const produtosFiltrados = produtos
+    .filter(p =>
+      p.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      p.codigo.includes(busca)
+    )
+    .sort((a, b) => {
+      if (ordenacao === 'nome') return a.nome.localeCompare(b.nome, 'pt-BR')
+      if (ordenacao === 'codigo') return a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true })
+      if (ordenacao === 'preco_asc') return parseFloat(a.preco_venda) - parseFloat(b.preco_venda)
+      if (ordenacao === 'preco_desc') return parseFloat(b.preco_venda) - parseFloat(a.preco_venda)
+      return 0
+    })
 
   const campo = { width: '100%', padding: '10px', marginTop: '6px', borderRadius: '6px', border: '1px solid #ddd', boxSizing: 'border-box' }
 
@@ -543,7 +552,7 @@ function Produtos() {
         </div>
 
         {/* Campo de busca com ícone + câmera */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <Search size={15} color="#a0aec0" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             <input
@@ -567,6 +576,21 @@ function Produtos() {
           >
             <ScanLine size={17} />
           </button>
+        </div>
+
+        {/* Ordenação */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <ArrowUpDown size={15} color="#888" style={{ flexShrink: 0 }} />
+          <select
+            value={ordenacao}
+            onChange={e => setOrdenacao(e.target.value)}
+            style={{ ...campo, marginTop: 0, maxWidth: '220px' }}
+          >
+            <option value="nome">Ordem alfabética (A-Z)</option>
+            <option value="codigo">Ordem de código</option>
+            <option value="preco_asc">Valor (menor para maior)</option>
+            <option value="preco_desc">Valor (maior para menor)</option>
+          </select>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px', maxHeight: '500px', overflowY: 'auto' }}>
