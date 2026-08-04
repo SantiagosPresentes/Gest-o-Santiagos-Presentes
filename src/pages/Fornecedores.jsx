@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
 import { Package, Trash2, Pencil, X, Check, Search } from 'lucide-react'
+import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 function normalizarTexto(texto) {
   return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
