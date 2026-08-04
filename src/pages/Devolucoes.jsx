@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import PageHeader from '../components/PageHeader'
+import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 function Devolucoes() {
   const [clientes, setClientes] = useState([])
