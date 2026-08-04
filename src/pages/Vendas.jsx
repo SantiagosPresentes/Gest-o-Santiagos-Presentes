@@ -3,7 +3,6 @@ import { supabase } from '../supabase'
 import html2canvas from 'html2canvas'
 import PageHeader from '../components/PageHeader'
 import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, ScanLine, X, CheckCircle, AlertCircle, CameraOff} from 'lucide-react'
-import PageHeader from '../components/PageHeader'
 import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 // ─── Leitor de Código (BarcodeDetector nativo, com fallback ZXing) ────────────
