@@ -53,16 +53,32 @@ function Encomendas() {
       observacao || null
     ].filter(Boolean).join(' | ')
 
-    const { error } = await supabase.from('vendas').insert({
+    const { data: encomenda, error } = await supabase.from('vendas').insert({
       cliente_id: cliente.id,
       data_para_pagar: dataPagar,
       valor_total: parseFloat(valorVenda),
       recebido: 0,
       situacao: 'Encomenda',
       observacao: obsCompleta
-    })
+    }).select().single()
 
     if (error) { setMensagem('Erro: ' + error.message); return }
+
+    await registrarMovimentacao({
+      tela: 'Encomendas',
+      tipo: 'Criação',
+      descricao: `Encomenda de ${cliente.nome} — ${descricao} — R$ ${parseFloat(valorVenda).toFixed(2)}`,
+      referencia_id: String(encomenda.id),
+      dados: {
+        cliente: cliente.nome,
+        descricao,
+        valor_custo: valorCusto ? parseFloat(valorCusto) : null,
+        valor_venda: parseFloat(valorVenda),
+        lucro: lucro ? parseFloat(lucro) : null,
+        data_para_pagar: dataPagar,
+        observacao
+      }
+    })
 
     setMensagem('Encomenda registrada com sucesso!')
     setTimeout(() => setMensagem(''), 3000)
@@ -77,11 +93,32 @@ function Encomendas() {
 
   async function marcarEntregue(venda) {
     await supabase.from('vendas').update({ situacao: 'Pendente' }).eq('id', venda.id)
+
+    await registrarMovimentacao({
+      tela: 'Encomendas',
+      tipo: 'Edição',
+      descricao: `Encomenda marcada como entregue: ${venda.clientes?.nome} — R$ ${parseFloat(venda.valor_total).toFixed(2)}`,
+      referencia_id: String(venda.id),
+      dados: { cliente: venda.clientes?.nome, valor_total: parseFloat(venda.valor_total) }
+    })
+
     carregarEncomendas()
   }
 
   async function cancelarEncomenda(id) {
+    const encomendaCancelada = encomendas.find(e => e.id === id)
     await supabase.from('vendas').delete().eq('id', id)
+
+    if (encomendaCancelada) {
+      await registrarMovimentacao({
+        tela: 'Encomendas',
+        tipo: 'Exclusão',
+        descricao: `Encomenda cancelada: ${encomendaCancelada.clientes?.nome} — R$ ${parseFloat(encomendaCancelada.valor_total).toFixed(2)}`,
+        referencia_id: String(id),
+        dados: { cliente: encomendaCancelada.clientes?.nome, valor_total: parseFloat(encomendaCancelada.valor_total), observacao: encomendaCancelada.observacao }
+      })
+    }
+
     carregarEncomendas()
   }
 
