@@ -10,6 +10,7 @@ import Estoque from './pages/Estoque'
 import Capital from './pages/Capital'
 import Devolucoes from './pages/Devolucoes'
 import Historico from './pages/Historico'
+import HistoricoGeral from './pages/HistoricoGeral'
 import Login from './pages/Login'
 import BI from './pages/BI'
 import Relatorios from './pages/Relatorios'
@@ -28,6 +29,7 @@ const navLinks = [
   { to: '/clientes', label: 'Clientes', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
   { to: '/capital', label: 'Capital', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
   { to: '/historico', label: 'Histórico', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
+  { to: '/historico-geral', label: 'Histórico Geral', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
   { to: '/bi', label: 'BI', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg> },
   { to: '/relatorios', label: 'Relatórios', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
   { to: '/meu-painel', label: 'Meu Painel', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
@@ -196,6 +198,7 @@ function App() {
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/capital" element={<Capital />} />
             <Route path="/historico" element={<Historico />} />
+            <Route path="/historico-geral" element={<HistoricoGeral />} />
             <Route path="/bi" element={<BI />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/meu-painel" element={<PainelVendedor />} />
