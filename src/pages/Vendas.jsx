@@ -3,6 +3,8 @@ import { supabase } from '../supabase'
 import html2canvas from 'html2canvas'
 import PageHeader from '../components/PageHeader'
 import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, ScanLine, X, CheckCircle, AlertCircle, CameraOff} from 'lucide-react'
+import PageHeader from '../components/PageHeader'
+import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 // ─── Leitor de Código (BarcodeDetector nativo, com fallback ZXing) ────────────
 function LeitorCamera({ onLeitura, onFechar }) {
@@ -598,6 +600,14 @@ function Vendas() {
       const { data: prod } = await supabase.from('produtos').select('estoque').eq('id', item.produto_id).single()
       await supabase.from('produtos').update({ estoque: prod.estoque - item.quantidade }).eq('id', item.produto_id)
     }
+
+    await registrarMovimentacao({
+      tela: 'Vendas',
+      tipo: 'Criação',
+      descricao: `Venda para ${cliente.nome} — ${itens.length} item(ns) — R$ ${total.toFixed(2)}`,
+      referencia_id: String(venda.id),
+      dados: { itens: itens.map(i => ({ nome: i.nome, qtd: i.quantidade, valor: i.valor_unitario })), total, parcelamento }
+    })
 
     setVendaFinalizada({
       cliente, itens: [...itens], total,
