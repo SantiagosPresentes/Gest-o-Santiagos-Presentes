@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, FilterX, Search, Printer, ArrowUpDown, ScanLine, X, CheckCircle, CameraOff } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 // ─── Leitor de Código (BarcodeDetector nativo, com fallback ZXing) ────────────
 function LeitorCamera({ onLeitura, onFechar }) {
