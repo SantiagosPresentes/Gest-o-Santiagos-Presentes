@@ -504,19 +504,37 @@ function Investimentos() {
       return
     }
 
-    const { error } = await supabase.from('investimentos').insert({
+    const { data: investimento, error } = await supabase.from('investimentos').insert({
       produto_id: produto.id,
       fornecedor: fornecedor.nome,
       quantidade: parseInt(quantidade),
       valor_total_pago: parseFloat(valorTotal),
       preco_venda: parseFloat(produto.preco_venda),
       mes: capitalizarPalavras(mes)
-    })
+    }).select().single()
 
     if (error) {
       setMensagem('Erro ao salvar: ' + error.message)
     } else {
       await supabase.from('produtos').update({ estoque: produto.estoque + parseInt(quantidade) }).eq('id', produto.id)
+
+      await registrarMovimentacao({
+        tela: 'Investimentos',
+        tipo: 'Criação',
+        descricao: `Investimento em ${produto.nome} — ${quantidade} un. — R$ ${parseFloat(valorTotal).toFixed(2)} — Fornecedor: ${fornecedor.nome}`,
+        referencia_id: String(investimento.id),
+        dados: {
+          produto: produto.nome,
+          fornecedor: fornecedor.nome,
+          quantidade: parseInt(quantidade),
+          valor_total_pago: parseFloat(valorTotal),
+          custo_unitario: parseFloat(custoUnitario),
+          lucro_unitario: parseFloat(lucroUnitario),
+          lucro_final: parseFloat(lucroFinal),
+          mes: capitalizarPalavras(mes)
+        }
+      })
+
       setMensagem('Investimento registrado com sucesso!')
       setCodigo(''); setProduto(null); setFornecedor(null); setQuantidade(''); setValorTotal(''); setMes(mesReferenciaAtual())
     }
