@@ -34,13 +34,21 @@ function Fornecedores() {
       setMensagem('Informe o nome do fornecedor!')
       return
     }
-    const { error } = await supabase.from('fornecedores').insert({
+    const { data: fornecedor, error } = await supabase.from('fornecedores').insert({
       nome: capitalizarPalavras(nome),
       telefone: telefone.trim() || null
-    })
+    }).select().single()
     if (error) {
       setMensagem('Erro ao salvar: ' + error.message)
     } else {
+      await registrarMovimentacao({
+        tela: 'Fornecedores',
+        tipo: 'Criação',
+        descricao: `Fornecedor cadastrado: ${capitalizarPalavras(nome)}`,
+        referencia_id: String(fornecedor.id),
+        dados: { nome: capitalizarPalavras(nome), telefone: telefone.trim() || null }
+      })
+
       setNome(''); setTelefone('')
       setMensagem('Fornecedor cadastrado com sucesso!')
       carregar()
@@ -62,11 +70,23 @@ function Fornecedores() {
 
   async function salvarEdicao(id) {
     if (!editNome.trim()) return
+    const fornecedorAntigo = fornecedores.find(f => f.id === id)
     const { error } = await supabase.from('fornecedores').update({
       nome: capitalizarPalavras(editNome),
       telefone: editTelefone.trim() || null
     }).eq('id', id)
     if (!error) {
+      await registrarMovimentacao({
+        tela: 'Fornecedores',
+        tipo: 'Edição',
+        descricao: `Fornecedor editado: ${capitalizarPalavras(editNome)}`,
+        referencia_id: String(id),
+        dados: {
+          antes: { nome: fornecedorAntigo?.nome, telefone: fornecedorAntigo?.telefone },
+          depois: { nome: capitalizarPalavras(editNome), telefone: editTelefone.trim() || null }
+        }
+      })
+
       cancelarEdicao()
       carregar()
     }
@@ -74,8 +94,19 @@ function Fornecedores() {
 
   async function excluir(id) {
     if (!window.confirm('Excluir este fornecedor?')) return
+    const fornecedorExcluido = fornecedores.find(f => f.id === id)
     const { error } = await supabase.from('fornecedores').delete().eq('id', id)
-    if (!error) carregar()
+    if (!error) {
+      await registrarMovimentacao({
+        tela: 'Fornecedores',
+        tipo: 'Exclusão',
+        descricao: `Fornecedor excluído: ${fornecedorExcluido?.nome || id}`,
+        referencia_id: String(id),
+        dados: { nome: fornecedorExcluido?.nome, telefone: fornecedorExcluido?.telefone }
+      })
+
+      carregar()
+    }
   }
 
   const termoBusca = normalizarTexto(busca.trim())
