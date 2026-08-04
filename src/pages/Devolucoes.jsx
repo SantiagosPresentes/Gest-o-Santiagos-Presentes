@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
-import PageHeader from '../components/PageHeader'
 import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 function Devolucoes() {
@@ -93,6 +92,7 @@ function Devolucoes() {
   }, 0)
 
   // Confirma e registra a devolução
+  // Confirma e registra a devolução
   async function registrarDevolucao() {
     if (itensSelecionados.length === 0) { setMensagem('Selecione pelo menos um produto!'); return }
     if (!motivo) { setMensagem('Selecione o motivo da devolução!'); return }
@@ -117,6 +117,22 @@ function Devolucoes() {
       recebido: novoRecebido,
       observacao: (vendaSelecionada.observacao || '') + ` | Devolução (${motivo}): R$ ${totalDevolver.toFixed(2)}`
     }).eq('id', vendaSelecionada.id)
+
+    await registrarMovimentacao({
+      tela: 'Devoluções',
+      tipo: 'Criação',
+      descricao: `Devolução de ${vendaSelecionada.clientes?.nome} — ${itensSelecionados.length} item(ns) — R$ ${totalDevolver.toFixed(2)} — Motivo: ${motivo}`,
+      referencia_id: String(vendaSelecionada.id),
+      dados: {
+        itens: itensSelecionados.map(i => ({
+          nome: i.produtos?.nome,
+          qtd: i.qtd_devolver,
+          valor_unitario: calcularValorPago(i, vendaSelecionada)
+        })),
+        total_devolvido: totalDevolver,
+        motivo
+      }
+    })
 
     setMensagem(`Devolução registrada! Motivo: ${motivo} | Valor a devolver: R$ ${totalDevolver.toFixed(2)}`)
     setVendaSelecionada(null)
