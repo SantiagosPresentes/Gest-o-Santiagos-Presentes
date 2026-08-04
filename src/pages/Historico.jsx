@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import html2canvas from 'html2canvas'
 import { History, FilterX } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 const PAGE_SIZE = 30
 
@@ -245,6 +246,20 @@ function Historico() {
       .update({ recebido: novoRecebido, situacao: novaSituacao })
       .eq('id', pagamentoVenda.id)
     if (error) { setMensagem('Erro: ' + error.message); return }
+
+    await registrarMovimentacao({
+      tela: 'Histórico',
+      tipo: 'Edição',
+      descricao: `Pagamento recebido de ${pagamentoVenda.clientes?.nome} — R$ ${parseFloat(valorPago).toFixed(2)}`,
+      referencia_id: String(pagamentoVenda.id),
+      dados: {
+        valor_pago_agora: parseFloat(valorPago),
+        total_recebido_apos: novoRecebido,
+        valor_total_venda: parseFloat(pagamentoVenda.valor_total),
+        nova_situacao: novaSituacao
+      }
+    })
+
     setMensagem('Pagamento registrado com sucesso!')
     setPagamentoVenda(null)
     setValorPago('')
