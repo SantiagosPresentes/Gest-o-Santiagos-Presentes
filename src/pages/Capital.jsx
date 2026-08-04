@@ -146,10 +146,19 @@ function Capital() {
       setMensagem('Preencha o tipo e o valor da retirada!')
       return
     }
-    const { error } = await supabase.from('retiradas').insert({
+    const { data: retirada, error } = await supabase.from('retiradas').insert({
       mes, tipo: tipoRetirada, descricao: descricaoRetirada, valor: parseFloat(valorRetirada)
-    })
+    }).select().single()
     if (error) { setMensagem('Erro: ' + error.message); return }
+
+    await registrarMovimentacao({
+      tela: 'Capital',
+      tipo: 'Criação',
+      descricao: `Retirada (${tipoRetirada}) — R$ ${parseFloat(valorRetirada).toFixed(2)} — ${mes}`,
+      referencia_id: String(retirada.id),
+      dados: { mes, tipo: tipoRetirada, descricao: descricaoRetirada, valor: parseFloat(valorRetirada) }
+    })
+
     setMensagem('Retirada registrada!')
     setTipoRetirada(''); setDescricaoRetirada(''); setValorRetirada('')
     buscarRetiradas()
@@ -158,7 +167,19 @@ function Capital() {
   }
 
   async function removerRetirada(id) {
+    const retiradaRemovida = retiradas.find(r => r.id === id)
     await supabase.from('retiradas').delete().eq('id', id)
+
+    if (retiradaRemovida) {
+      await registrarMovimentacao({
+        tela: 'Capital',
+        tipo: 'Exclusão',
+        descricao: `Remoção de retirada (${retiradaRemovida.tipo}) — R$ ${parseFloat(retiradaRemovida.valor).toFixed(2)} — ${retiradaRemovida.mes}`,
+        referencia_id: String(id),
+        dados: { mes: retiradaRemovida.mes, tipo: retiradaRemovida.tipo, descricao: retiradaRemovida.descricao, valor: parseFloat(retiradaRemovida.valor) }
+      })
+    }
+
     buscarRetiradas()
     carregarRegistros()
     buscarSaldoGeral()
