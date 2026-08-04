@@ -4,6 +4,8 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import PageHeader from '../components/PageHeader'
 import { DollarSign, TrendingUp, TrendingDown, Wallet, Target, PlusCircle, Trash2, Eye, EyeOff, CheckCircle, XCircle, ShoppingCart, Clock, User, Printer, Share2 } from 'lucide-react'
+import PageHeader from '../components/PageHeader'
+import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 function Capital() {
   const [mes, setMes] = useState('')
