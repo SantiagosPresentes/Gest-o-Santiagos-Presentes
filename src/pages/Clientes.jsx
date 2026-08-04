@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import PageHeader from '../components/PageHeader'
 import { ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, Pencil, Search, X, AlertTriangle, UserPlus } from 'lucide-react'
+import PageHeader from '../components/PageHeader'
+import { registrarMovimentacao } from '../utils/logMovimentacao'
 
 function Clientes() {
   const [nome, setNome] = useState('')
