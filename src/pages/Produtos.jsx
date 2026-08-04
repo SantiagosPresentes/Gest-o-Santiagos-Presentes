@@ -326,7 +326,7 @@ function Produtos() {
     if (!codigo || !nome || !categoria || !preco) {
       setMensagem('Preencha todos os campos!'); return
     }
-    const { error } = await supabase.from('produtos').insert({
+    const { data: produto, error } = await supabase.from('produtos').insert({
       codigo: codigo.trim(),
       nome: nome.trim(),
       categoria: categoria.trim(),
@@ -334,9 +334,25 @@ function Produtos() {
       estoque: 0,
       estoque_minimo: parseInt(estoqueMinimo) || 0,
       estoque_maximo: parseInt(estoqueMaximo) || 0
-    })
+    }).select().single()
 
     if (error) { setMensagem('Erro ao salvar: ' + error.message); return }
+
+    await registrarMovimentacao({
+      tela: 'Produtos',
+      tipo: 'Criação',
+      descricao: `Produto cadastrado: ${nome.trim()} (${codigo.trim()}) — R$ ${parseFloat(preco).toFixed(2)}`,
+      referencia_id: String(produto.id),
+      dados: {
+        codigo: codigo.trim(),
+        nome: nome.trim(),
+        categoria: categoria.trim(),
+        preco_venda: parseFloat(preco),
+        estoque_minimo: parseInt(estoqueMinimo) || 0,
+        estoque_maximo: parseInt(estoqueMaximo) || 0
+      }
+    })
+
     setMensagem('Produto cadastrado com sucesso!')
     setCodigo(''); setNome(''); setCategoria(''); setPreco('')
     setEstoqueMinimo(''); setEstoqueMaximo('')
@@ -354,8 +370,32 @@ function Produtos() {
       estoque_minimo: parseInt(estoqueMinimo) || 0,
       estoque_maximo: parseInt(estoqueMaximo) || 0
     }).eq('id', editando.id)
-    
+
     if (error) { setMensagem('Erro ao atualizar: ' + error.message); return }
+
+    await registrarMovimentacao({
+      tela: 'Produtos',
+      tipo: 'Edição',
+      descricao: `Produto editado: ${nome.trim()} (${editando.codigo})`,
+      referencia_id: String(editando.id),
+      dados: {
+        antes: {
+          nome: editando.nome,
+          categoria: editando.categoria,
+          preco_venda: parseFloat(editando.preco_venda),
+          estoque_minimo: editando.estoque_minimo || 0,
+          estoque_maximo: editando.estoque_maximo || 0
+        },
+        depois: {
+          nome: nome.trim(),
+          categoria: categoria.trim(),
+          preco_venda: parseFloat(preco),
+          estoque_minimo: parseInt(estoqueMinimo) || 0,
+          estoque_maximo: parseInt(estoqueMaximo) || 0
+        }
+      }
+    })
+
     setMensagem('Produto atualizado! Vendas anteriores não foram afetadas.')
     setEditando(null)
     setCodigo(''); setNome(''); setCategoria(''); setPreco('')
