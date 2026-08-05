@@ -555,71 +555,99 @@ function Vendas() {
   }
 
   async function finalizarVenda() {
-    if (!cliente || itens.length === 0) {
-      setMensagem('Adicione produtos e selecione um cliente!')
-      return
-    }
-    const todasComData = parcelas.every(p => p.data)
-    if (!todasComData) {
-      setMensagem('Preencha a data de todas as parcelas!')
-      return
-    }
-
-    const obsParcelamento = parseInt(parcelamento) > 1
-      ? `${parcelamento}x: ` + parcelas.map((p, i) =>
-          `${i+1}ª R$${p.valor} em ${new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR')}`
-        ).join(' | ')
-      : ''
-
-    const { data: venda, error } = await supabase.from('vendas').insert({
-      cliente_id: cliente.id,
-      data_para_pagar: parcelas[0].data,
-      valor_bruto: subtotalItens,
-      valor_total: total,
-      desconto: valorDesconto,
-      recebido: 0,
-      situacao: 'Pendente',
-      vendedor_nome: vendedorNome,
-      observacao: [
-        obsParcelamento,
-        valorDesconto > 0 ? `Desconto: R$ ${valorDesconto.toFixed(2)}` : '',
-        observacao
-      ].filter(Boolean).join(' | ')
-    }).select().single()
-
-    if (error) { setMensagem('Erro: ' + error.message); return }
-
-    for (const item of itens) {
-      await supabase.from('itens_venda').insert({
-        venda_id: venda.id,
-        produto_id: item.produto_id,
-        quantidade: item.quantidade,
-        valor_unitario: item.valor_unitario
-      })
-      const { data: prod } = await supabase.from('produtos').select('estoque').eq('id', item.produto_id).single()
-      await supabase.from('produtos').update({ estoque: prod.estoque - item.quantidade }).eq('id', item.produto_id)
-    }
-
-    await registrarMovimentacao({
-      tela: 'Vendas',
-      tipo: 'Criação',
-      descricao: `Venda para ${cliente.nome} — ${itens.length} item(ns) — R$ ${total.toFixed(2)}`,
-      referencia_id: String(venda.id),
-      dados: { itens: itens.map(i => ({ nome: i.nome, qtd: i.quantidade, valor: i.valor_unitario })), total, parcelamento }
-    })
-
-    setVendaFinalizada({
-      cliente, itens: [...itens], total,
-      parcelas: [...parcelas], parcelamento, observacao, data: new Date()
-    })
-    setItens([])
-    setCliente(null)
-    setParcelas([{ data: '', valor: '' }])
-    setParcelamento('1')
-    setObservacao('')
-    setDesconto('')
-    setMensagem('')
+  if (!cliente || itens.length === 0) {
+    setMensagem('Adicione produtos e selecione um cliente!')
+    return
   }
+  const todasComData = parcelas.every(p => p.data)
+  if (!todasComData) {
+    setMensagem('Preencha a data de todas as parcelas!')
+    return
+  }
+
+  // ── Reconfere o estoque real no banco antes de finalizar ──
+  const idsProdutos = itens.map(i => i.produto_id)
+  const { data: produtosAtuais, error: erroEstoque } = await supabase
+    .from('produtos')
+    .select('id, nome, estoque')
+    .in('id', idsProdutos)
+
+  if (erroEstoque) {
+    setMensagem('Erro ao verificar estoque: ' + erroEstoque.message)
+    return
+  }
+
+  const problemas = []
+  for (const item of itens) {
+    const atual = produtosAtuais.find(p => p.id === item.produto_id)
+    if (!atual || atual.estoque <= 0) {
+      problemas.push(`"${item.nome}" está com estoque zerado!`)
+    } else if (atual.estoque < item.quantidade) {
+      problemas.push(`"${item.nome}": apenas ${atual.estoque} unidade(s) disponível(is)!`)
+    }
+  }
+
+  if (problemas.length > 0) {
+    setMensagem('⚠️ ' + problemas.join(' | '))
+    return
+  }
+  // ── Fim da verificação ──
+
+  const obsParcelamento = parseInt(parcelamento) > 1
+    ? `${parcelamento}x: ` + parcelas.map((p, i) =>
+        `${i+1}ª R$${p.valor} em ${new Date(p.data + 'T12:00:00').toLocaleDateString('pt-BR')}`
+      ).join(' | ')
+    : ''
+
+  const { data: venda, error } = await supabase.from('vendas').insert({
+    cliente_id: cliente.id,
+    data_para_pagar: parcelas[0].data,
+    valor_bruto: subtotalItens,
+    valor_total: total,
+    desconto: valorDesconto,
+    recebido: 0,
+    situacao: 'Pendente',
+    vendedor_nome: vendedorNome,
+    observacao: [
+      obsParcelamento,
+      valorDesconto > 0 ? `Desconto: R$ ${valorDesconto.toFixed(2)}` : '',
+      observacao
+    ].filter(Boolean).join(' | ')
+  }).select().single()
+
+  if (error) { setMensagem('Erro: ' + error.message); return }
+
+  for (const item of itens) {
+    await supabase.from('itens_venda').insert({
+      venda_id: venda.id,
+      produto_id: item.produto_id,
+      quantidade: item.quantidade,
+      valor_unitario: item.valor_unitario
+    })
+    const { data: prod } = await supabase.from('produtos').select('estoque').eq('id', item.produto_id).single()
+    await supabase.from('produtos').update({ estoque: Math.max(0, prod.estoque - item.quantidade) }).eq('id', item.produto_id)
+  }
+
+  await registrarMovimentacao({
+    tela: 'Vendas',
+    tipo: 'Criação',
+    descricao: `Venda para ${cliente.nome} — ${itens.length} item(ns) — R$ ${total.toFixed(2)}`,
+    referencia_id: String(venda.id),
+    dados: { itens: itens.map(i => ({ nome: i.nome, qtd: i.quantidade, valor: i.valor_unitario })), total, parcelamento }
+  })
+
+  setVendaFinalizada({
+    cliente, itens: [...itens], total,
+    parcelas: [...parcelas], parcelamento, observacao, data: new Date()
+  })
+  setItens([])
+  setCliente(null)
+  setParcelas([{ data: '', valor: '' }])
+  setParcelamento('1')
+  setObservacao('')
+  setDesconto('')
+  setMensagem('')
+}
 
   function imprimir() {
     const conteudo = comprovanteRef.current.innerHTML
