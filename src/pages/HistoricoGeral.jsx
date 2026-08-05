@@ -12,11 +12,9 @@ const TIPOS = ['Criação', 'Edição', 'Exclusão', 'Pagamento']
 function formatarValor(valor) {
   if (valor === null || valor === undefined) return '—'
   if (typeof valor === 'number') {
-    // Heurística simples: se parece valor monetário, formata como R$
     return Number.isInteger(valor) ? valor : valor.toFixed(2)
   }
   if (typeof valor === 'boolean') return valor ? 'Sim' : 'Não'
-  if (Array.isArray(valor)) return valor
   return String(valor)
 }
 
@@ -31,7 +29,6 @@ function DetalhesDados({ dados }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {entradas.map(([chave, valor]) => {
-        // Caso especial: array de itens (ex: itens da venda)
         if (Array.isArray(valor) && valor.length > 0 && typeof valor[0] === 'object') {
           return (
             <div key={chave}>
@@ -62,7 +59,6 @@ function DetalhesDados({ dados }) {
           )
         }
 
-        // Caso especial: objeto simples (ex: cliente)
         if (valor && typeof valor === 'object' && !Array.isArray(valor)) {
           return (
             <div key={chave}>
@@ -81,7 +77,6 @@ function DetalhesDados({ dados }) {
           )
         }
 
-        // Valor simples (string, número, booleano)
         return (
           <div key={chave} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid #f0f0f0', paddingBottom: '6px' }}>
             <span style={{ color: '#999' }}>{chave}</span>
@@ -91,6 +86,51 @@ function DetalhesDados({ dados }) {
       })}
     </div>
   )
+}
+
+// Formata o campo "dados" (JSON) como HTML para o relatório impresso
+function formatarDadosParaImpressao(dados) {
+  if (!dados || typeof dados !== 'object' || Object.keys(dados).length === 0) {
+    return ''
+  }
+
+  const partes = Object.entries(dados).map(([chave, valor]) => {
+    // Array de itens (ex: itens da venda)
+    if (Array.isArray(valor) && valor.length > 0 && typeof valor[0] === 'object') {
+      const linhas = valor.map(obj =>
+        `<tr>${Object.entries(obj).map(([k, v]) =>
+          `<td style="padding:4px 8px;border-bottom:1px solid #eee;">
+             <span style="color:#999;">${k}:</span> <strong>${formatarValor(v)}</strong>
+           </td>`
+        ).join('')}</tr>`
+      ).join('')
+      return `
+        <div style="margin-top:8px;">
+          <span style="font-size:10px;color:#1a6b5a;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">${chave}</span>
+          <table style="width:100%;border-collapse:collapse;margin-top:4px;background:#f8f8f8;border-radius:6px;">${linhas}</table>
+        </div>`
+    }
+
+    // Objeto simples
+    if (valor && typeof valor === 'object' && !Array.isArray(valor)) {
+      const linhas = Object.entries(valor).map(([k, v]) =>
+        `<div><span style="color:#999;">${k}:</span> <strong>${formatarValor(v)}</strong></div>`
+      ).join('')
+      return `
+        <div style="margin-top:8px;">
+          <span style="font-size:10px;color:#1a6b5a;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">${chave}</span>
+          <div style="background:#f8f8f8;border-radius:6px;padding:6px 10px;margin-top:4px;font-size:12px;">${linhas}</div>
+        </div>`
+    }
+
+    // Valor simples
+    return `
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;">
+        <span style="color:#999;">${chave}</span><strong>${formatarValor(valor)}</strong>
+      </div>`
+  })
+
+  return `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #ddd;">${partes.join('')}</div>`
 }
 
 function HistoricoGeral() {
@@ -103,8 +143,6 @@ function HistoricoGeral() {
   const [usuarioFiltro, setUsuarioFiltro] = useState('')
   const [telaFiltro, setTelaFiltro] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('')
-
-  const listaRef = useRef(null)
 
   async function buscarMovimentacoes() {
     setCarregando(true)
@@ -127,29 +165,90 @@ function HistoricoGeral() {
     setDataInicio(''); setDataFim(''); setUsuarioFiltro(''); setTelaFiltro(''); setTipoFiltro('')
   }
 
+  // ─── Impressão no padrão do Estoque.jsx ───────────────────────────────────
   function imprimir() {
-    const conteudo = listaRef.current.innerHTML
+    const dataAtual = new Date().toLocaleDateString('pt-BR')
+    const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const itensHtml = movimentacoes.map((m, i) => `
+      <div style="background:${i % 2 === 0 ? '#ffffff' : '#f7f9fa'};border:1px solid #edf2f7;border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <strong style="color:#1a6b5a;font-size:13px;">${m.tela} — ${m.tipo}</strong>
+          <span style="font-size:11px;color:#a0aec0;white-space:nowrap;margin-left:8px;">
+            ${new Date(m.created_at).toLocaleDateString('pt-BR')} às ${new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        <p style="font-size:12.5px;color:#4a5568;margin-top:4px;">${m.descricao}</p>
+        <span style="font-size:11px;color:#a0aec0;">por ${m.usuario_nome}</span>
+        ${formatarDadosParaImpressao(m.dados)}
+      </div>
+    `).join('')
+
+    const filtrosAplicados = []
+    if (dataInicio) filtrosAplicados.push(`De: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')}`)
+    if (dataFim) filtrosAplicados.push(`Até: ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}`)
+    if (usuarioFiltro) filtrosAplicados.push(`Usuário: ${NOMES_POR_EMAIL[usuarioFiltro] || usuarioFiltro}`)
+    if (telaFiltro) filtrosAplicados.push(`Tela: ${telaFiltro}`)
+    if (tipoFiltro) filtrosAplicados.push(`Tipo: ${tipoFiltro}`)
+
     const janela = window.open('', '_blank')
     janela.document.write(`
-      <html><head><title>Histórico Geral - Santiagos Presentes</title>
-      <style>
-        * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
-        body { padding:20px; }
-        h2 { color:#1a6b5a; margin-bottom:16px; }
-        .item { border-bottom:1px solid #eee; padding:8px 0; font-size:13px; }
-        .meta { color:#888; font-size:11px; }
-        @media print { button { display:none; } }
-      </style></head>
-      <body><h2>Histórico Geral — Santiagos Presentes</h2>${conteudo}</body></html>
+      <html>
+        <head>
+          <title>Histórico Geral</title>
+          <style>
+            * { margin:0; padding:0; box-sizing:border-box; font-family: Arial, Helvetica, sans-serif; }
+            body { padding: 32px; color: #2d3748; }
+            .cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a6b5a; padding-bottom:16px; margin-bottom:20px; }
+            .cabecalho h1 { font-size:20px; color:#1a6b5a; margin-bottom:4px; }
+            .cabecalho p { font-size:12px; color:#718096; }
+            .meta { text-align:right; font-size:12px; color:#718096; }
+            .filtros { font-size:12px; color:#718096; margin-bottom:16px; background:#f7fafc; padding:10px 14px; border-radius:8px; border:1px solid #edf2f7; }
+            .filtros strong { color:#2d3748; }
+            .rodape { margin-top:24px; text-align:center; font-size:11px; color:#a0aec0; }
+            .btn-imprimir { margin-top:20px; text-align:center; }
+            .btn-imprimir button { background:#1a6b5a; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer; }
+            @media print {
+              body { padding: 12px; }
+              .btn-imprimir { display:none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="cabecalho">
+            <div>
+              <h1>Relatório de Histórico Geral</h1>
+              <p>Santiagos Presentes</p>
+            </div>
+            <div class="meta">
+              <p>Emitido em: ${dataAtual} às ${horaAtual}</p>
+              <p>${movimentacoes.length} movimentação(ões) listada(s)</p>
+            </div>
+          </div>
+
+          ${filtrosAplicados.length > 0 ? `
+          <div class="filtros">
+            <strong>Filtros aplicados:</strong> ${filtrosAplicados.join(' | ')}
+          </div>` : ''}
+
+          ${itensHtml}
+
+          <div class="rodape">Relatório gerado automaticamente pelo sistema — Santiagos Presentes</div>
+
+          <div class="btn-imprimir">
+            <button onclick="window.print()">🖨️ Imprimir</button>
+          </div>
+        </body>
+      </html>
     `)
     janela.document.close()
     janela.focus()
-    setTimeout(() => janela.print(), 500)
   }
 
   async function compartilhar() {
     try {
-      const canvas = await html2canvas(listaRef.current, { scale: 2, useCORS: true })
+      const listaTemp = document.getElementById('lista-historico')
+      const canvas = await html2canvas(listaTemp, { scale: 2, useCORS: true })
       canvas.toBlob(async (blob) => {
         const file = new File([blob], 'historico-geral-santiagos.png', { type: 'image/png' })
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -301,11 +400,10 @@ function HistoricoGeral() {
             <p style={{ fontSize: '14px' }}>Nenhuma movimentação encontrada</p>
           </div>
         ) : (
-          <div ref={listaRef}>
+          <div id="lista-historico">
             {movimentacoes.map(m => (
               <div
                 key={m.id}
-                className="item"
                 onClick={() => setDetalheAberto(m)}
                 style={{
                   borderBottom: '1px solid #f0f0f0', padding: '10px 4px', cursor: 'pointer',
@@ -318,12 +416,12 @@ function HistoricoGeral() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <strong style={{ fontSize: '14px', color: '#1a6b5a' }}>{m.tela} — {m.tipo}</strong>
-                    <span className="meta" style={{ fontSize: '11px', color: '#999', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#999', whiteSpace: 'nowrap', marginLeft: '8px' }}>
                       {new Date(m.created_at).toLocaleDateString('pt-BR')} às {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                   <p style={{ fontSize: '13px', color: '#555', marginTop: '2px' }}>{m.descricao}</p>
-                  <span className="meta" style={{ fontSize: '11px', color: '#888' }}>por {m.usuario_nome}</span>
+                  <span style={{ fontSize: '11px', color: '#888' }}>por {m.usuario_nome}</span>
                 </div>
                 <ChevronRight size={16} color="#ccc" style={{ flexShrink: 0 }} />
               </div>
