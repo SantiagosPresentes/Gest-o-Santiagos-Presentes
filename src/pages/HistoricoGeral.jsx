@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 import PageHeader from '../components/PageHeader'
 import { History, Filter, Printer, Share2, X, ChevronRight } from 'lucide-react'
 import { NOMES_POR_EMAIL } from '../utils/logMovimentacao'
@@ -88,14 +89,13 @@ function DetalhesDados({ dados }) {
   )
 }
 
-// Formata o campo "dados" (JSON) como HTML para o relatório impresso
+// Formata o campo "dados" (JSON) como HTML para o relatório impresso/PDF
 function formatarDadosParaImpressao(dados) {
   if (!dados || typeof dados !== 'object' || Object.keys(dados).length === 0) {
     return ''
   }
 
   const partes = Object.entries(dados).map(([chave, valor]) => {
-    // Array de itens (ex: itens da venda)
     if (Array.isArray(valor) && valor.length > 0 && typeof valor[0] === 'object') {
       const linhas = valor.map(obj =>
         `<tr>${Object.entries(obj).map(([k, v]) =>
@@ -111,7 +111,6 @@ function formatarDadosParaImpressao(dados) {
         </div>`
     }
 
-    // Objeto simples
     if (valor && typeof valor === 'object' && !Array.isArray(valor)) {
       const linhas = Object.entries(valor).map(([k, v]) =>
         `<div><span style="color:#999;">${k}:</span> <strong>${formatarValor(v)}</strong></div>`
@@ -123,7 +122,6 @@ function formatarDadosParaImpressao(dados) {
         </div>`
     }
 
-    // Valor simples
     return `
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;">
         <span style="color:#999;">${chave}</span><strong>${formatarValor(valor)}</strong>
@@ -137,6 +135,7 @@ function HistoricoGeral() {
   const [movimentacoes, setMovimentacoes] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [detalheAberto, setDetalheAberto] = useState(null)
+  const [gerandoPdf, setGerandoPdf] = useState(false)
 
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
@@ -165,8 +164,8 @@ function HistoricoGeral() {
     setDataInicio(''); setDataFim(''); setUsuarioFiltro(''); setTelaFiltro(''); setTipoFiltro('')
   }
 
-  // ─── Impressão no padrão do Estoque.jsx ───────────────────────────────────
-  function imprimir() {
+  // Monta o HTML interno do relatório (reaproveitado na impressão e no PDF)
+  function montarConteudoRelatorio() {
     const dataAtual = new Date().toLocaleDateString('pt-BR')
     const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
@@ -191,52 +190,50 @@ function HistoricoGeral() {
     if (telaFiltro) filtrosAplicados.push(`Tela: ${telaFiltro}`)
     if (tipoFiltro) filtrosAplicados.push(`Tipo: ${tipoFiltro}`)
 
+    return `
+      <div style="font-family: Arial, Helvetica, sans-serif; color:#2d3748; padding:32px; width:820px; background:white;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a6b5a; padding-bottom:16px; margin-bottom:20px;">
+          <div>
+            <h1 style="font-size:20px; color:#1a6b5a; margin-bottom:4px;">Relatório de Histórico Geral</h1>
+            <p style="font-size:12px; color:#718096;">Santiagos Presentes</p>
+          </div>
+          <div style="text-align:right; font-size:12px; color:#718096;">
+            <p>Emitido em: ${dataAtual} às ${horaAtual}</p>
+            <p>${movimentacoes.length} movimentação(ões) listada(s)</p>
+          </div>
+        </div>
+
+        ${filtrosAplicados.length > 0 ? `
+        <div style="font-size:12px; color:#718096; margin-bottom:16px; background:#f7fafc; padding:10px 14px; border-radius:8px; border:1px solid #edf2f7;">
+          <strong style="color:#2d3748;">Filtros aplicados:</strong> ${filtrosAplicados.join(' | ')}
+        </div>` : ''}
+
+        ${itensHtml}
+
+        <div style="margin-top:24px; text-align:center; font-size:11px; color:#a0aec0;">
+          Relatório gerado automaticamente pelo sistema — Santiagos Presentes
+        </div>
+      </div>
+    `
+  }
+
+  // ─── Impressão no padrão do Estoque.jsx ───────────────────────────────────
+  function imprimir() {
+    const conteudo = montarConteudoRelatorio()
     const janela = window.open('', '_blank')
     janela.document.write(`
       <html>
         <head>
           <title>Histórico Geral</title>
           <style>
-            * { margin:0; padding:0; box-sizing:border-box; font-family: Arial, Helvetica, sans-serif; }
-            body { padding: 32px; color: #2d3748; }
-            .cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a6b5a; padding-bottom:16px; margin-bottom:20px; }
-            .cabecalho h1 { font-size:20px; color:#1a6b5a; margin-bottom:4px; }
-            .cabecalho p { font-size:12px; color:#718096; }
-            .meta { text-align:right; font-size:12px; color:#718096; }
-            .filtros { font-size:12px; color:#718096; margin-bottom:16px; background:#f7fafc; padding:10px 14px; border-radius:8px; border:1px solid #edf2f7; }
-            .filtros strong { color:#2d3748; }
-            .rodape { margin-top:24px; text-align:center; font-size:11px; color:#a0aec0; }
-            .btn-imprimir { margin-top:20px; text-align:center; }
-            .btn-imprimir button { background:#1a6b5a; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer; }
-            @media print {
-              body { padding: 12px; }
-              .btn-imprimir { display:none; }
-            }
+            * { margin:0; padding:0; box-sizing:border-box; }
+            @media print { .btn-imprimir { display:none; } }
           </style>
         </head>
         <body>
-          <div class="cabecalho">
-            <div>
-              <h1>Relatório de Histórico Geral</h1>
-              <p>Santiagos Presentes</p>
-            </div>
-            <div class="meta">
-              <p>Emitido em: ${dataAtual} às ${horaAtual}</p>
-              <p>${movimentacoes.length} movimentação(ões) listada(s)</p>
-            </div>
-          </div>
-
-          ${filtrosAplicados.length > 0 ? `
-          <div class="filtros">
-            <strong>Filtros aplicados:</strong> ${filtrosAplicados.join(' | ')}
-          </div>` : ''}
-
-          ${itensHtml}
-
-          <div class="rodape">Relatório gerado automaticamente pelo sistema — Santiagos Presentes</div>
-
-          <div class="btn-imprimir">
-            <button onclick="window.print()">🖨️ Imprimir</button>
+          ${conteudo}
+          <div class="btn-imprimir" style="margin-top:20px; text-align:center; padding-bottom:32px;">
+            <button onclick="window.print()" style="background:#1a6b5a; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">🖨️ Imprimir</button>
           </div>
         </body>
       </html>
@@ -245,22 +242,60 @@ function HistoricoGeral() {
     janela.focus()
   }
 
+  // ─── Compartilhar em PDF (boa qualidade, paginado) ────────────────────────
   async function compartilhar() {
+    setGerandoPdf(true)
+    let container = null
     try {
-      const listaTemp = document.getElementById('lista-historico')
-      const canvas = await html2canvas(listaTemp, { scale: 2, useCORS: true })
-      canvas.toBlob(async (blob) => {
-        const file = new File([blob], 'historico-geral-santiagos.png', { type: 'image/png' })
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Histórico Geral - Santiagos Presentes' })
-        } else {
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url; a.download = 'historico-geral-santiagos.png'; a.click()
-          URL.revokeObjectURL(url)
-        }
-      }, 'image/png')
-    } catch (err) { console.error('Erro ao compartilhar:', err) }
+      // Renderiza o relatório offscreen, com a mesma formatação da impressão
+      container = document.createElement('div')
+      container.style.position = 'fixed'
+      container.style.top = '0'
+      container.style.left = '-9999px'
+      container.innerHTML = montarConteudoRelatorio()
+      document.body.appendChild(container)
+
+      const canvas = await html2canvas(container, {
+        scale: 3, // alta resolução para boa qualidade no PDF
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      })
+
+      const pdf = new jsPDF('p', 'pt', 'a4')
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+
+      const imgData = canvas.toDataURL('image/png', 1.0)
+      const imgWidth = pageWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      let heightLeft = imgHeight
+      let position = 0
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+      heightLeft -= pageHeight
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+        heightLeft -= pageHeight
+      }
+
+      const pdfBlob = pdf.output('blob')
+      const file = new File([pdfBlob], 'historico-geral-santiagos.pdf', { type: 'application/pdf' })
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Histórico Geral - Santiagos Presentes' })
+      } else {
+        pdf.save('historico-geral-santiagos.pdf')
+      }
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err)
+    } finally {
+      if (container) document.body.removeChild(container)
+      setGerandoPdf(false)
+    }
   }
 
   const campo = { width: '100%', padding: '8px', marginTop: '4px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '13px' }
@@ -385,8 +420,17 @@ function HistoricoGeral() {
           <button onClick={imprimir} style={{ background: 'linear-gradient(135deg,#1a6b5a,#145a4a)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Printer size={14} /> Imprimir
           </button>
-          <button onClick={compartilhar} style={{ background: 'linear-gradient(135deg,#f5821f,#c2185b)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Share2 size={14} /> Compartilhar
+          <button
+            onClick={compartilhar}
+            disabled={gerandoPdf}
+            style={{
+              background: 'linear-gradient(135deg,#f5821f,#c2185b)', color: 'white', border: 'none',
+              padding: '8px 14px', borderRadius: '6px', cursor: gerandoPdf ? 'default' : 'pointer',
+              fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px',
+              opacity: gerandoPdf ? 0.7 : 1,
+            }}
+          >
+            <Share2 size={14} /> {gerandoPdf ? 'Gerando PDF...' : 'Compartilhar'}
           </button>
         </div>
       </div>
