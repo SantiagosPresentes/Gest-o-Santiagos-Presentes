@@ -2,7 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import jsPDF from 'jspdf'
 import PageHeader from '../components/PageHeader'
-import { History, Filter, Printer, Share2, X, ChevronRight } from 'lucide-react'
+import {
+  History, Filter, Printer, Share2, X, ChevronRight, Sparkles,
+  TrendingUp, AlertTriangle, CheckCircle2, Users, Package, Undo2, Wallet,
+} from 'lucide-react'
 import { NOMES_POR_EMAIL } from '../utils/logMovimentacao'
 
 const TELAS = ['Vendas', 'Estoque', 'Clientes', 'Devoluções', 'Encomendas', 'Fornecedores', 'Capital', 'Investimentos', 'Retiradas']
@@ -16,6 +19,10 @@ function formatarValor(valor) {
   }
   if (typeof valor === 'boolean') return valor ? 'Sim' : 'Não'
   return String(valor)
+}
+
+function formatarMoeda(valor) {
+  return (Number(valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 // Renderiza o campo "dados" (JSON) de forma legível, tratando arrays de itens especialmente
@@ -130,11 +137,100 @@ function formatarDadosParaImpressao(dados) {
   return `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #ddd;">${partes.join('')}</div>`
 }
 
+// ─── Cálculo do resumo analítico (faturamento, devoluções, investimentos, duplicatas, etc.) ───
+function calcularResumo(lista) {
+  // Detecta possíveis duplicatas: mesma tela, tipo, descrição, dados e horário exato
+  const contagem = {}
+  lista.forEach(m => {
+    const chave = `${m.tela}|${m.tipo}|${m.descricao}|${JSON.stringify(m.dados)}|${m.created_at}`
+    contagem[chave] = (contagem[chave] || 0) + 1
+  })
+
+  const jaMarcado = new Set()
+  const unicos = []
+  const duplicatas = []
+
+  lista.forEach(m => {
+    const chave = `${m.tela}|${m.tipo}|${m.descricao}|${JSON.stringify(m.dados)}|${m.created_at}`
+    if (contagem[chave] > 1) {
+      if (!jaMarcado.has(chave)) {
+        jaMarcado.add(chave)
+        unicos.push(m)
+        duplicatas.push({ tela: m.tela, descricao: m.descricao, vezes: contagem[chave] })
+      }
+    } else {
+      unicos.push(m)
+    }
+  })
+
+  // Vendas
+  const vendas = unicos.filter(m => m.tela === 'Vendas' && m.tipo === 'Criação')
+  const totalVendas = vendas.reduce((acc, m) => acc + (Number(m.dados?.total) || 0), 0)
+  const vendasPorCliente = vendas
+    .map(m => ({ descricao: m.descricao, total: Number(m.dados?.total) || 0 }))
+    .sort((a, b) => b.total - a.total)
+
+  // Produtos em destaque (a partir dos itens de cada venda)
+  const produtoAcumulado = {}
+  vendas.forEach(m => {
+    const itens = Array.isArray(m.dados?.itens) ? m.dados.itens : []
+    itens.forEach(it => {
+      const nome = it.nome || 'Item'
+      if (!produtoAcumulado[nome]) produtoAcumulado[nome] = { qtd: 0, valor: 0 }
+      produtoAcumulado[nome].qtd += Number(it.qtd) || 0
+      produtoAcumulado[nome].valor += Number(it.valor) || 0
+    })
+  })
+  const produtosDestaque = Object.entries(produtoAcumulado)
+    .map(([nome, v]) => ({ nome, ...v }))
+    .sort((a, b) => b.valor - a.valor)
+    .slice(0, 5)
+
+  // Devoluções
+  const devolucoes = unicos.filter(m => m.tela === 'Devoluções')
+  const totalDevolucoes = devolucoes.reduce((acc, m) => acc + (Number(m.dados?.total_devolvido) || 0), 0)
+
+  // Investimentos
+  const investimentos = unicos.filter(m => m.tela === 'Investimentos')
+  const totalInvestimentos = investimentos.reduce((acc, m) => acc + (Number(m.dados?.valor_total_pago) || 0), 0)
+
+  // Pagamentos recebidos
+  const pagamentos = unicos.filter(m =>
+    m.tipo === 'Pagamento' || (m.descricao || '').toLowerCase().includes('pagamento recebido')
+  )
+  const totalPagamentos = pagamentos.reduce((acc, m) => acc + (Number(m.dados?.valor_pago_agora) || 0), 0)
+
+  // Produtos cadastrados / editados
+  const produtosCriados = unicos.filter(m => m.tela === 'Produtos' && m.tipo === 'Criação')
+  const produtosEditados = unicos.filter(m => m.tela === 'Produtos' && m.tipo === 'Edição')
+
+  // Movimentações por usuário
+  const porUsuario = {}
+  unicos.forEach(m => {
+    porUsuario[m.usuario_nome] = (porUsuario[m.usuario_nome] || 0) + 1
+  })
+
+  return {
+    totalRegistros: lista.length,
+    totalUnicos: unicos.length,
+    vendas, totalVendas, vendasPorCliente, produtosDestaque,
+    devolucoes, totalDevolucoes,
+    investimentos, totalInvestimentos,
+    pagamentos, totalPagamentos,
+    produtosCriados, produtosEditados,
+    duplicatas,
+    porUsuario,
+    saldoVendas: totalVendas - totalDevolucoes,
+  }
+}
+
 function HistoricoGeral() {
   const [movimentacoes, setMovimentacoes] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [detalheAberto, setDetalheAberto] = useState(null)
   const [gerandoPdf, setGerandoPdf] = useState(false)
+  const [gerandoPdfResumo, setGerandoPdfResumo] = useState(false)
+  const [resumoData, setResumoData] = useState(null)
 
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
@@ -163,7 +259,7 @@ function HistoricoGeral() {
     setDataInicio(''); setDataFim(''); setUsuarioFiltro(''); setTelaFiltro(''); setTipoFiltro('')
   }
 
-  // Monta o HTML interno do relatório (usado na impressão)
+  // Monta o HTML interno do relatório completo (usado na impressão)
   function montarConteudoRelatorio() {
     const dataAtual = new Date().toLocaleDateString('pt-BR')
     const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -216,7 +312,7 @@ function HistoricoGeral() {
     `
   }
 
-  // ─── Impressão no padrão do Estoque.jsx ───────────────────────────────────
+  // ─── Impressão do relatório completo ──────────────────────────────────────
   function imprimir() {
     const conteudo = montarConteudoRelatorio()
     const janela = window.open('', '_blank')
@@ -241,7 +337,7 @@ function HistoricoGeral() {
     janela.focus()
   }
 
-  // ─── Geração de PDF profissional (texto nativo, sem screenshot) ───────────
+  // ─── Geração de PDF profissional do relatório completo (texto nativo) ─────
   function gerarPDFProfissional() {
     const doc = new jsPDF('p', 'pt', 'a4')
     const pageWidth = doc.internal.pageSize.getWidth()
@@ -249,10 +345,10 @@ function HistoricoGeral() {
     const margin = 40
     const contentWidth = pageWidth - margin * 2
 
-    const primaria = [26, 107, 90]     // #1a6b5a
-    const texto = [45, 55, 72]         // #2d3748
-    const secundaria = [113, 128, 150] // #718096
-    const clara = [160, 174, 192]      // #a0aec0
+    const primaria = [26, 107, 90]
+    const texto = [45, 55, 72]
+    const secundaria = [113, 128, 150]
+    const clara = [160, 174, 192]
 
     const dataAtual = new Date().toLocaleDateString('pt-BR')
     const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -323,7 +419,6 @@ function HistoricoGeral() {
       }
     }
 
-    // Monta as linhas de detalhe (campo "dados") de forma legível e compacta
     function linhasDeDados(dados) {
       const linhas = []
       if (!dados || typeof dados !== 'object' || Object.keys(dados).length === 0) return linhas
@@ -354,13 +449,12 @@ function HistoricoGeral() {
       const dadosLinhas = linhasDeDados(m.dados)
 
       const alturaBloco =
-        16 +                                   // título
-        descLinhas.length * 11 + 4 +           // descrição
-        12 +                                   // "por fulano"
+        16 +
+        descLinhas.length * 11 + 4 +
+        12 +
         (dadosLinhas.length ? dadosLinhas.length * 10 + 10 : 0) +
-        14                                     // respiro final
+        14
 
-      // Quebra de página ANTES de desenhar, sem cortar o item ao meio
       if (y + alturaBloco > pageHeight - 50) {
         doc.addPage()
         cabecalhoContinuacao()
@@ -412,7 +506,7 @@ function HistoricoGeral() {
     return doc
   }
 
-  // ─── Compartilhar via apps do dispositivo, com qualidade profissional ─────
+  // ─── Compartilhar relatório completo via apps do dispositivo ──────────────
   async function compartilhar() {
     setGerandoPdf(true)
     try {
@@ -421,23 +515,302 @@ function HistoricoGeral() {
       const file = new File([pdfBlob], 'historico-geral-santiagos.pdf', { type: 'application/pdf' })
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        // Abre o menu nativo de compartilhamento (WhatsApp, Email, Drive, etc.)
         await navigator.share({
           files: [file],
           title: 'Histórico Geral - Santiagos Presentes',
           text: 'Relatório de histórico geral',
         })
       } else {
-        // Sem suporte a Web Share API com arquivos: baixa o PDF
         doc.save('historico-geral-santiagos.pdf')
       }
     } catch (err) {
-      // Usuário cancelando o share (AbortError) não é erro real
       if (err?.name !== 'AbortError') {
         console.error('Erro ao gerar/compartilhar PDF:', err)
       }
     } finally {
       setGerandoPdf(false)
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // RESUMO ANALÍTICO
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // Monta o HTML do resumo (usado na impressão)
+  function montarConteudoResumo(resumo) {
+    const dataAtual = new Date().toLocaleDateString('pt-BR')
+    const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const filtrosAplicados = []
+    if (dataInicio) filtrosAplicados.push(`De: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')}`)
+    if (dataFim) filtrosAplicados.push(`Até: ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}`)
+    if (usuarioFiltro) filtrosAplicados.push(`Usuário: ${NOMES_POR_EMAIL[usuarioFiltro] || usuarioFiltro}`)
+    if (telaFiltro) filtrosAplicados.push(`Tela: ${telaFiltro}`)
+    if (tipoFiltro) filtrosAplicados.push(`Tipo: ${tipoFiltro}`)
+
+    const secao = (titulo, cor, conteudoHtml) => `
+      <div style="margin-bottom:18px;">
+        <h2 style="font-size:14px;color:${cor};border-bottom:1px solid ${cor}33;padding-bottom:6px;margin-bottom:10px;">${titulo}</h2>
+        ${conteudoHtml}
+      </div>`
+
+    const listaClientes = resumo.vendasPorCliente.slice(0, 12).map(v =>
+      `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+        <span style="color:#4a5568;">${v.descricao}</span><strong style="color:#1a6b5a;">R$ ${formatarMoeda(v.total)}</strong>
+      </div>`).join('') || '<p style="font-size:13px;color:#999;">Nenhuma venda no período.</p>'
+
+    const listaProdutos = resumo.produtosDestaque.map(p =>
+      `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+        <span style="color:#4a5568;">${p.nome} (${p.qtd} un.)</span><strong style="color:#1a6b5a;">R$ ${formatarMoeda(p.valor)}</strong>
+      </div>`).join('') || '<p style="font-size:13px;color:#999;">Sem dados de itens suficientes.</p>'
+
+    const listaDuplicatas = resumo.duplicatas.length > 0
+      ? resumo.duplicatas.map(d =>
+          `<div style="font-size:12.5px;padding:4px 0;color:#9c4221;">• [${d.tela}] ${d.descricao} — repetido ${d.vezes}x</div>`
+        ).join('')
+      : '<p style="font-size:13px;color:#999;">Nenhuma duplicidade identificada.</p>'
+
+    const listaUsuarios = Object.entries(resumo.porUsuario).map(([nome, qtd]) =>
+      `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+        <span style="color:#4a5568;">${nome}</span><strong>${qtd} movimentação(ões)</strong>
+      </div>`).join('')
+
+    return `
+      <div style="font-family: Arial, Helvetica, sans-serif; color:#2d3748; padding:32px; width:820px; background:white;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a6b5a; padding-bottom:16px; margin-bottom:20px;">
+          <div>
+            <h1 style="font-size:20px; color:#1a6b5a; margin-bottom:4px;">Resumo do Histórico</h1>
+            <p style="font-size:12px; color:#718096;">Santiagos Presentes</p>
+          </div>
+          <div style="text-align:right; font-size:12px; color:#718096;">
+            <p>Emitido em: ${dataAtual} às ${horaAtual}</p>
+            <p>${resumo.totalRegistros} movimentação(ões) analisada(s)</p>
+          </div>
+        </div>
+
+        ${filtrosAplicados.length > 0 ? `
+        <div style="font-size:12px; color:#718096; margin-bottom:20px; background:#f7fafc; padding:10px 14px; border-radius:8px; border:1px solid #edf2f7;">
+          <strong style="color:#2d3748;">Filtros aplicados:</strong> ${filtrosAplicados.join(' | ')}
+        </div>` : ''}
+
+        ${secao('💰 Faturamento de Vendas', '#1a6b5a', `
+          <p style="font-size:16px;font-weight:bold;color:#1a6b5a;margin-bottom:8px;">R$ ${formatarMoeda(resumo.totalVendas)} <span style="font-size:12px;color:#718096;font-weight:normal;">(${resumo.vendas.length} venda(s))</span></p>
+          ${listaClientes}
+        `)}
+
+        ${secao('↩ Devoluções', '#c2410c', `
+          <p style="font-size:14px;font-weight:bold;color:#c2410c;">R$ ${formatarMoeda(resumo.totalDevolucoes)} <span style="font-size:12px;color:#718096;font-weight:normal;">(${resumo.devolucoes.length} devolução(ões))</span></p>
+        `)}
+
+        ${secao('📦 Investimentos em Estoque', '#1a6b5a', `
+          <p style="font-size:14px;font-weight:bold;color:#1a6b5a;">R$ ${formatarMoeda(resumo.totalInvestimentos)} <span style="font-size:12px;color:#718096;font-weight:normal;">(${resumo.investimentos.length} lançamento(s))</span></p>
+        `)}
+
+        ${secao('💳 Pagamentos Recebidos', '#1a6b5a', `
+          <p style="font-size:14px;font-weight:bold;color:#1a6b5a;">R$ ${formatarMoeda(resumo.totalPagamentos)} <span style="font-size:12px;color:#718096;font-weight:normal;">(${resumo.pagamentos.length} pagamento(s))</span></p>
+        `)}
+
+        ${secao('⭐ Produtos em Destaque', '#1a6b5a', listaProdutos)}
+
+        ${secao('✅ Pontos Positivos', '#15803d', `
+          <div style="font-size:12.5px;color:#166534;line-height:1.7;">
+            <p>• Saldo de vendas (vendas − devoluções): <strong>R$ ${formatarMoeda(resumo.saldoVendas)}</strong></p>
+            ${resumo.pagamentos.length > 0 ? '<p>• Houve pagamentos pendentes recebidos, melhorando o fluxo de caixa.</p>' : ''}
+            ${resumo.produtosDestaque.length > 0 ? `<p>• Produto com maior destaque: <strong>${resumo.produtosDestaque[0].nome}</strong>.</p>` : ''}
+          </div>
+        `)}
+
+        ${secao('⚠ Pontos de Atenção', '#c2410c', listaDuplicatas)}
+
+        ${secao('👤 Movimentações por Usuário', '#1a6b5a', listaUsuarios)}
+
+        <div style="margin-top:24px; text-align:center; font-size:11px; color:#a0aec0;">
+          Relatório gerado automaticamente pelo sistema — Santiagos Presentes
+        </div>
+      </div>
+    `
+  }
+
+  function imprimirResumo() {
+    if (!resumoData) return
+    const conteudo = montarConteudoResumo(resumoData)
+    const janela = window.open('', '_blank')
+    janela.document.write(`
+      <html>
+        <head>
+          <title>Resumo do Histórico</title>
+          <style>
+            * { margin:0; padding:0; box-sizing:border-box; }
+            @media print { .btn-imprimir { display:none; } }
+          </style>
+        </head>
+        <body>
+          ${conteudo}
+          <div class="btn-imprimir" style="margin-top:20px; text-align:center; padding-bottom:32px;">
+            <button onclick="window.print()" style="background:#1a6b5a; color:white; border:none; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">🖨️ Imprimir</button>
+          </div>
+        </body>
+      </html>
+    `)
+    janela.document.close()
+    janela.focus()
+  }
+
+  // Gera o PDF profissional do resumo (texto nativo, seções estruturadas)
+  function gerarPDFResumoProfissional(resumo) {
+    const doc = new jsPDF('p', 'pt', 'a4')
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 40
+    const contentWidth = pageWidth - margin * 2
+
+    const primaria = [26, 107, 90]
+    const texto = [45, 55, 72]
+    const secundaria = [113, 128, 150]
+    const clara = [160, 174, 192]
+    const verde = [21, 128, 61]
+    const laranja = [194, 65, 12]
+
+    const dataAtual = new Date().toLocaleDateString('pt-BR')
+    const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    let y = margin
+
+    function cabecalho() {
+      doc.setFillColor(...primaria)
+      doc.rect(0, 0, pageWidth, 4, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.setTextColor(...primaria)
+      doc.text('Resumo do Histórico', margin, margin + 10)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(...secundaria)
+      doc.text('Santiagos Presentes', margin, margin + 24)
+      doc.setFontSize(8.5)
+      doc.text(`Emitido em: ${dataAtual} às ${horaAtual}`, pageWidth - margin, margin + 10, { align: 'right' })
+      doc.text(`${resumo.totalRegistros} movimentação(ões) analisada(s)`, pageWidth - margin, margin + 22, { align: 'right' })
+      doc.setDrawColor(...primaria)
+      doc.setLineWidth(1)
+      doc.line(margin, margin + 32, pageWidth - margin, margin + 32)
+      y = margin + 50
+    }
+
+    function novaPaginaSeNecessario(altura) {
+      if (y + altura > pageHeight - 50) {
+        doc.addPage()
+        doc.setFillColor(...primaria)
+        doc.rect(0, 0, pageWidth, 4, 'F')
+        y = margin + 14
+      }
+    }
+
+    function tituloSecao(txt, cor = primaria) {
+      novaPaginaSeNecessario(26)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(...cor)
+      doc.text(txt, margin, y)
+      y += 6
+      doc.setDrawColor(...cor)
+      doc.setLineWidth(0.7)
+      doc.line(margin, y, pageWidth - margin, y)
+      y += 14
+    }
+
+    function linha(txt, opts = {}) {
+      doc.setFont('helvetica', opts.bold ? 'bold' : 'normal')
+      doc.setFontSize(opts.size || 9)
+      doc.setTextColor(...(opts.cor || texto))
+      const linhas = doc.splitTextToSize(txt, contentWidth)
+      novaPaginaSeNecessario(linhas.length * 12 + 4)
+      doc.text(linhas, margin, y)
+      y += linhas.length * 12 + 4
+    }
+
+    function rodape() {
+      const total = doc.internal.getNumberOfPages()
+      for (let p = 1; p <= total; p++) {
+        doc.setPage(p)
+        doc.setFontSize(7.5)
+        doc.setTextColor(...clara)
+        doc.text('Relatório gerado automaticamente pelo sistema — Santiagos Presentes', margin, pageHeight - 20)
+        doc.text(`Página ${p} de ${total}`, pageWidth - margin, pageHeight - 20, { align: 'right' })
+      }
+    }
+
+    cabecalho()
+
+    tituloSecao('Faturamento de Vendas')
+    linha(`Total em vendas: R$ ${formatarMoeda(resumo.totalVendas)} (${resumo.vendas.length} venda(s))`, { bold: true, size: 10 })
+    resumo.vendasPorCliente.slice(0, 12).forEach(v => linha(`• ${v.descricao} — R$ ${formatarMoeda(v.total)}`))
+
+    tituloSecao('Devoluções', laranja)
+    if (resumo.devolucoes.length === 0) {
+      linha('Nenhuma devolução no período.')
+    } else {
+      linha(`Total devolvido: R$ ${formatarMoeda(resumo.totalDevolucoes)} (${resumo.devolucoes.length} devolução(ões))`, { bold: true, size: 10 })
+      resumo.devolucoes.forEach(m => linha(`• ${m.descricao}`))
+    }
+
+    tituloSecao('Investimentos em Estoque')
+    linha(`Total investido: R$ ${formatarMoeda(resumo.totalInvestimentos)} (${resumo.investimentos.length} lançamento(s))`, { bold: true, size: 10 })
+
+    tituloSecao('Pagamentos Recebidos')
+    if (resumo.pagamentos.length === 0) {
+      linha('Nenhum pagamento pendente quitado no período.')
+    } else {
+      linha(`Total recebido: R$ ${formatarMoeda(resumo.totalPagamentos)} (${resumo.pagamentos.length} pagamento(s))`, { bold: true, size: 10 })
+    }
+
+    if (resumo.produtosDestaque.length > 0) {
+      tituloSecao('Produtos em Destaque')
+      resumo.produtosDestaque.forEach(p => linha(`• ${p.nome} — ${p.qtd} un. — R$ ${formatarMoeda(p.valor)}`))
+    }
+
+    tituloSecao('Pontos Positivos', verde)
+    linha(`Saldo de vendas (vendas − devoluções): R$ ${formatarMoeda(resumo.saldoVendas)}`)
+    if (resumo.pagamentos.length > 0) linha('Houve pagamentos pendentes recebidos, melhorando o fluxo de caixa.')
+    if (resumo.produtosDestaque.length > 0) linha(`Produto com maior destaque: ${resumo.produtosDestaque[0].nome}.`)
+
+    tituloSecao('Pontos de Atenção', laranja)
+    if (resumo.duplicatas.length === 0) {
+      linha('Nenhuma duplicidade identificada no período.')
+    } else {
+      linha('Possíveis registros duplicados (mesma descrição, tela e horário):', { bold: true })
+      resumo.duplicatas.forEach(d => linha(`• [${d.tela}] ${d.descricao} — repetido ${d.vezes}x`, { cor: laranja }))
+    }
+
+    tituloSecao('Movimentações por Usuário')
+    Object.entries(resumo.porUsuario).forEach(([nome, qtd]) => linha(`• ${nome}: ${qtd} movimentação(ões)`))
+
+    rodape()
+    return doc
+  }
+
+  async function compartilharResumo() {
+    if (!resumoData) return
+    setGerandoPdfResumo(true)
+    try {
+      const doc = gerarPDFResumoProfissional(resumoData)
+      const pdfBlob = doc.output('blob')
+      const file = new File([pdfBlob], 'resumo-historico-santiagos.pdf', { type: 'application/pdf' })
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Resumo do Histórico - Santiagos Presentes',
+          text: 'Resumo do período',
+        })
+      } else {
+        doc.save('resumo-historico-santiagos.pdf')
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        console.error('Erro ao gerar/compartilhar resumo:', err)
+      }
+    } finally {
+      setGerandoPdfResumo(false)
     }
   }
 
@@ -518,6 +891,176 @@ function HistoricoGeral() {
         </div>
       )}
 
+      {/* MODAL DE RESUMO */}
+      {resumoData && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.6)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px',
+          }}
+          onClick={() => setResumoData(null)}
+        >
+          <div
+            style={{
+              background: 'white', borderRadius: '16px', width: '100%', maxWidth: '540px',
+              maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', borderRadius: '16px 16px 0 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={18} color="#1a6b5a" />
+                <strong style={{ fontSize: '16px', color: '#1a6b5a' }}>Resumo do Período</strong>
+              </div>
+              <button
+                onClick={() => setResumoData(null)}
+                style={{ background: '#f0f0f0', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex' }}
+              >
+                <X size={18} color="#666" />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Faturamento */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <TrendingUp size={15} color="#1a6b5a" />
+                  <strong style={{ fontSize: '13px', color: '#1a6b5a' }}>Faturamento de Vendas</strong>
+                </div>
+                <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#1a6b5a' }}>
+                  R$ {formatarMoeda(resumoData.totalVendas)}
+                  <span style={{ fontSize: '12px', color: '#999', fontWeight: 'normal' }}> ({resumoData.vendas.length} venda(s))</span>
+                </p>
+                <div style={{ marginTop: '8px', maxHeight: '160px', overflowY: 'auto' }}>
+                  {resumoData.vendasPorCliente.slice(0, 12).map((v, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', padding: '4px 0', borderBottom: '1px solid #f5f5f5' }}>
+                      <span style={{ color: '#555' }}>{v.descricao}</span>
+                      <strong style={{ color: '#1a6b5a' }}>R$ {formatarMoeda(v.total)}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Devoluções */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Undo2 size={15} color="#c2410c" />
+                  <strong style={{ fontSize: '13px', color: '#c2410c' }}>Devoluções</strong>
+                </div>
+                <p style={{ fontSize: '14px', color: '#c2410c', fontWeight: 'bold' }}>
+                  R$ {formatarMoeda(resumoData.totalDevolucoes)}
+                  <span style={{ fontSize: '12px', color: '#999', fontWeight: 'normal' }}> ({resumoData.devolucoes.length} devolução(ões))</span>
+                </p>
+              </div>
+
+              {/* Investimentos */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Package size={15} color="#1a6b5a" />
+                  <strong style={{ fontSize: '13px', color: '#1a6b5a' }}>Investimentos em Estoque</strong>
+                </div>
+                <p style={{ fontSize: '14px', color: '#1a6b5a', fontWeight: 'bold' }}>
+                  R$ {formatarMoeda(resumoData.totalInvestimentos)}
+                  <span style={{ fontSize: '12px', color: '#999', fontWeight: 'normal' }}> ({resumoData.investimentos.length} lançamento(s))</span>
+                </p>
+              </div>
+
+              {/* Pagamentos */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Wallet size={15} color="#1a6b5a" />
+                  <strong style={{ fontSize: '13px', color: '#1a6b5a' }}>Pagamentos Recebidos</strong>
+                </div>
+                <p style={{ fontSize: '14px', color: '#1a6b5a', fontWeight: 'bold' }}>
+                  R$ {formatarMoeda(resumoData.totalPagamentos)}
+                  <span style={{ fontSize: '12px', color: '#999', fontWeight: 'normal' }}> ({resumoData.pagamentos.length} pagamento(s))</span>
+                </p>
+              </div>
+
+              {/* Produtos em destaque */}
+              {resumoData.produtosDestaque.length > 0 && (
+                <div>
+                  <strong style={{ fontSize: '13px', color: '#1a6b5a', display: 'block', marginBottom: '6px' }}>⭐ Produtos em Destaque</strong>
+                  {resumoData.produtosDestaque.map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', padding: '4px 0', borderBottom: '1px solid #f5f5f5' }}>
+                      <span style={{ color: '#555' }}>{p.nome} ({p.qtd} un.)</span>
+                      <strong style={{ color: '#1a6b5a' }}>R$ {formatarMoeda(p.valor)}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pontos positivos */}
+              <div style={{ background: '#f0fdf4', borderRadius: '10px', padding: '12px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <CheckCircle2 size={15} color="#15803d" />
+                  <strong style={{ fontSize: '13px', color: '#15803d' }}>Pontos Positivos</strong>
+                </div>
+                <p style={{ fontSize: '12.5px', color: '#166534', lineHeight: 1.6 }}>
+                  Saldo de vendas (vendas − devoluções): <strong>R$ {formatarMoeda(resumoData.saldoVendas)}</strong>
+                  {resumoData.pagamentos.length > 0 && <><br />Houve pagamentos pendentes recebidos, melhorando o fluxo de caixa.</>}
+                  {resumoData.produtosDestaque.length > 0 && <><br />Produto com maior destaque: <strong>{resumoData.produtosDestaque[0].nome}</strong>.</>}
+                </p>
+              </div>
+
+              {/* Pontos de atenção */}
+              <div style={{ background: '#fff7ed', borderRadius: '10px', padding: '12px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <AlertTriangle size={15} color="#c2410c" />
+                  <strong style={{ fontSize: '13px', color: '#c2410c' }}>Pontos de Atenção</strong>
+                </div>
+                {resumoData.duplicatas.length === 0 ? (
+                  <p style={{ fontSize: '12.5px', color: '#9c4221' }}>Nenhuma duplicidade identificada no período.</p>
+                ) : (
+                  <div style={{ fontSize: '12.5px', color: '#9c4221', lineHeight: 1.6 }}>
+                    <p style={{ marginBottom: '4px' }}>Possíveis registros duplicados:</p>
+                    {resumoData.duplicatas.map((d, i) => (
+                      <p key={i}>• [{d.tela}] {d.descricao} — repetido {d.vezes}x</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Por usuário */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Users size={15} color="#1a6b5a" />
+                  <strong style={{ fontSize: '13px', color: '#1a6b5a' }}>Movimentações por Usuário</strong>
+                </div>
+                {Object.entries(resumoData.porUsuario).map(([nome, qtd], i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', padding: '4px 0', borderBottom: '1px solid #f5f5f5' }}>
+                    <span style={{ color: '#555' }}>{nome}</span>
+                    <strong>{qtd} movimentação(ões)</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #eee', display: 'flex', gap: '8px', position: 'sticky', bottom: 0, background: 'white' }}>
+              <button
+                onClick={imprimirResumo}
+                style={{ flex: 1, background: 'linear-gradient(135deg,#1a6b5a,#145a4a)', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <Printer size={15} /> Imprimir
+              </button>
+              <button
+                onClick={compartilharResumo}
+                disabled={gerandoPdfResumo}
+                style={{
+                  flex: 1, background: 'linear-gradient(135deg,#f5821f,#c2185b)', color: 'white', border: 'none',
+                  padding: '12px', borderRadius: '8px', cursor: gerandoPdfResumo ? 'default' : 'pointer',
+                  fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  opacity: gerandoPdfResumo ? 0.7 : 1,
+                }}
+              >
+                <Share2 size={15} /> {gerandoPdfResumo ? 'Gerando...' : 'Compartilhar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', marginTop: '16px', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
           <Filter size={16} color="#1a6b5a" />
@@ -559,6 +1102,17 @@ function HistoricoGeral() {
         <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
           <button onClick={limparFiltros} style={{ background: '#eee', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <X size={14} /> Limpar filtros
+          </button>
+          <button
+            onClick={() => setResumoData(calcularResumo(movimentacoes))}
+            disabled={movimentacoes.length === 0}
+            style={{
+              background: 'linear-gradient(135deg,#6d28d9,#9333ea)', color: 'white', border: 'none', padding: '8px 14px',
+              borderRadius: '6px', cursor: movimentacoes.length === 0 ? 'default' : 'pointer', fontSize: '13px',
+              display: 'flex', alignItems: 'center', gap: '6px', opacity: movimentacoes.length === 0 ? 0.6 : 1,
+            }}
+          >
+            <Sparkles size={14} /> Resumo
           </button>
           <button onClick={imprimir} style={{ background: 'linear-gradient(135deg,#1a6b5a,#145a4a)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Printer size={14} /> Imprimir
