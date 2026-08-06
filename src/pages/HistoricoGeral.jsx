@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
-import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import PageHeader from '../components/PageHeader'
 import { History, Filter, Printer, Share2, X, ChevronRight } from 'lucide-react'
@@ -89,7 +88,7 @@ function DetalhesDados({ dados }) {
   )
 }
 
-// Formata o campo "dados" (JSON) como HTML para o relatório impresso/PDF
+// Formata o campo "dados" (JSON) como HTML para o relatório impresso
 function formatarDadosParaImpressao(dados) {
   if (!dados || typeof dados !== 'object' || Object.keys(dados).length === 0) {
     return ''
@@ -164,7 +163,7 @@ function HistoricoGeral() {
     setDataInicio(''); setDataFim(''); setUsuarioFiltro(''); setTelaFiltro(''); setTipoFiltro('')
   }
 
-  // Monta o HTML interno do relatório (reaproveitado na impressão e no PDF)
+  // Monta o HTML interno do relatório (usado na impressão)
   function montarConteudoRelatorio() {
     const dataAtual = new Date().toLocaleDateString('pt-BR')
     const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -242,58 +241,202 @@ function HistoricoGeral() {
     janela.focus()
   }
 
-  // ─── Compartilhar em PDF (boa qualidade, paginado) ────────────────────────
-  async function compartilhar() {
-    setGerandoPdf(true)
-    let container = null
-    try {
-      // Renderiza o relatório offscreen, com a mesma formatação da impressão
-      container = document.createElement('div')
-      container.style.position = 'fixed'
-      container.style.top = '0'
-      container.style.left = '-9999px'
-      container.innerHTML = montarConteudoRelatorio()
-      document.body.appendChild(container)
+  // ─── Geração de PDF profissional (texto nativo, sem screenshot) ───────────
+  function gerarPDFProfissional() {
+    const doc = new jsPDF('p', 'pt', 'a4')
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 40
+    const contentWidth = pageWidth - margin * 2
 
-      const canvas = await html2canvas(container, {
-        scale: 3, // alta resolução para boa qualidade no PDF
-        useCORS: true,
-        backgroundColor: '#ffffff',
+    const primaria = [26, 107, 90]     // #1a6b5a
+    const texto = [45, 55, 72]         // #2d3748
+    const secundaria = [113, 128, 150] // #718096
+    const clara = [160, 174, 192]      // #a0aec0
+
+    const dataAtual = new Date().toLocaleDateString('pt-BR')
+    const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const filtrosAplicados = []
+    if (dataInicio) filtrosAplicados.push(`De: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')}`)
+    if (dataFim) filtrosAplicados.push(`Até: ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}`)
+    if (usuarioFiltro) filtrosAplicados.push(`Usuário: ${NOMES_POR_EMAIL[usuarioFiltro] || usuarioFiltro}`)
+    if (telaFiltro) filtrosAplicados.push(`Tela: ${telaFiltro}`)
+    if (tipoFiltro) filtrosAplicados.push(`Tipo: ${tipoFiltro}`)
+
+    let y = margin
+
+    function cabecalhoCompleto() {
+      doc.setFillColor(...primaria)
+      doc.rect(0, 0, pageWidth, 4, 'F')
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.setTextColor(...primaria)
+      doc.text('Relatório de Histórico Geral', margin, margin + 10)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(...secundaria)
+      doc.text('Santiagos Presentes', margin, margin + 24)
+
+      doc.setFontSize(8.5)
+      doc.text(`Emitido em: ${dataAtual} às ${horaAtual}`, pageWidth - margin, margin + 10, { align: 'right' })
+      doc.text(`${movimentacoes.length} movimentação(ões) listada(s)`, pageWidth - margin, margin + 22, { align: 'right' })
+
+      doc.setDrawColor(...primaria)
+      doc.setLineWidth(1)
+      doc.line(margin, margin + 32, pageWidth - margin, margin + 32)
+
+      y = margin + 48
+
+      if (filtrosAplicados.length > 0) {
+        doc.setFontSize(8.5)
+        const linhas = doc.splitTextToSize(`Filtros aplicados: ${filtrosAplicados.join(' | ')}`, contentWidth - 20)
+        const altura = linhas.length * 11 + 12
+        doc.setFillColor(247, 250, 252)
+        doc.roundedRect(margin, y, contentWidth, altura, 3, 3, 'F')
+        doc.setTextColor(...texto)
+        doc.text(linhas, margin + 10, y + 14)
+        y += altura + 14
+      }
+    }
+
+    function cabecalhoContinuacao() {
+      doc.setFillColor(...primaria)
+      doc.rect(0, 0, pageWidth, 4, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...primaria)
+      doc.text('Histórico Geral (continuação)', margin, margin + 6)
+      y = margin + 24
+    }
+
+    function rodape() {
+      const totalPaginas = doc.internal.getNumberOfPages()
+      for (let p = 1; p <= totalPaginas; p++) {
+        doc.setPage(p)
+        doc.setFontSize(7.5)
+        doc.setTextColor(...clara)
+        doc.text('Relatório gerado automaticamente pelo sistema — Santiagos Presentes', margin, pageHeight - 20)
+        doc.text(`Página ${p} de ${totalPaginas}`, pageWidth - margin, pageHeight - 20, { align: 'right' })
+      }
+    }
+
+    // Monta as linhas de detalhe (campo "dados") de forma legível e compacta
+    function linhasDeDados(dados) {
+      const linhas = []
+      if (!dados || typeof dados !== 'object' || Object.keys(dados).length === 0) return linhas
+
+      Object.entries(dados).forEach(([chave, valor]) => {
+        if (Array.isArray(valor) && valor.length > 0 && typeof valor[0] === 'object') {
+          linhas.push({ texto: chave.toUpperCase(), bold: true })
+          valor.forEach(obj => {
+            const linha = Object.entries(obj).map(([k, v]) => `${k}: ${formatarValor(v)}`).join('   ')
+            doc.setFontSize(7.5)
+            doc.splitTextToSize(linha, contentWidth - 34).forEach(l => linhas.push({ texto: l, indent: true }))
+          })
+        } else if (valor && typeof valor === 'object') {
+          linhas.push({ texto: chave.toUpperCase(), bold: true })
+          Object.entries(valor).forEach(([k, v]) => linhas.push({ texto: `${k}: ${formatarValor(v)}`, indent: true }))
+        } else {
+          linhas.push({ texto: `${chave}: ${formatarValor(valor)}` })
+        }
       })
+      return linhas
+    }
 
-      const pdf = new jsPDF('p', 'pt', 'a4')
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
+    cabecalhoCompleto()
 
-      const imgData = canvas.toDataURL('image/png', 1.0)
-      const imgWidth = pageWidth
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
+    movimentacoes.forEach((m, i) => {
+      doc.setFontSize(8.5)
+      const descLinhas = doc.splitTextToSize(m.descricao || '', contentWidth - 20)
+      const dadosLinhas = linhasDeDados(m.dados)
 
-      let heightLeft = imgHeight
-      let position = 0
+      const alturaBloco =
+        16 +                                   // título
+        descLinhas.length * 11 + 4 +           // descrição
+        12 +                                   // "por fulano"
+        (dadosLinhas.length ? dadosLinhas.length * 10 + 10 : 0) +
+        14                                     // respiro final
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
-      heightLeft -= pageHeight
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
-        heightLeft -= pageHeight
+      // Quebra de página ANTES de desenhar, sem cortar o item ao meio
+      if (y + alturaBloco > pageHeight - 50) {
+        doc.addPage()
+        cabecalhoContinuacao()
       }
 
-      const pdfBlob = pdf.output('blob')
+      doc.setFillColor(i % 2 === 0 ? 255 : 247, i % 2 === 0 ? 255 : 249, i % 2 === 0 ? 255 : 250)
+      doc.setDrawColor(237, 242, 247)
+      doc.roundedRect(margin, y, contentWidth, alturaBloco - 6, 3, 3, 'FD')
+
+      let yi = y + 14
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9.5)
+      doc.setTextColor(...primaria)
+      doc.text(`${m.tela} — ${m.tipo}`, margin + 10, yi)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7.5)
+      doc.setTextColor(...clara)
+      const dataTexto = `${new Date(m.created_at).toLocaleDateString('pt-BR')} às ${new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+      doc.text(dataTexto, pageWidth - margin - 10, yi, { align: 'right' })
+
+      yi += 12
+      doc.setFontSize(8.5)
+      doc.setTextColor(...texto)
+      doc.text(descLinhas, margin + 10, yi)
+      yi += descLinhas.length * 11 + 4
+
+      doc.setFontSize(7.5)
+      doc.setTextColor(...clara)
+      doc.text(`por ${m.usuario_nome}`, margin + 10, yi)
+      yi += 12
+
+      if (dadosLinhas.length) {
+        doc.setDrawColor(225, 225, 225)
+        doc.line(margin + 10, yi - 6, pageWidth - margin - 10, yi - 6)
+        dadosLinhas.forEach(linha => {
+          doc.setFont('helvetica', linha.bold ? 'bold' : 'normal')
+          doc.setFontSize(7.5)
+          doc.setTextColor(...(linha.bold ? primaria : texto))
+          doc.text(linha.texto, margin + (linha.indent ? 22 : 10), yi)
+          yi += 10
+        })
+      }
+
+      y += alturaBloco
+    })
+
+    rodape()
+    return doc
+  }
+
+  // ─── Compartilhar via apps do dispositivo, com qualidade profissional ─────
+  async function compartilhar() {
+    setGerandoPdf(true)
+    try {
+      const doc = gerarPDFProfissional()
+      const pdfBlob = doc.output('blob')
       const file = new File([pdfBlob], 'historico-geral-santiagos.pdf', { type: 'application/pdf' })
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Histórico Geral - Santiagos Presentes' })
+        // Abre o menu nativo de compartilhamento (WhatsApp, Email, Drive, etc.)
+        await navigator.share({
+          files: [file],
+          title: 'Histórico Geral - Santiagos Presentes',
+          text: 'Relatório de histórico geral',
+        })
       } else {
-        pdf.save('historico-geral-santiagos.pdf')
+        // Sem suporte a Web Share API com arquivos: baixa o PDF
+        doc.save('historico-geral-santiagos.pdf')
       }
     } catch (err) {
-      console.error('Erro ao gerar PDF:', err)
+      // Usuário cancelando o share (AbortError) não é erro real
+      if (err?.name !== 'AbortError') {
+        console.error('Erro ao gerar/compartilhar PDF:', err)
+      }
     } finally {
-      if (container) document.body.removeChild(container)
       setGerandoPdf(false)
     }
   }
