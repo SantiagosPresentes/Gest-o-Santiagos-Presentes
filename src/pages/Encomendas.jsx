@@ -1,8 +1,154 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
-import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText} from 'lucide-react'
+import {ShoppingCart, ClipboardList, RotateCcw, Package, TrendingUp, Boxes, Users, DollarSign, History, BarChart3, FileText, X} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { registrarMovimentacao } from '../utils/logMovimentacao'
+
+// ─── Busca de Cliente (autocomplete) ──────────────────────────────────────────
+function normalizarTexto(texto) {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function BuscaCliente({ clientes, cliente, onSelecionar, campoStyle }) {
+  const [texto, setTexto] = useState('')
+  const [aberto, setAberto] = useState(false)
+  const [indiceAtivo, setIndiceAtivo] = useState(-1)
+  const containerRef = useRef(null)
+  const listaRef = useRef(null)
+
+  useEffect(() => {
+    setTexto(cliente ? cliente.nome : '')
+  }, [cliente])
+
+  useEffect(() => {
+    function handleClickFora(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setAberto(false)
+        setIndiceAtivo(-1)
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora)
+    return () => document.removeEventListener('mousedown', handleClickFora)
+  }, [])
+
+  const termoBusca = normalizarTexto(texto.trim())
+  const resultados = termoBusca
+    ? clientes.filter(c => normalizarTexto(c.nome).includes(termoBusca))
+    : clientes
+
+  function selecionar(c) {
+    onSelecionar(c)
+    setTexto(c.nome)
+    setAberto(false)
+    setIndiceAtivo(-1)
+  }
+
+  function limpar() {
+    onSelecionar(null)
+    setTexto('')
+    setAberto(false)
+    setIndiceAtivo(-1)
+  }
+
+  function handleKeyDown(e) {
+    if (!aberto) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setIndiceAtivo(i => Math.min(i + 1, resultados.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setIndiceAtivo(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (indiceAtivo >= 0 && resultados[indiceAtivo]) {
+        selecionar(resultados[indiceAtivo])
+      }
+    } else if (e.key === 'Escape') {
+      setAberto(false)
+      setIndiceAtivo(-1)
+    }
+  }
+
+  useEffect(() => {
+    if (indiceAtivo < 0 || !listaRef.current) return
+    const item = listaRef.current.children[indiceAtivo]
+    if (item) item.scrollIntoView({ block: 'nearest' })
+  }, [indiceAtivo])
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={texto}
+          onChange={e => {
+            setTexto(e.target.value)
+            setAberto(true)
+            setIndiceAtivo(-1)
+            if (cliente) onSelecionar(null)
+          }}
+          onFocus={() => setAberto(true)}
+          onClick={() => setAberto(true)}
+          onKeyDown={handleKeyDown}
+          placeholder="Digite o nome do cliente..."
+          style={{ ...campoStyle, paddingRight: cliente ? '32px' : campoStyle.padding }}
+          autoComplete="off"
+        />
+        {cliente && (
+          <button
+            type="button"
+            onClick={limpar}
+            title="Limpar seleção"
+            style={{
+              position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '4px',
+            }}
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
+      {aberto && (
+        <div
+          ref={listaRef}
+          style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+            background: 'white', border: '1px solid #ddd', borderRadius: '8px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 50,
+            maxHeight: '260px', overflowY: 'auto',
+          }}
+        >
+          {resultados.length === 0 ? (
+            <div style={{ padding: '12px', fontSize: '13px', color: '#999', textAlign: 'center' }}>
+              Nenhum cliente encontrado
+            </div>
+          ) : (
+            resultados.map((c, i) => (
+              <div
+                key={c.id}
+                onMouseDown={(e) => { e.preventDefault(); selecionar(c) }}
+                onMouseEnter={() => setIndiceAtivo(i)}
+                style={{
+                  padding: '10px 12px', cursor: 'pointer', fontSize: '14px',
+                  background: i === indiceAtivo ? '#f0f9f0' : 'white',
+                  borderBottom: i < resultados.length - 1 ? '1px solid #f0f0f0' : 'none',
+                }}
+              >
+                <div style={{ fontWeight: '500' }}>{c.nome}</div>
+                {c.telefone && <div style={{ fontSize: '12px', color: '#888' }}>{c.telefone}</div>}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Encomendas() {
   const [clientes, setClientes] = useState([])
@@ -137,8 +283,6 @@ function Encomendas() {
       minHeight: '100vh',
       paddingBottom: 32,
     },
-
-    // Cabeçalho da página
     pageHeader: {
       display: 'flex',
       alignItems: 'center',
@@ -167,8 +311,6 @@ function Encomendas() {
       color: '#999',
       marginTop: 2,
     },
-
-    // Section label
     sectionLabel: {
       fontSize: 11,
       fontWeight: 700,
@@ -178,16 +320,12 @@ function Encomendas() {
       marginBottom: 8,
       paddingLeft: 2,
     },
-
-    // Layout responsivo
     layout: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
       gap: 16,
       padding: '0 16px',
     },
-
-    // Card base
     card: {
       background: 'white',
       borderRadius: 14,
@@ -208,8 +346,6 @@ function Encomendas() {
     cardBody: {
       padding: '18px 20px',
     },
-
-    // Campos
     fieldWrap: {
       marginBottom: 14,
     },
@@ -246,14 +382,11 @@ function Encomendas() {
       appearance: 'none',
       WebkitAppearance: 'none',
     },
-
     row2: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
       gap: 12,
     },
-
-    // Card de lucro
     lucroBox: {
       background: 'linear-gradient(135deg, #f0fdf8 0%, #e8f5f0 100%)',
       border: '1.5px solid #b2dfdb',
@@ -276,8 +409,6 @@ function Encomendas() {
     lucroValor: { fontSize: 15, fontWeight: 700, color: '#1A6B5A' },
     lucroCusto: { fontSize: 15, fontWeight: 700, color: '#777' },
     lucroNeg: { fontSize: 15, fontWeight: 700, color: '#c62828' },
-
-    // Botão principal
     btnMain: {
       width: '100%',
       padding: '14px',
@@ -295,8 +426,6 @@ function Encomendas() {
       boxShadow: '0 4px 14px rgba(26,107,90,0.28)',
       marginTop: 4,
     },
-
-    // Mensagem feedback
     msgSucesso: {
       marginTop: 12,
       padding: '10px 14px',
@@ -315,8 +444,6 @@ function Encomendas() {
       fontSize: 13,
       fontWeight: 600,
     },
-
-    // Lista topo
     listTop: {
       padding: '16px 20px 12px',
       display: 'flex',
@@ -338,15 +465,12 @@ function Encomendas() {
       padding: '3px 10px',
       borderRadius: 20,
     },
-
     encList: {
       padding: '14px 16px 16px',
       display: 'flex',
       flexDirection: 'column',
       gap: 10,
     },
-
-    // Card de encomenda
     encCard: {
       border: '1px solid #e8e8e8',
       borderLeft: '4px solid #29abe2',
@@ -365,7 +489,6 @@ function Encomendas() {
       background: '#f0f8ff',
       borderRadius: '0 12px 0 56px',
     },
-
     encTop: {
       display: 'flex',
       justifyContent: 'space-between',
@@ -458,7 +581,6 @@ function Encomendas() {
       justifyContent: 'center',
       gap: 5,
     },
-
     empty: {
       textAlign: 'center',
       padding: '40px 20px',
@@ -470,7 +592,6 @@ function Encomendas() {
   return (
     <div style={s.page}>
 
-      {/* ── Cabeçalho da página ── */}
       <PageHeader
         title="Encomendas"
         subtitle="Registre e acompanhe pedidos"
@@ -490,15 +611,22 @@ function Encomendas() {
 
               <div style={s.fieldWrap}>
                 <label style={s.label}>Cliente <span style={{ color: '#e74c3c' }}>*</span></label>
-                <select
-                  style={s.select}
-                  value={cliente ? cliente.id : ''}
-                  onChange={e => setCliente(clientes.find(c => c.id === e.target.value) || null)}
-                >
-                  <option value="">Selecione o cliente...</option>
-                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
+                <BuscaCliente
+                  clientes={clientes}
+                  cliente={cliente}
+                  onSelecionar={setCliente}
+                  campoStyle={s.input}
+                />
               </div>
+
+              {cliente && (
+                <div style={{
+                  background: '#f0f9f0', border: '1px solid #4caf50', borderRadius: '8px',
+                  padding: '10px', marginBottom: '14px', fontSize: '13px'
+                }}>
+                  ✅ <strong>{cliente.nome}</strong> {cliente.telefone && `— ${cliente.telefone}`}
+                </div>
+              )}
 
               <div style={s.fieldWrap}>
                 <label style={s.label}>Descrição do Produto <span style={{ color: '#e74c3c' }}>*</span></label>
@@ -533,7 +661,6 @@ function Encomendas() {
                 </div>
               </div>
 
-              {/* Card de lucro */}
               {lucro !== null && (
                 <div style={{
                   ...s.lucroBox,
